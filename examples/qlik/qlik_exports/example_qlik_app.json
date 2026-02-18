@@ -1,0 +1,241 @@
+{
+  "qTitle": "Exemple Tableau de Bord Ventes",
+  "qDocId": "example-app-001",
+  "properties": {
+    "qDimensionList": {
+      "qItems": [
+        {
+          "qInfo": {
+            "qId": "dim_product_category",
+            "qType": "dimension"
+          },
+          "qMeta": {
+            "title": "Catégorie de Produit",
+            "description": "Catégories des produits vendus"
+          },
+          "qDim": {
+            "qFieldDefs": ["ProductCategory"],
+            "qGrouping": "N",
+            "qFieldLabels": ["Catégorie"]
+          }
+        },
+        {
+          "qInfo": {
+            "qId": "dim_region",
+            "qType": "dimension"
+          },
+          "qMeta": {
+            "title": "Région de Vente",
+            "description": "Régions géographiques"
+          },
+          "qDim": {
+            "qFieldDefs": ["SalesRegion"],
+            "qGrouping": "N",
+            "qFieldLabels": ["Région"]
+          }
+        },
+        {
+          "qInfo": {
+            "qId": "dim_year",
+            "qType": "dimension"
+          },
+          "qMeta": {
+            "title": "Année",
+            "description": "Année fiscale"
+          },
+          "qDim": {
+            "qFieldDefs": ["Year(SalesDate)"],
+            "qGrouping": "N",
+            "qFieldLabels": ["Année"]
+          }
+        },
+        {
+          "qInfo": {
+            "qId": "dim_customer",
+            "qType": "dimension"
+          },
+          "qMeta": {
+            "title": "Client",
+            "description": "Nom du client"
+          },
+          "qDim": {
+            "qFieldDefs": ["CustomerName"],
+            "qGrouping": "N"
+          }
+        }
+      ]
+    },
+    "qMeasureList": {
+      "qItems": [
+        {
+          "qInfo": {
+            "qId": "mea_total_sales",
+            "qType": "measure"
+          },
+          "qMeta": {
+            "title": "Ventes Totales",
+            "description": "Somme de toutes les ventes"
+          },
+          "qMeasure": {
+            "qDef": "Sum(SalesAmount)",
+            "qNumFormat": {
+              "qFmt": "#,##0.00 €",
+              "qDec": ".",
+              "qThou": ","
+            }
+          }
+        },
+        {
+          "qInfo": {
+            "qId": "mea_avg_sales",
+            "qType": "measure"
+          },
+          "qMeta": {
+            "title": "Vente Moyenne",
+            "description": "Moyenne des ventes"
+          },
+          "qMeasure": {
+            "qDef": "Avg(SalesAmount)",
+            "qNumFormat": {
+              "qFmt": "#,##0.00 €"
+            }
+          }
+        },
+        {
+          "qInfo": {
+            "qId": "mea_count_orders",
+            "qType": "measure"
+          },
+          "qMeta": {
+            "title": "Nombre de Commandes",
+            "description": "Total des commandes"
+          },
+          "qMeasure": {
+            "qDef": "Count(OrderID)",
+            "qNumFormat": {
+              "qFmt": "#,##0"
+            }
+          }
+        },
+        {
+          "qInfo": {
+            "qId": "mea_profit_margin",
+            "qType": "measure"
+          },
+          "qMeta": {
+            "title": "Marge Bénéficiaire",
+            "description": "Marge en pourcentage"
+          },
+          "qMeasure": {
+            "qDef": "Sum(Profit) / Sum(SalesAmount)",
+            "qNumFormat": {
+              "qFmt": "0.0%"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "sheets": [
+    {
+      "qProperty": {
+        "qInfo": {
+          "qId": "sheet_overview",
+          "qType": "sheet"
+        },
+        "qMetaDef": {
+          "title": "Vue d'ensemble",
+          "description": "Tableau de bord principal"
+        }
+      },
+      "cells": [
+        {
+          "name": "viz_sales_by_category",
+          "type": "barchart",
+          "title": "Ventes par Catégorie",
+          "properties": {
+            "orientation": "vertical",
+            "showLegend": true,
+            "color": {
+              "auto": false,
+              "mode": "primary"
+            }
+          }
+        },
+        {
+          "name": "viz_sales_trend",
+          "type": "linechart",
+          "title": "Tendance des Ventes",
+          "properties": {
+            "dataPoints": true,
+            "showLegend": true,
+            "gridlines": true
+          }
+        },
+        {
+          "name": "viz_regional_breakdown",
+          "type": "piechart",
+          "title": "Répartition Régionale",
+          "properties": {
+            "showLabels": true,
+            "showValues": true
+          }
+        },
+        {
+          "name": "viz_kpi_total",
+          "type": "kpi",
+          "title": "Total Ventes",
+          "properties": {
+            "fontSize": "large",
+            "alignment": "center"
+          }
+        },
+        {
+          "name": "viz_orders_table",
+          "type": "table",
+          "title": "Détail des Ventes",
+          "properties": {
+            "pagination": true,
+            "rowsPerPage": 10
+          }
+        }
+      ]
+    },
+    {
+      "qProperty": {
+        "qInfo": {
+          "qId": "sheet_analysis",
+          "qType": "sheet"
+        },
+        "qMetaDef": {
+          "title": "Analyse Détaillée",
+          "description": "Analyses avancées"
+        }
+      },
+      "cells": [
+        {
+          "name": "viz_customer_scatter",
+          "type": "scatterplot",
+          "title": "Analyse Clients",
+          "properties": {
+            "showTrendLine": true
+          }
+        },
+        {
+          "name": "viz_product_treemap",
+          "type": "treemap",
+          "title": "Hiérarchie Produits",
+          "properties": {
+            "showLabels": true
+          }
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "created": "2026-02-12",
+    "author": "Migration Script",
+    "description": "Application exemple pour démonstration de migration Qlik → Power BI"
+  }
+}

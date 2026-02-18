@@ -1,0 +1,29 @@
+// Script Qlik Simple - Exemple de Migration
+
+// Chargement des clients
+LOAD
+    CustomerID,
+    CustomerName,
+    Country
+FROM [C:\Data\Customers.csv]
+(txt, codepage is 1252, embedded labels, delimiter is ',', msq);
+
+// Chargement des produits
+LOAD
+    ProductID,
+    ProductName,
+    Category,
+    UnitPrice
+FROM [C:\Data\Products.csv]
+(txt, codepage is 1252, embedded labels, delimiter is ',', msq);
+
+// Chargement des ventes
+LOAD
+    OrderID,
+    OrderDate,
+    CustomerID,
+    ProductID,
+    Quantity
+FROM [C:\Data\Sales.csv]
+(txt, codepage is 1252, embedded labels, delimiter is ',', msq)
+WHERE OrderDate >= Date('2023-01-01');

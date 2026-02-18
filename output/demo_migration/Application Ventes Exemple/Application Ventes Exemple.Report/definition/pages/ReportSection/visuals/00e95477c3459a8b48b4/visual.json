@@ -1,0 +1,75 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "00e95477c3459a8b48b4",
+  "position": {
+    "x": 650,
+    "y": 10,
+    "z": 1001,
+    "height": 340,
+    "width": 620,
+    "tabOrder": 1001
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "drillFilterOtherVisuals": true,
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Customers"
+                    }
+                  },
+                  "Property": "CustomerName"
+                }
+              },
+              "queryRef": "Customers.CustomerName",
+              "nativeQueryRef": "CustomerName",
+              "active": true,
+              "displayName": "Nom du Client"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Products"
+                    }
+                  },
+                  "Property": "ProductName"
+                }
+              },
+              "queryRef": "Products.ProductName",
+              "nativeQueryRef": "ProductName",
+              "active": true,
+              "displayName": "Nom du Produit"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Sales"
+                    }
+                  },
+                  "Property": "CA Total"
+                }
+              },
+              "queryRef": "Sales.CA Total",
+              "nativeQueryRef": "CA Total",
+              "displayName": "CA Total"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

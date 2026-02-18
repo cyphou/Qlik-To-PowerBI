@@ -1,0 +1,41 @@
+table Products
+	lineageTag: 19e1e365-be88-4acf-8ade-b3665e79b6ce
+
+	column CategoryID
+		dataType: int64
+		formatString: 0
+		lineageTag: a536153e-6192-4c5a-8726-ef82f4e5edca
+		summarizeBy: none
+		sourceColumn: CategoryID
+		annotation SummarizationSetBy = Automatic
+
+	column ProductID
+		dataType: int64
+		formatString: 0
+		lineageTag: 5049607b-997a-42b5-82d8-bfd754060fa6
+		summarizeBy: none
+		sourceColumn: ProductID
+		annotation SummarizationSetBy = Automatic
+
+	column ProductName
+		dataType: string
+		lineageTag: 09986e3a-ffe8-4d3d-b6c8-0382d2d3d3f2
+		summarizeBy: none
+		sourceColumn: ProductName
+		annotation SummarizationSetBy = Automatic
+
+	column UnitPrice
+		dataType: double
+		formatString: #,0.00
+		lineageTag: 548008b9-7cff-42ea-960d-bcb406985177
+		summarizeBy: none
+		sourceColumn: UnitPrice
+		annotation SummarizationSetBy = Automatic
+
+	partition ProductsPartition = m
+		mode: import
+		source =
+			let
+			    Source = #"Products"
+			in
+			    Source

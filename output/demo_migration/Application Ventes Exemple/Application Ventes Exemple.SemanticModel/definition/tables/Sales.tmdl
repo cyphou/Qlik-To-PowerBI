@@ -1,0 +1,109 @@
+table Sales
+	lineageTag: ac5df68f-fbcc-41e7-bdea-d12804d41643
+
+	column Amount
+		dataType: double
+		formatString: #,0.00
+		lineageTag: b0bd362e-4d90-4204-b8ba-013c33022a95
+		summarizeBy: none
+		sourceColumn: Amount
+		annotation SummarizationSetBy = Automatic
+
+	column CustomerID
+		dataType: int64
+		formatString: 0
+		lineageTag: 38c8e166-d080-4006-b573-6183ce2fea70
+		summarizeBy: none
+		sourceColumn: CustomerID
+		annotation SummarizationSetBy = Automatic
+
+	column Day
+		dataType: int64
+		formatString: 0
+		lineageTag: ad64c28b-24d4-4d69-92f4-125b274ed9b5
+		summarizeBy: none
+		sourceColumn: Day
+		annotation SummarizationSetBy = Automatic
+
+	column Month
+		dataType: int64
+		formatString: 0
+		lineageTag: 15b1dcfc-d6ec-4c8a-906f-d241a37e0536
+		summarizeBy: none
+		sourceColumn: Month
+		annotation SummarizationSetBy = Automatic
+
+	column OrderDate
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: ba551aa0-ba92-4299-bd6c-884d04b355c2
+		summarizeBy: none
+		sourceColumn: OrderDate
+		annotation SummarizationSetBy = Automatic
+		annotation UnderlyingDateTimeDataType = Date
+
+	column ProductID
+		dataType: int64
+		formatString: 0
+		lineageTag: 1a089d97-ea55-4486-a42f-ced4efffd38d
+		summarizeBy: none
+		sourceColumn: ProductID
+		annotation SummarizationSetBy = Automatic
+
+	column Quantity
+		dataType: double
+		formatString: #,0.00
+		lineageTag: aec08c45-6268-4c5a-aec1-873b94dc3b81
+		summarizeBy: none
+		sourceColumn: Quantity
+		annotation SummarizationSetBy = Automatic
+
+	column Quarter
+		dataType: int64
+		formatString: 0
+		lineageTag: 77ae7e39-a167-4672-b9d5-503b9d13493b
+		summarizeBy: none
+		sourceColumn: Quarter
+		annotation SummarizationSetBy = Automatic
+
+	column SaleID
+		dataType: int64
+		formatString: 0
+		lineageTag: 54c599ff-94bc-419a-b4f7-107b32a3183a
+		summarizeBy: none
+		sourceColumn: SaleID
+		annotation SummarizationSetBy = Automatic
+
+	column Year
+		dataType: int64
+		formatString: 0
+		lineageTag: 8dac91f5-bcf1-47b9-a309-34b2bb1bcf66
+		summarizeBy: none
+		sourceColumn: Year
+		annotation SummarizationSetBy = Automatic
+
+	measure 'CA Total' = SUM('Sales'[Amount])
+		lineageTag: 9be9b219-4758-40e3-b78a-b89692da441c
+		formatString: #,0.00
+
+	measure 'Qté Totale' = SUM('Sales'[Quantity])
+		lineageTag: e999d671-ab4a-4431-b1c7-a9cf5dd56324
+		formatString: #,0.00
+
+	hierarchy 'OrderDate Hierarchy'
+		level Year
+			column: Year
+		level Quarter
+			column: Quarter
+		level Month
+			column: Month
+		level Day
+			column: Day
+
+	partition SalesPartition = m
+		mode: import
+		source =
+			let
+			    Source = #"Sales"
+			in
+			    Source

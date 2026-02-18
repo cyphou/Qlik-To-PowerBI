@@ -1,0 +1,32 @@
+table Categories
+	lineageTag: 217dbbbf-83f1-4e43-a388-9974adcab3bb
+
+	column CategoryID
+		dataType: int64
+		formatString: 0
+		lineageTag: 71008f82-d1e9-47d3-be76-e59a18d0936a
+		summarizeBy: none
+		sourceColumn: CategoryID
+		annotation SummarizationSetBy = Automatic
+
+	column CategoryName
+		dataType: string
+		lineageTag: 8f3ab7dc-e8ae-49aa-a4f6-ff44e2ac1af8
+		summarizeBy: none
+		sourceColumn: CategoryName
+		annotation SummarizationSetBy = Automatic
+
+	column Description
+		dataType: string
+		lineageTag: 296684bf-284e-4d3a-94af-2c48a273b9bf
+		summarizeBy: none
+		sourceColumn: Description
+		annotation SummarizationSetBy = Automatic
+
+	partition CategoriesPartition = m
+		mode: import
+		source =
+			let
+			    Source = #"Categories"
+			in
+			    Source

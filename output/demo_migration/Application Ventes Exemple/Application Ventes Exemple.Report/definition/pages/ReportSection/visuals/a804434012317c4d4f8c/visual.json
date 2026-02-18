@@ -1,0 +1,39 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "a804434012317c4d4f8c",
+  "position": {
+    "x": 10,
+    "y": 10,
+    "z": 1000,
+    "height": 340,
+    "width": 620,
+    "tabOrder": 1000
+  },
+  "visual": {
+    "visualType": "card",
+    "drillFilterOtherVisuals": true,
+    "query": {
+      "queryState": {
+        "Fields": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Sales"
+                    }
+                  },
+                  "Property": "CA Total"
+                }
+              },
+              "queryRef": "Sales.CA Total",
+              "nativeQueryRef": "CA Total",
+              "displayName": "CA Total"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

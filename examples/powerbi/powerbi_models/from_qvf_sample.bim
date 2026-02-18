@@ -1,0 +1,31 @@
+{
+  "name": "Migrated Qlik Model",
+  "compatibilityLevel": 1567,
+  "model": {
+    "culture": "en-US",
+    "dataSources": [],
+    "tables": [
+      {
+        "name": "Unknown",
+        "columns": [],
+        "partitions": [
+          {
+            "name": "UnknownPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Unknown\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": []
+      }
+    ],
+    "relationships": [],
+    "annotations": [
+      {
+        "name": "MigratedFrom",
+        "value": "Qlik Sense"
+      }
+    ]
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "name": "Migrated Qlik Model",
+  "compatibilityLevel": 1567,
+  "model": {
+    "culture": "en-US",
+    "dataSources": [],
+    "tables": [
+      {
+        "name": "Sales",
+        "columns": [],
+        "partitions": [
+          {
+            "name": "SalesPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Sales\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": [],
+        "hierarchies": [
+          {
+            "name": "ShipDate Hierarchy",
+            "levels": [
+              {
+                "name": "Year",
+                "column": "ShipDate.Year",
+                "ordinal": 0
+              },
+              {
+                "name": "Quarter",
+                "column": "ShipDate.Quarter",
+                "ordinal": 1
+              },
+              {
+                "name": "Month",
+                "column": "ShipDate.Month",
+                "ordinal": 2
+              },
+              {
+                "name": "Day",
+                "column": "ShipDate.Day",
+                "ordinal": 3
+              }
+            ],
+            "hidden": false
+          },
+          {
+            "name": "OrderDate Hierarchy",
+            "levels": [
+              {
+                "name": "Year",
+                "column": "OrderDate.Year",
+                "ordinal": 0
+              },
+              {
+                "name": "Quarter",
+                "column": "OrderDate.Quarter",
+                "ordinal": 1
+              },
+              {
+                "name": "Month",
+                "column": "OrderDate.Month",
+                "ordinal": 2
+              },
+              {
+                "name": "Day",
+                "column": "OrderDate.Day",
+                "ordinal": 3
+              }
+            ],
+            "hidden": false
+          }
+        ]
+      },
+      {
+        "name": "Calendar",
+        "columns": [],
+        "partitions": [
+          {
+            "name": "CalendarPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Calendar\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": [],
+        "hierarchies": [
+          {
+            "name": "Date Hierarchy",
+            "levels": [
+              {
+                "name": "Year",
+                "column": "Date.Year",
+                "ordinal": 0
+              },
+              {
+                "name": "Quarter",
+                "column": "Date.Quarter",
+                "ordinal": 1
+              },
+              {
+                "name": "Month",
+                "column": "Date.Month",
+                "ordinal": 2
+              },
+              {
+                "name": "Day",
+                "column": "Date.Day",
+                "ordinal": 3
+              }
+            ],
+            "hidden": false
+          }
+        ]
+      }
+    ],
+    "relationships": [],
+    "annotations": [
+      {
+        "name": "MigratedFrom",
+        "value": "Qlik Sense"
+      }
+    ]
+  }
+}

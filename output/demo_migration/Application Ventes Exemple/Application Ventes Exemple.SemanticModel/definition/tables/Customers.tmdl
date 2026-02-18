@@ -1,0 +1,46 @@
+table Customers
+	lineageTag: eb8e6f0a-a2b3-416e-aaf2-4c2916b20ecd
+
+	column City
+		dataType: string
+		lineageTag: 59e4cd13-bce0-4acf-86f5-05937306c03d
+		summarizeBy: none
+		sourceColumn: City
+		annotation SummarizationSetBy = Automatic
+
+	column Country
+		dataType: string
+		lineageTag: 715b5a1b-4eb3-453d-a80c-7e98ae1ce6b7
+		summarizeBy: none
+		sourceColumn: Country
+		annotation SummarizationSetBy = Automatic
+
+	column CustomerID
+		dataType: int64
+		formatString: 0
+		lineageTag: ea43b515-6167-49e2-99a5-67a135b67c1e
+		summarizeBy: none
+		sourceColumn: CustomerID
+		annotation SummarizationSetBy = Automatic
+
+	column CustomerName
+		dataType: string
+		lineageTag: 15b80dd2-21f0-4944-af41-190687ba178a
+		summarizeBy: none
+		sourceColumn: CustomerName
+		annotation SummarizationSetBy = Automatic
+
+	column Region
+		dataType: string
+		lineageTag: cc80299b-2a25-4b10-9b33-1783881e767f
+		summarizeBy: none
+		sourceColumn: Region
+		annotation SummarizationSetBy = Automatic
+
+	partition CustomersPartition = m
+		mode: import
+		source =
+			let
+			    Source = #"Customers"
+			in
+			    Source

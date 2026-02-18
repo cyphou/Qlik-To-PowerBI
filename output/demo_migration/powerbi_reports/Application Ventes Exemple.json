@@ -1,0 +1,59 @@
+{
+  "displayName": "Application Ventes Exemple",
+  "type": "Report",
+  "definition": {
+    "version": "1.0",
+    "culture": "en-US",
+    "model": {
+      "tables": [
+        {
+          "name": "MigratedData",
+          "columns": [],
+          "measures": []
+        }
+      ]
+    },
+    "pages": [
+      {
+        "name": "Page1",
+        "displayName": "Overview",
+        "visuals": [
+          {
+            "name": "KPI-001",
+            "visualType": "card",
+            "title": "",
+            "dimensions": [],
+            "measures": [],
+            "properties": {}
+          },
+          {
+            "name": "Chart-001",
+            "visualType": "clusteredBarChart",
+            "title": "",
+            "dimensions": [],
+            "measures": [],
+            "properties": {}
+          },
+          {
+            "name": "Table-001",
+            "visualType": "table",
+            "title": "",
+            "dimensions": [],
+            "measures": [],
+            "properties": {}
+          }
+        ]
+      }
+    ],
+    "dataModelSchema": {
+      "name": "MigratedDataset",
+      "tables": [
+        {
+          "name": "FactTable",
+          "columns": [],
+          "measures": []
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,276 @@
+{
+  "name": "Migrated Qlik Model",
+  "compatibilityLevel": 1567,
+  "model": {
+    "culture": "en-US",
+    "dataSources": [],
+    "tables": [
+      {
+        "name": "Sales",
+        "columns": [],
+        "partitions": [
+          {
+            "name": "SalesPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Sales\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": [],
+        "hierarchies": [
+          {
+            "name": "OrderDate Hierarchy",
+            "levels": [
+              {
+                "name": "Year",
+                "column": "OrderDate.Year",
+                "ordinal": 0
+              },
+              {
+                "name": "Quarter",
+                "column": "OrderDate.Quarter",
+                "ordinal": 1
+              },
+              {
+                "name": "Month",
+                "column": "OrderDate.Month",
+                "ordinal": 2
+              },
+              {
+                "name": "Day",
+                "column": "OrderDate.Day",
+                "ordinal": 3
+              }
+            ],
+            "hidden": false
+          },
+          {
+            "name": "ShipDate Hierarchy",
+            "levels": [
+              {
+                "name": "Year",
+                "column": "ShipDate.Year",
+                "ordinal": 0
+              },
+              {
+                "name": "Quarter",
+                "column": "ShipDate.Quarter",
+                "ordinal": 1
+              },
+              {
+                "name": "Month",
+                "column": "ShipDate.Month",
+                "ordinal": 2
+              },
+              {
+                "name": "Day",
+                "column": "ShipDate.Day",
+                "ordinal": 3
+              }
+            ],
+            "hidden": false
+          }
+        ]
+      },
+      {
+        "name": "Customers",
+        "columns": [],
+        "partitions": [
+          {
+            "name": "CustomersPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Customers\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": []
+      },
+      {
+        "name": "Products",
+        "columns": [],
+        "partitions": [
+          {
+            "name": "ProductsPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Products\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": []
+      },
+      {
+        "name": "Categories",
+        "columns": [],
+        "partitions": [
+          {
+            "name": "CategoriesPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Categories\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": []
+      },
+      {
+        "name": "Employees",
+        "columns": [],
+        "partitions": [
+          {
+            "name": "EmployeesPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Employees\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": [],
+        "hierarchies": [
+          {
+            "name": "HireDate Hierarchy",
+            "levels": [
+              {
+                "name": "Year",
+                "column": "HireDate.Year",
+                "ordinal": 0
+              },
+              {
+                "name": "Quarter",
+                "column": "HireDate.Quarter",
+                "ordinal": 1
+              },
+              {
+                "name": "Month",
+                "column": "HireDate.Month",
+                "ordinal": 2
+              },
+              {
+                "name": "Day",
+                "column": "HireDate.Day",
+                "ordinal": 3
+              }
+            ],
+            "hidden": false
+          }
+        ]
+      },
+      {
+        "name": "Regions",
+        "columns": [],
+        "partitions": [
+          {
+            "name": "RegionsPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Regions\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": []
+      },
+      {
+        "name": "Calendar",
+        "columns": [],
+        "partitions": [
+          {
+            "name": "CalendarPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Calendar\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": [],
+        "hierarchies": [
+          {
+            "name": "Date Hierarchy",
+            "levels": [
+              {
+                "name": "Year",
+                "column": "Date.Year",
+                "ordinal": 0
+              },
+              {
+                "name": "Quarter",
+                "column": "Date.Quarter",
+                "ordinal": 1
+              },
+              {
+                "name": "Month",
+                "column": "Date.Month",
+                "ordinal": 2
+              },
+              {
+                "name": "Day",
+                "column": "Date.Day",
+                "ordinal": 3
+              }
+            ],
+            "hidden": false
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "name": "Customers_Sales",
+        "fromTable": "Customers",
+        "fromColumn": "CustomerID",
+        "toTable": "Sales",
+        "toColumn": "CustomerID",
+        "crossFilteringBehavior": "Single",
+        "securityFilteringBehavior": "OneDirection",
+        "isActive": true
+      },
+      {
+        "name": "Products_Sales",
+        "fromTable": "Products",
+        "fromColumn": "ProductID",
+        "toTable": "Sales",
+        "toColumn": "ProductID",
+        "crossFilteringBehavior": "Single",
+        "securityFilteringBehavior": "OneDirection",
+        "isActive": true
+      },
+      {
+        "name": "Employees_Sales",
+        "fromTable": "Employees",
+        "fromColumn": "EmployeeID",
+        "toTable": "Sales",
+        "toColumn": "EmployeeID",
+        "crossFilteringBehavior": "Single",
+        "securityFilteringBehavior": "OneDirection",
+        "isActive": true
+      },
+      {
+        "name": "Regions_Customers",
+        "fromTable": "Regions",
+        "fromColumn": "RegionID",
+        "toTable": "Customers",
+        "toColumn": "RegionID",
+        "crossFilteringBehavior": "Single",
+        "securityFilteringBehavior": "OneDirection",
+        "isActive": true
+      },
+      {
+        "name": "Categories_Products",
+        "fromTable": "Categories",
+        "fromColumn": "CategoryID",
+        "toTable": "Products",
+        "toColumn": "CategoryID",
+        "crossFilteringBehavior": "Single",
+        "securityFilteringBehavior": "OneDirection",
+        "isActive": true
+      }
+    ],
+    "annotations": [
+      {
+        "name": "MigratedFrom",
+        "value": "Qlik Sense"
+      }
+    ]
+  }
+}

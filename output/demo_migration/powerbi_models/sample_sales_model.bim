@@ -1,0 +1,408 @@
+{
+  "name": "Migrated Qlik Model",
+  "compatibilityLevel": 1600,
+  "model": {
+    "culture": "en-US",
+    "dataSources": [],
+    "tables": [
+      {
+        "name": "Sales",
+        "columns": [
+          {
+            "name": "Amount",
+            "dataType": "double",
+            "sourceColumn": "Amount",
+            "formatString": "#,0.00",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "CustomerID",
+            "dataType": "int64",
+            "sourceColumn": "CustomerID",
+            "formatString": "0",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Day",
+            "dataType": "int64",
+            "sourceColumn": "Day",
+            "formatString": "0",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Month",
+            "dataType": "int64",
+            "sourceColumn": "Month",
+            "formatString": "0",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "OrderDate",
+            "dataType": "dateTime",
+            "sourceColumn": "OrderDate",
+            "formatString": "Long Date",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              },
+              {
+                "name": "UnderlyingDateTimeDataType",
+                "value": "Date"
+              }
+            ]
+          },
+          {
+            "name": "ProductID",
+            "dataType": "int64",
+            "sourceColumn": "ProductID",
+            "formatString": "0",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Quantity",
+            "dataType": "double",
+            "sourceColumn": "Quantity",
+            "formatString": "#,0.00",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Quarter",
+            "dataType": "int64",
+            "sourceColumn": "Quarter",
+            "formatString": "0",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "SaleID",
+            "dataType": "int64",
+            "sourceColumn": "SaleID",
+            "formatString": "0",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Year",
+            "dataType": "int64",
+            "sourceColumn": "Year",
+            "formatString": "0",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "SalesPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Sales\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": [
+          {
+            "name": "CA Total",
+            "expression": "SUM('Sales'[Amount])",
+            "formatString": "#,0.00"
+          },
+          {
+            "name": "Qté Totale",
+            "expression": "SUM('Sales'[Quantity])",
+            "formatString": "#,0.00"
+          }
+        ],
+        "hierarchies": [
+          {
+            "name": "OrderDate Hierarchy",
+            "levels": [
+              {
+                "name": "Year",
+                "column": "Year",
+                "ordinal": 0
+              },
+              {
+                "name": "Quarter",
+                "column": "Quarter",
+                "ordinal": 1
+              },
+              {
+                "name": "Month",
+                "column": "Month",
+                "ordinal": 2
+              },
+              {
+                "name": "Day",
+                "column": "Day",
+                "ordinal": 3
+              }
+            ],
+            "hidden": false
+          }
+        ]
+      },
+      {
+        "name": "Customers",
+        "columns": [
+          {
+            "name": "City",
+            "dataType": "string",
+            "sourceColumn": "City",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Country",
+            "dataType": "string",
+            "sourceColumn": "Country",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "CustomerID",
+            "dataType": "int64",
+            "sourceColumn": "CustomerID",
+            "formatString": "0",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "CustomerName",
+            "dataType": "string",
+            "sourceColumn": "CustomerName",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Region",
+            "dataType": "string",
+            "sourceColumn": "Region",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "CustomersPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Customers\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": []
+      },
+      {
+        "name": "Products",
+        "columns": [
+          {
+            "name": "CategoryID",
+            "dataType": "int64",
+            "sourceColumn": "CategoryID",
+            "formatString": "0",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ProductID",
+            "dataType": "int64",
+            "sourceColumn": "ProductID",
+            "formatString": "0",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "ProductName",
+            "dataType": "string",
+            "sourceColumn": "ProductName",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "UnitPrice",
+            "dataType": "double",
+            "sourceColumn": "UnitPrice",
+            "formatString": "#,0.00",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "ProductsPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Products\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": []
+      },
+      {
+        "name": "Categories",
+        "columns": [
+          {
+            "name": "CategoryID",
+            "dataType": "int64",
+            "sourceColumn": "CategoryID",
+            "formatString": "0",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "CategoryName",
+            "dataType": "string",
+            "sourceColumn": "CategoryName",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          },
+          {
+            "name": "Description",
+            "dataType": "string",
+            "sourceColumn": "Description",
+            "annotations": [
+              {
+                "name": "SummarizationSetBy",
+                "value": "Automatic"
+              }
+            ]
+          }
+        ],
+        "partitions": [
+          {
+            "name": "CategoriesPartition",
+            "source": {
+              "type": "m",
+              "expression": "let\\n    Source = #\\\"Categories\\\"\\nin\\n    Source"
+            }
+          }
+        ],
+        "measures": []
+      }
+    ],
+    "relationships": [
+      {
+        "name": "Sales_Customers",
+        "fromTable": "Sales",
+        "fromColumn": "CustomerID",
+        "toTable": "Customers",
+        "toColumn": "CustomerID",
+        "crossFilteringBehavior": "Single",
+        "securityFilteringBehavior": "OneDirection",
+        "isActive": true
+      },
+      {
+        "name": "Sales_Products",
+        "fromTable": "Sales",
+        "fromColumn": "ProductID",
+        "toTable": "Products",
+        "toColumn": "ProductID",
+        "crossFilteringBehavior": "Single",
+        "securityFilteringBehavior": "OneDirection",
+        "isActive": true
+      },
+      {
+        "name": "Products_Categories",
+        "fromTable": "Products",
+        "fromColumn": "CategoryID",
+        "toTable": "Categories",
+        "toColumn": "CategoryID",
+        "crossFilteringBehavior": "Single",
+        "securityFilteringBehavior": "OneDirection",
+        "isActive": true
+      }
+    ],
+    "annotations": [
+      {
+        "name": "MigratedFrom",
+        "value": "Qlik Sense"
+      }
+    ]
+  }
+}

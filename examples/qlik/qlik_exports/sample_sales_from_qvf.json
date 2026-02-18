@@ -1,0 +1,82 @@
+{
+  "name": "Application Ventes Exemple",
+  "description": "Application de démonstration pour la migration",
+  "loadScript": "\n// Script de chargement des ventes\n\nSET ThousandSep=' ';\nSET DecimalSep=',';\nSET MoneyFormat='# ##0,00 €';\nSET DateFormat='DD/MM/YYYY';\n\n// Chargement des ventes\nSales:\nLOAD\n    SaleID,\n    CustomerID,\n    ProductID,\n    OrderDate,\n    Amount,\n    Quantity\nFROM [Sales.csv]\n(txt, codepage is 1252, embedded labels, delimiter is ',');\n\n// Chargement des clients\nCustomers:\nLOAD\n    CustomerID,\n    CustomerName,\n    Country,\n    City,\n    Region\nFROM [Customers.xlsx]\n(ooxml, embedded labels, table is Customers);\n\n// Chargement des produits\nProducts:\nLOAD\n    ProductID,\n    ProductName,\n    CategoryID,\n    UnitPrice\nFROM [Products.qvd]\n(qvd);\n\n// Catégories\nCategories:\nLOAD\n    CategoryID,\n    CategoryName,\n    Description\nINLINE [\n    CategoryID, CategoryName, Description\n    1, Electronics, Electronic devices\n    2, Clothing, Apparel and accessories\n    3, Food, Food products\n];\n",
+  "dimensions": [
+    {
+      "name": "Client",
+      "field": "CustomerName",
+      "label": "Nom du Client",
+      "id": "dim-001"
+    },
+    {
+      "name": "Produit",
+      "field": "ProductName",
+      "label": "Nom du Produit",
+      "id": "dim-002"
+    }
+  ],
+  "measures": [
+    {
+      "name": "Chiffre d'Affaires",
+      "expression": "Sum(Amount)",
+      "label": "CA Total",
+      "id": "measure-001"
+    },
+    {
+      "name": "Quantité Vendue",
+      "expression": "Sum(Quantity)",
+      "label": "Qté Totale",
+      "id": "measure-002"
+    }
+  ],
+  "sheets": [
+    {
+      "name": "Tableau de Bord Ventes",
+      "description": "Vue d'ensemble des ventes",
+      "id": "sheet-001",
+      "cells": [
+        {
+          "name": "KPI-001",
+          "type": "kpi",
+          "col": 0,
+          "row": 0
+        },
+        {
+          "name": "Chart-001",
+          "type": "barchart",
+          "col": 1,
+          "row": 0
+        },
+        {
+          "name": "Table-001",
+          "type": "table",
+          "col": 0,
+          "row": 1
+        }
+      ]
+    }
+  ],
+  "visualizations": [],
+  "tables": [
+    {
+      "name": "Unknown",
+      "fields": []
+    }
+  ],
+  "associations": [],
+  "variables": [
+    {
+      "name": "vCurrentYear",
+      "value": "Year(Today())",
+      "comment": "Année en cours"
+    }
+  ],
+  "metadata": {
+    "name": "Application Ventes Exemple",
+    "description": "Application de démonstration pour la migration",
+    "author": "Migration Tool",
+    "created": "2026-02-12",
+    "modified": "2026-02-12"
+  }
+}

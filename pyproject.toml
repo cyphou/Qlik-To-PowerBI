@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "qlik-to-powerbi"
+version = "2.0.0"
+description = "Qlik Sense to Power BI migration toolkit — generates PBI Projects (TMDL)"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+    "pydantic>=2.5",
+    "pydantic-settings>=2.1",
+]
+
+[project.optional-dependencies]
+azure = [
+    "azure-identity>=1.14",
+    "azure-core>=1.29",
+]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+]
+all = ["qlik-to-powerbi[azure,dev]"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "b147bf7d74fad2dfaf24",
+  "position": {
+    "x": 10,
+    "y": 360,
+    "z": 1002,
+    "height": 340,
+    "width": 620,
+    "tabOrder": 1002
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "drillFilterOtherVisuals": true,
+    "autoSelectVisualType": true,
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Customers"
+                    }
+                  },
+                  "Property": "CustomerName"
+                }
+              },
+              "queryRef": "Customers.CustomerName",
+              "nativeQueryRef": "CustomerName",
+              "active": true,
+              "displayName": "Nom du Client"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Products"
+                    }
+                  },
+                  "Property": "ProductName"
+                }
+              },
+              "queryRef": "Products.ProductName",
+              "nativeQueryRef": "ProductName",
+              "active": true,
+              "displayName": "Nom du Produit"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Sales"
+                    }
+                  },
+                  "Property": "CA Total"
+                }
+              },
+              "queryRef": "Sales.CA Total",
+              "nativeQueryRef": "CA Total",
+              "displayName": "CA Total"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Sales"
+                    }
+                  },
+                  "Property": "Qté Totale"
+                }
+              },
+              "queryRef": "Sales.Qté Totale",
+              "nativeQueryRef": "Qté Totale",
+              "displayName": "Qté Totale"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
