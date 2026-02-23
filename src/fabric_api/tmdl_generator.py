@@ -273,6 +273,9 @@ class TMDLGenerator:
         visualizations: Optional[List[Dict]] = None,
         dimensions: Optional[List[Dict]] = None,
         measures: Optional[List[Dict]] = None,
+        sheets: Optional[List[Dict]] = None,
+        bookmarks: Optional[List[Dict]] = None,
+        theme: Optional[Dict] = None,
     ) -> Path:
         """
         Créer un projet Power BI complet au format 4.0.
@@ -332,6 +335,9 @@ class TMDLGenerator:
             rpt_def_dir, rpt_pages_dir,
             report_name, visualizations, dimensions, measures,
             col_table_map, measure_lookup,
+            sheets=sheets,
+            bookmarks=bookmarks,
+            theme=theme,
         )
 
         logger.info(f"✓ Projet PBI 4.0 créé: {pbip_path}")
@@ -436,6 +442,9 @@ class TMDLGenerator:
         measures: Optional[List[Dict]],
         col_table_map: Optional[Dict[str, str]] = None,
         measure_lookup: Optional[Dict[str, tuple]] = None,
+        sheets: Optional[List[Dict]] = None,
+        bookmarks: Optional[List[Dict]] = None,
+        theme: Optional[Dict] = None,
     ):
         """Write the PBIR definition folder (version.json, report.json, pages/)."""
 
@@ -445,67 +454,167 @@ class TMDLGenerator:
             "version": "2.0.0",
         })
 
-        # report.json (PBIR report-level metadata)
-        _write_json(def_dir / "report.json", {
-            "$schema": _SCHEMA_REPORT,
-            "themeCollection": {
-                "baseTheme": {
-                    "name": "CY24SU06",
-                    "reportVersionAtImport": {
-                        "visual": "1.8.50",
-                        "report": "2.0.50",
-                        "page": "1.3.50",
-                    },
-                    "type": "SharedResources",
+        # ── Theme ─────────────────────────────────────────────
+        theme_config = {
+            "baseTheme": {
+                "name": "CY24SU06",
+                "reportVersionAtImport": {
+                    "visual": "1.8.50",
+                    "report": "2.0.50",
+                    "page": "1.3.50",
                 },
+                "type": "SharedResources",
             },
-            "settings": {
-                "hideVisualContainerHeader": True,
-                "useStylableVisualContainerHeader": True,
-                "defaultDrillFilterOtherVisuals": True,
-                "allowChangeFilterTypes": True,
-                "useEnhancedTooltips": True,
-            },
-        })
+        }
+        if theme and theme.get("name"):
+            theme_config["baseTheme"]["name"] = theme["name"]
 
-        # ── Build pages ──────────────────────────────────────
-        page_name = "ReportSection"
-        page_display = "Page 1"
-        page_dir = pages_dir / page_name
-        page_dir.mkdir(parents=True, exist_ok=True)
+        # report.json
+        report_settings: Dict[str, Any] = {
+            "hideVisualContainerHeader": True,
+            "useStylableVisualContainerHeader": True,
+            "defaultDrillFilterOtherVisuals": True,
+            "allowChangeFilterTypes": True,
+            "useEnhancedTooltips": True,
+            "useCrossReportDrillthrough": False,
+            "isPersistentUserStateDisabled": False,
+        }
+
+        report_json: Dict[str, Any] = {
+            "$schema": _SCHEMA_REPORT,
+            "themeCollection": theme_config,
+            "settings": report_settings,
+        }
+
+        # ── Bookmarks ─────────────────────────────────────────
+        if bookmarks:
+            bm_list = []
+            for bm in bookmarks:
+                bm_entry: Dict[str, Any] = {
+                    "name": _short_id(bm.get("name", "")),
+                    "displayName": bm.get("name", bm.get("title", "Bookmark")),
+                    "explorationState": {},
+                }
+                bm_list.append(bm_entry)
+            if bm_list:
+                report_json["bookmarks"] = bm_list
+
+        _write_json(def_dir / "report.json", report_json)
+
+        # ── Write custom theme if provided ─────────────────────
+        if theme:
+            theme_json = TMDLGenerator.generate_theme_json(theme)
+            themes_dir = def_dir / "StaticResources" / "SharedResources" / "BaseThemes"
+            themes_dir.mkdir(parents=True, exist_ok=True)
+            _write_json(themes_dir / f"{theme.get('name', 'MigratedQlikTheme')}.json", theme_json)
+
+        # ──────────────────────────────────────────────────────
+        # Build pages: one PBI page per Qlik sheet
+        # ──────────────────────────────────────────────────────
+        page_infos = []
+        viz_list = visualizations or []
+
+        if sheets and len(sheets) > 0:
+            # Multi-sheet: create one PBI page per Qlik sheet
+            for idx, sheet in enumerate(sheets):
+                sheet_id = sheet.get("id", f"sheet_{idx}")
+                sheet_title = sheet.get("title", f"Page {idx + 1}")
+                page_name = _sanitize_name(sheet_title).replace(" ", "") or f"Page{idx + 1}"
+                # Collect visuals belonging to this sheet
+                sheet_vizs = [
+                    v for v in viz_list
+                    if v.get("sheetId") == sheet_id
+                ]
+                # If no sheetId matching, distribute visuals across sheets
+                if not sheet_vizs and idx == 0 and viz_list:
+                    # Fallback: put all visuals on first page when IDs don't match
+                    sheet_vizs = viz_list
+                page_infos.append({
+                    "page_name": page_name,
+                    "display_name": sheet_title,
+                    "visualizations": sheet_vizs,
+                    "sheet_raw": sheet,
+                })
+        else:
+            # Single page fallback
+            page_infos.append({
+                "page_name": "ReportSection",
+                "display_name": "Page 1",
+                "visualizations": viz_list,
+            })
 
         # pages.json
+        page_order = [p["page_name"] for p in page_infos]
         _write_json(pages_dir / "pages.json", {
             "$schema": _SCHEMA_PAGES,
-            "pageOrder": [page_name],
-            "activePageName": page_name,
+            "pageOrder": page_order,
+            "activePageName": page_order[0] if page_order else "ReportSection",
         })
 
-        # page.json
-        _write_json(page_dir / "page.json", {
-            "$schema": _SCHEMA_PAGE,
-            "name": page_name,
-            "displayName": page_display,
-            "displayOption": "FitToPage",
-            "height": 720,
-            "width": 1280,
-        })
+        # ── Write each page ──────────────────────────────────
+        for page_info in page_infos:
+            page_name = page_info["page_name"]
+            page_display = page_info["display_name"]
+            page_vizs = page_info["visualizations"]
 
-        # ── Visuals ──────────────────────────────────────────
-        if visualizations:
-            visuals_dir = page_dir / "visuals"
-            visuals_dir.mkdir(exist_ok=True)
-            for i, viz in enumerate(visualizations[:10]):
-                visual_id = _short_id(f"viz_{i}_{report_name}")
-                v_dir = visuals_dir / visual_id
-                v_dir.mkdir(exist_ok=True)
-                self._write_visual_json(
-                    v_dir / "visual.json",
-                    visual_id, viz, i,
-                    dimensions or [], measures or [],
-                    col_table_map or {},
-                    measure_lookup or {},
-                )
+            page_dir = pages_dir / page_name
+            page_dir.mkdir(parents=True, exist_ok=True)
+
+            # page.json
+            page_json: Dict[str, Any] = {
+                "$schema": _SCHEMA_PAGE,
+                "name": page_name,
+                "displayName": page_display,
+                "displayOption": "FitToPage",
+                "height": 720,
+                "width": 1280,
+            }
+
+            # Drill-through page support (Qlik navigation actions)
+            sheet_raw = page_info.get("sheet_raw", {})
+            if sheet_raw.get("isDrillThrough") or sheet_raw.get("drillThrough"):
+                page_json["pageType"] = "DrillThrough"
+                page_json["drillThrough"] = {
+                    "enabled": True,
+                }
+
+            # Tooltip page support
+            if sheet_raw.get("isTooltip") or sheet_raw.get("tooltip"):
+                page_json["pageType"] = "Tooltip"
+                page_json["tooltipEnabled"] = True
+                page_json["height"] = 320
+                page_json["width"] = 480
+
+            # Background color
+            bg_color = sheet_raw.get("backgroundColor", "")
+            if bg_color:
+                page_json["background"] = {
+                    "color": {"solid": {"color": bg_color}},
+                    "transparency": 0,
+                }
+
+            _write_json(page_dir / "page.json", page_json)
+
+            # ── Visuals (no arbitrary limit) ─────────────────
+            if page_vizs:
+                visuals_dir = page_dir / "visuals"
+                visuals_dir.mkdir(exist_ok=True)
+                for i, viz in enumerate(page_vizs):
+                    visual_id = _short_id(f"viz_{i}_{page_name}_{report_name}")
+                    v_dir = visuals_dir / visual_id
+                    v_dir.mkdir(exist_ok=True)
+
+                    # Use per-visual dims/measures if available, else fallback
+                    viz_dims = viz.get("dimensions", dimensions or [])
+                    viz_meas = viz.get("measures", measures or [])
+
+                    self._write_visual_json(
+                        v_dir / "visual.json",
+                        visual_id, viz, i,
+                        viz_dims, viz_meas,
+                        col_table_map or {},
+                        measure_lookup or {},
+                    )
 
     # ==================================================================
     # Individual visual.json (PBIR format)
@@ -716,6 +825,22 @@ class TMDLGenerator:
         if roles:
             self._write_roles_tmdl(definition_dir / "roles.tmdl", roles)
 
+        # perspectives.tmdl
+        perspectives = model.get("perspectives", [])
+        if perspectives:
+            self._write_perspectives_tmdl(definition_dir / "perspectives.tmdl", perspectives)
+
+        # cultures/*.tmdl (translations)
+        cultures = model.get("cultures", [])
+        if cultures:
+            cultures_dir = definition_dir / "cultures"
+            cultures_dir.mkdir(parents=True, exist_ok=True)
+            for culture_def in cultures:
+                culture_name = culture_def.get("name", "en-US")
+                self._write_culture_tmdl(
+                    cultures_dir / f"{culture_name}.tmdl", culture_def
+                )
+
         return table_names
 
     # ==================================================================
@@ -822,6 +947,11 @@ class TMDLGenerator:
         lines.append(f"table {_quote_tmdl(name)}")
         lines.append(f"\tlineageTag: {lineage_tag}")
 
+        # Table-level description
+        description = table_def.get("description", "")
+        if description:
+            lines.append(f"\tdescription: {description}")
+
         # Table-level dataCategory (e.g., Time for calendar tables)
         if table_def.get("dataCategory"):
             lines.append(f"\tdataCategory: {table_def['dataCategory']}")
@@ -853,6 +983,16 @@ class TMDLGenerator:
                 lines.append(f"\t\tformatString: {fmt_str}")
             lines.append(f"\t\tlineageTag: {col_tag}")
             lines.append(f"\t\tsummarizeBy: {summarize}")
+
+            # Display folder
+            display_folder = col.get("displayFolder", "")
+            if display_folder:
+                lines.append(f"\t\tdisplayFolder: {display_folder}")
+
+            # Description
+            col_desc = col.get("description", "")
+            if col_desc:
+                lines.append(f"\t\tdescription: {col_desc}")
 
             # dataCategory for geographic columns
             data_cat = col.get("dataCategory", "")
@@ -886,12 +1026,36 @@ class TMDLGenerator:
             lines.append(f"\t\tlineageTag: {m_tag}")
             if fmt:
                 lines.append(f"\t\tformatString: {fmt}")
+            # Measure display folder
+            m_folder = measure.get("displayFolder", "")
+            if m_folder:
+                lines.append(f"\t\tdisplayFolder: {m_folder}")
+            # Measure description
+            m_desc = measure.get("description", "")
+            if m_desc:
+                lines.append(f"\t\tdescription: {m_desc}")
+
+        # Calculation groups
+        for calc_group in table_def.get("calculationGroups", []):
+            cg_name = calc_group.get("name", "CalculationGroup")
+            lines.append("")
+            lines.append(f"\tcalculationGroup {_quote_tmdl(cg_name)}")
+            for item in calc_group.get("calculationItems", []):
+                item_name = item.get("name", "Item")
+                item_expr = item.get("expression", "SELECTEDMEASURE()")
+                lines.append(f"\t\tcalculationItem {_quote_tmdl(item_name)}")
+                lines.append(f"\t\t\texpression: {item_expr}")
+                if item.get("formatStringExpression"):
+                    lines.append(f"\t\t\tformatStringExpression: {item['formatStringExpression']}")
 
         # Hierarchies
         for hierarchy in table_def.get("hierarchies", []):
             h_name = hierarchy.get("name", "Hierarchy")
             lines.append("")
             lines.append(f"\thierarchy {_quote_tmdl(h_name)}")
+            # Hierarchy display folder
+            if hierarchy.get("displayFolder"):
+                lines.append(f"\t\tdisplayFolder: {hierarchy['displayFolder']}")
             for level in hierarchy.get("levels", []):
                 l_name = level.get("name", "Level")
                 l_col = level.get("column", l_name)
@@ -1018,6 +1182,44 @@ class TMDLGenerator:
 
             lines.append("")
 
+        path.write_text("\n".join(lines), encoding="utf-8")
+        logger.debug(f"  Écrit: {path.name}")
+
+    # ==================================================================
+    # Perspectives (optional — for multi-audience models)
+    # ==================================================================
+    @staticmethod
+    def _write_perspectives_tmdl(path: Path, perspectives: List[Dict]):
+        """Write perspectives.tmdl."""
+        lines: List[str] = []
+        for persp in perspectives:
+            p_name = persp.get("name", "Default")
+            lines.append(f"perspective {_quote_tmdl(p_name)}")
+            for table_ref in persp.get("tables", []):
+                tbl_name = table_ref if isinstance(table_ref, str) else table_ref.get("name", "")
+                if tbl_name:
+                    lines.append(f"\tperspectiveTable {_quote_tmdl(tbl_name)}")
+            lines.append("")
+        path.write_text("\n".join(lines), encoding="utf-8")
+        logger.debug(f"  Écrit: {path.name}")
+
+    # ==================================================================
+    # Cultures / Translations
+    # ==================================================================
+    @staticmethod
+    def _write_culture_tmdl(path: Path, culture_def: Dict):
+        """Write a single culture TMDL file (translations)."""
+        culture_name = culture_def.get("name", "en-US")
+        lines: List[str] = [
+            f"culture {_quote_tmdl(culture_name)}",
+        ]
+        for translation in culture_def.get("translations", []):
+            obj_type = translation.get("objectType", "table")
+            obj_name = translation.get("name", "")
+            translated = translation.get("translatedCaption", "")
+            if obj_name and translated:
+                lines.append(f"\tlinguisticMetadata {_quote_tmdl(obj_name)} = {translated}")
+        lines.append("")
         path.write_text("\n".join(lines), encoding="utf-8")
         logger.debug(f"  Écrit: {path.name}")
 
@@ -1170,6 +1372,152 @@ class TMDLGenerator:
         """Infer geographic dataCategory from column name."""
         lower = column_name.lower().strip()
         return cls.GEOGRAPHIC_CATEGORIES.get(lower, "")
+
+    # ==================================================================
+    # Theme JSON generator (Qlik themes → PBI report themes)
+    # ==================================================================
+    @staticmethod
+    def generate_theme_json(
+        theme_def: Optional[Dict] = None,
+        qlik_colors: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Generate a Power BI report theme JSON from Qlik theme data.
+
+        Args:
+            theme_def: Qlik theme definition dict (name, colors, font, etc.)
+            qlik_colors: Explicit color palette (overrides theme_def colors)
+
+        Returns:
+            PBI theme JSON dict ready to write to theme.json
+        """
+        theme = theme_def or {}
+
+        default_palette = [
+            "#118DFF", "#12239E", "#E66C37", "#6B007B",
+            "#E044A7", "#744EC2", "#D9B300", "#D64550",
+            "#197278", "#1AAB40", "#15C6F4", "#4092FF",
+        ]
+
+        palette = qlik_colors or theme.get("colors", theme.get("palette", default_palette))
+        if not palette:
+            palette = default_palette
+
+        font = theme.get("fontFamily", theme.get("font", "Segoe UI"))
+
+        pbi_theme: Dict[str, Any] = {
+            "name": theme.get("name", "MigratedQlikTheme"),
+            "dataColors": palette[:12],
+            "background": theme.get("backgroundColor", "#FFFFFF"),
+            "foreground": theme.get("foregroundColor", "#252423"),
+            "tableAccent": palette[0] if palette else "#118DFF",
+            "textClasses": {
+                "callout": {"fontSize": 45, "fontFace": font, "color": palette[0] if palette else "#118DFF"},
+                "title": {"fontSize": 12, "fontFace": font, "color": "#252423"},
+                "header": {"fontSize": 12, "fontFace": font, "color": "#252423"},
+                "label": {"fontSize": 10, "fontFace": font, "color": "#666666"},
+            },
+            "visualStyles": {
+                "*": {
+                    "*": {
+                        "*": [{"wordWrap": True, "fontFamily": font}],
+                    },
+                },
+            },
+        }
+
+        if theme.get("conditionalColors"):
+            pbi_theme["conditionalFormatting"] = {
+                "divergent": {
+                    "min": {"color": theme["conditionalColors"].get("min", "#FF0000")},
+                    "mid": {"color": theme["conditionalColors"].get("mid", "#FFFF00")},
+                    "max": {"color": theme["conditionalColors"].get("max", "#00FF00")},
+                }
+            }
+
+        return pbi_theme
+
+    # ==================================================================
+    # Incremental refresh policy generator
+    # ==================================================================
+    @staticmethod
+    def generate_incremental_refresh_policy(
+        table_name: str,
+        date_column: str = "Date",
+        incremental_days: int = 30,
+        archive_days: int = 365,
+    ) -> Dict[str, Any]:
+        """Generate incremental refresh policy metadata for a table."""
+        return {
+            "refreshPolicy": {
+                "policyType": "basic",
+                "rollingWindowGranularity": "day",
+                "rollingWindowPeriods": archive_days,
+                "incrementalGranularity": "day",
+                "incrementalPeriods": incremental_days,
+                "pollingExpression": f"let MaxDate = List.Max(Source[{date_column}]) in MaxDate",
+            },
+        }
+
+    # ==================================================================
+    # Sensitivity label helper
+    # ==================================================================
+    @staticmethod
+    def generate_sensitivity_label(
+        label_id: str = "",
+        label_name: str = "General",
+    ) -> Dict[str, Any]:
+        """Generate sensitivity label metadata for the .pbip project."""
+        return {
+            "sensitivityLabel": {
+                "labelId": label_id or _new_guid(),
+                "displayName": label_name,
+            },
+        }
+
+    # ==================================================================
+    # Deployment pipeline config generator
+    # ==================================================================
+    @staticmethod
+    def generate_deployment_config(
+        workspace_dev: str = "",
+        workspace_test: str = "",
+        workspace_prod: str = "",
+    ) -> Dict[str, Any]:
+        """Generate deployment pipeline configuration."""
+        return {
+            "deploymentPipeline": {
+                "stages": [
+                    {"name": "Development", "workspaceId": workspace_dev or _new_guid()},
+                    {"name": "Test", "workspaceId": workspace_test or _new_guid()},
+                    {"name": "Production", "workspaceId": workspace_prod or _new_guid()},
+                ],
+                "rules": {
+                    "parameterRules": [],
+                    "datasourceRules": [],
+                },
+            },
+        }
+
+    # ==================================================================
+    # Scheduled refresh config
+    # ==================================================================
+    @staticmethod
+    def generate_refresh_schedule(
+        frequency: str = "Daily",
+        times: Optional[List[str]] = None,
+        timezone: str = "UTC",
+    ) -> Dict[str, Any]:
+        """Generate scheduled refresh configuration."""
+        return {
+            "refreshSchedule": {
+                "frequency": frequency,
+                "times": times or ["07:00", "19:00"],
+                "timeZone": timezone,
+                "enabled": True,
+                "notifyOption": "MailOnFailure",
+            },
+        }
 
 
 # ==================================================================

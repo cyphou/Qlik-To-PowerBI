@@ -241,6 +241,7 @@ def convert_qlik_expression_to_dax(
     col_table_map: Optional[Dict[str, str]] = None,
     relationships: Optional[List[Dict]] = None,
     is_calculated_column: bool = False,
+    variables: Optional[Dict[str, str]] = None,
 ) -> str:
     """
     Convert a Qlik expression to DAX.
@@ -251,6 +252,7 @@ def convert_qlik_expression_to_dax(
         col_table_map: {column_name: table_name} lookup for RELATED() insertion
         relationships: List of relationship dicts for cross-table inference
         is_calculated_column: Whether this is a calculated column (row-level) expression
+        variables: {var_name: var_definition} for $(vName) expansion
 
     Returns:
         DAX expression string
@@ -263,16 +265,26 @@ def convert_qlik_expression_to_dax(
     # Phase 1: Operator conversions
     dax = _convert_operators(dax)
 
+    # Phase 1b: Expand dollar-sign variable references
+    if variables:
+        dax = _expand_variables(dax, variables)
+
     # Phase 2: Structural conversions (If/Match/Pick → IF/SWITCH)
     dax = _convert_if_expressions(dax)
     dax = _convert_match_expressions(dax)
     dax = _convert_pick_expressions(dax)
 
-    # Phase 3: Set Analysis → CALCULATE
+    # Phase 3: Set Analysis → CALCULATE (supports multiple modifiers)
     dax = _convert_set_analysis(dax, table_name)
+
+    # Phase 3b: TOTAL qualifier → ALL filter context
+    dax = _convert_total_qualifier(dax, table_name)
 
     # Phase 4: Aggr() → SUMMARIZE/ADDCOLUMNS
     dax = _convert_aggr(dax)
+
+    # Phase 4b: Peek/Previous → EARLIER/OFFSET
+    dax = _convert_inter_record(dax)
 
     # Phase 5: Simple function mapping (175+ replacements)
     for pattern, replacement in _COMPILED_FUNCTION_MAP:
@@ -579,6 +591,116 @@ def _insert_related(
             return f"LOOKUPVALUE('{ref_table}'[{col_name}], '{ref_table}'[{col_name}], [{col_name}])"
 
     return col_ref_pattern.sub(_replace_col_ref, expr)
+
+
+# ── Dollar-sign variable expansion ────────────────────────────────
+
+def _expand_variables(expr: str, variables: Dict[str, str]) -> str:
+    """Expand $(vName) dollar-sign variable references."""
+    if not variables or "$(" not in expr:
+        return expr
+    max_passes = 5
+    for _ in range(max_passes):
+        new_expr = re.sub(
+            r'\$\((\w+)\)',
+            lambda m: variables.get(m.group(1), m.group(0)),
+            expr,
+        )
+        if new_expr == expr:
+            break
+        expr = new_expr
+    return expr
+
+
+# ── TOTAL qualifier → ALL ─────────────────────────────────────────
+
+def _convert_total_qualifier(expr: str, table_name: str = "") -> str:
+    """
+    Convert Qlik TOTAL qualifier to DAX CALCULATE with ALL.
+
+    Qlik: Sum(TOTAL Sales) → DAX: CALCULATE(SUM('Table'[Sales]), ALL('Table'))
+    Qlik: Sum(TOTAL <Region> Sales) → DAX: CALCULATE(SUM('Table'[Sales]), ALLEXCEPT('Table', 'Table'[Region]))
+    """
+    tbl = f"'{table_name}'" if table_name else "'Table'"
+
+    # TOTAL with dimension restrictions: Sum(TOTAL <Dim1, Dim2> Field)
+    def _replace_total_restricted(m):
+        agg = m.group(1)
+        dims_str = m.group(2)
+        field = m.group(3).strip()
+        dims = [d.strip() for d in dims_str.split(',') if d.strip()]
+        dim_refs = ', '.join([f"{tbl}[{d}]" for d in dims])
+        qualified = f"{tbl}[{field}]" if table_name and '[' not in field else field
+        dax_agg = _map_aggregation(agg, field, table_name)
+        return f"CALCULATE({dax_agg}, ALLEXCEPT({tbl}, {dim_refs}))"
+
+    expr = re.sub(
+        r'(\w+)\s*\(\s*TOTAL\s*<([^>]+)>\s*(\w+)\s*\)',
+        _replace_total_restricted, expr, flags=re.IGNORECASE,
+    )
+
+    # Simple TOTAL: Sum(TOTAL Field)
+    def _replace_total_simple(m):
+        agg = m.group(1)
+        field = m.group(2).strip()
+        dax_agg = _map_aggregation(agg, field, table_name)
+        return f"CALCULATE({dax_agg}, ALL({tbl}))"
+
+    expr = re.sub(
+        r'(\w+)\s*\(\s*TOTAL\s+(\w+)\s*\)',
+        _replace_total_simple, expr, flags=re.IGNORECASE,
+    )
+
+    return expr
+
+
+# ── Inter-record functions (Peek, Previous, Above, Below) ────────
+
+def _convert_inter_record(expr: str) -> str:
+    """Convert Qlik inter-record functions to DAX equivalents."""
+    # Peek(field, offset) → EARLIER or OFFSET
+    expr = re.sub(
+        r'\bPeek\s*\(\s*([^,]+),\s*([^)]+)\)',
+        r'/* Peek: use EARLIER or INDEX/OFFSET */ EARLIER(\1)',
+        expr, flags=re.IGNORECASE,
+    )
+    # Previous(field) → EARLIER
+    expr = re.sub(
+        r'\bPrevious\s*\(\s*([^)]+)\)',
+        r'EARLIER(\1)',
+        expr, flags=re.IGNORECASE,
+    )
+    # Above(field, offset, count) → OFFSET
+    expr = re.sub(
+        r'\bAbove\s*\(\s*([^,)]+)(?:,\s*([^,)]+))?(?:,\s*([^)]+))?\s*\)',
+        r'/* Above: review OFFSET/WINDOW */ EARLIER(\1)',
+        expr, flags=re.IGNORECASE,
+    )
+    # Below(field, offset, count) → OFFSET
+    expr = re.sub(
+        r'\bBelow\s*\(\s*([^,)]+)(?:,\s*([^,)]+))?(?:,\s*([^)]+))?\s*\)',
+        r'/* Below: review OFFSET/WINDOW */ EARLIER(\1)',
+        expr, flags=re.IGNORECASE,
+    )
+    # FieldValue(field, n) → INDEX
+    expr = re.sub(
+        r'\bFieldValue\s*\(\s*([^,]+),\s*([^)]+)\)',
+        r'/* FieldValue: use INDEX */ INDEX(\1, \2)',
+        expr, flags=re.IGNORECASE,
+    )
+    # FieldValueCount(field) → DISTINCTCOUNT in a value context
+    expr = re.sub(
+        r'\bFieldValueCount\s*\(\s*([^)]+)\)',
+        r'DISTINCTCOUNT(\1)',
+        expr, flags=re.IGNORECASE,
+    )
+    # Rank → RANKX
+    expr = re.sub(
+        r'\bRank\s*\(\s*([^)]+)\)',
+        r'RANKX(ALL(\'Table\'), \1)',
+        expr, flags=re.IGNORECASE,
+    )
+    return expr
 
 
 # ── Cleanup ───────────────────────────────────────────────────────

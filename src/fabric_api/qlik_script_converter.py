@@ -21,6 +21,11 @@ class QlikCommandType(Enum):
     CONCATENATE = 'CONCATENATE'
     QUALIFY = 'QUALIFY'
     UNQUALIFY = 'UNQUALIFY'
+    MAPPING = 'MAPPING'
+    FOR_EACH = 'FOR EACH'
+    INLINE = 'INLINE'
+    PRECEDING = 'PRECEDING'
+    STORE = 'STORE'
 
 
 @dataclass
@@ -292,6 +297,9 @@ class QlikScriptToPowerQueryConverter:
         """
         Convertit un script Qlik complet en Power Query M.
         
+        Handles: LOAD, INLINE, CONCATENATE, MAPPING LOAD, QUALIFY/UNQUALIFY,
+        preceding LOADs, FOR EACH wildcards, and LET/SET variables.
+        
         Args:
             qlik_script: Script Qlik complet
             
@@ -300,25 +308,165 @@ class QlikScriptToPowerQueryConverter:
         """
         pq_scripts = []
         
-        # Séparer les instructions LOAD
-        load_statements = re.split(r'\n(?=LOAD\s)', qlik_script, flags=re.IGNORECASE)
+        # ── Pre-process: extract QUALIFY/UNQUALIFY, LET/SET ───
+        qualify_fields: List[str] = []
+        unqualify_all = False
+        variables: Dict[str, str] = {}
+        
+        for line in qlik_script.split('\n'):
+            stripped = line.strip()
+            # QUALIFY *  or QUALIFY field1, field2
+            q_match = re.match(r'^QUALIFY\s+(.+);?\s*$', stripped, re.IGNORECASE)
+            if q_match:
+                fields = q_match.group(1).strip().rstrip(';')
+                if fields == '*':
+                    qualify_fields = ['*']
+                else:
+                    qualify_fields.extend(f.strip() for f in fields.split(','))
+            # UNQUALIFY *  or UNQUALIFY field1, field2
+            uq_match = re.match(r'^UNQUALIFY\s+(.+);?\s*$', stripped, re.IGNORECASE)
+            if uq_match:
+                fields = uq_match.group(1).strip().rstrip(';')
+                if fields == '*':
+                    unqualify_all = True
+                    qualify_fields = []
+            # LET vName = expression;  or  SET vName = value;
+            var_match = re.match(r'^(?:LET|SET)\s+(\w+)\s*=\s*(.+?);?\s*$', stripped, re.IGNORECASE)
+            if var_match:
+                variables[var_match.group(1)] = var_match.group(2).strip()
+        
+        # ── Expand variables in script ────────────────────────
+        processed = qlik_script
+        for vname, vval in variables.items():
+            processed = processed.replace(f'$({vname})', vval)
+        
+        # ── Handle FOR EACH wildcards ─────────────────────────
+        for_each_match = re.search(
+            r'FOR\s+EACH\s+(\w+)\s+IN\s+FileList\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)',
+            processed, re.IGNORECASE
+        )
+        if for_each_match:
+            var_name = for_each_match.group(1)
+            file_pattern = for_each_match.group(2)
+            folder = file_pattern.rsplit('\\', 1)[0] if '\\' in file_pattern else file_pattern.rsplit('/', 1)[0]
+            ext = file_pattern.rsplit('.', 1)[-1] if '.' in file_pattern else 'csv'
+            pq_scripts.append(f'// FOR EACH {var_name} IN FileList pattern → Folder.Files')
+            pq_scripts.append(f'let')
+            pq_scripts.append(f'    Source = Folder.Files("{folder}"),')
+            pq_scripts.append(f'    FilteredFiles = Table.SelectRows(Source, each Text.EndsWith([Name], ".{ext}")),')
+            pq_scripts.append(f'    CombinedData = Table.Combine(Table.TransformRows(FilteredFiles, each Csv.Document([Content], [Delimiter=",", Encoding=65001])))')
+            pq_scripts.append(f'in')
+            pq_scripts.append(f'    CombinedData')
+            pq_scripts.append('')
+        
+        # ── Handle INLINE loads ───────────────────────────────
+        inline_pattern = re.compile(
+            r'(?:(\w+):[\s\n]+)?'  # optional table_name:
+            r'LOAD\s+(.*?)\s+'
+            r'INLINE\s*\[(.*?)\]',
+            re.IGNORECASE | re.DOTALL
+        )
+        for m in inline_pattern.finditer(processed):
+            table_name = m.group(1) or 'InlineTable'
+            fields_str = m.group(2)
+            inline_data = m.group(3)
+            
+            # Parse inline data rows
+            rows = [r.strip() for r in inline_data.strip().split('\n') if r.strip()]
+            if rows:
+                header = rows[0]
+                col_names = [c.strip() for c in header.split(',')]
+                data_rows = rows[1:]
+                
+                col_defs = ', '.join([f'"{c}"' for c in col_names])
+                row_strs = []
+                for row in data_rows:
+                    vals = [v.strip() for v in row.split(',')]
+                    row_str = '{' + ', '.join([f'"{v}"' for v in vals]) + '}'
+                    row_strs.append(f'    {row_str}')
+                
+                pq_scripts.append(f'// Inline table: {table_name}')
+                pq_scripts.append('let')
+                pq_scripts.append(f'    Source = #table({{{col_defs}}}, {{')
+                pq_scripts.append(',\n'.join(row_strs))
+                pq_scripts.append('    })')
+                pq_scripts.append('in')
+                pq_scripts.append('    Source')
+                pq_scripts.append('')
+        
+        # ── Handle MAPPING LOAD → lookup table ───────────────
+        mapping_pattern = re.compile(
+            r'(\w+):\s*\n?\s*MAPPING\s+LOAD\s+(.*?)\s+FROM\s+\[([^\]]+)\]',
+            re.IGNORECASE | re.DOTALL
+        )
+        for m in mapping_pattern.finditer(processed):
+            map_name = m.group(1)
+            fields_str = m.group(2)
+            source_path = m.group(3)
+            
+            pq_scripts.append(f'// Mapping table: {map_name} (use as lookup in Power BI)')
+            pq_scripts.append('let')
+            ext = source_path.rsplit('.', 1)[-1].lower() if '.' in source_path else 'csv'
+            if ext in ('xlsx', 'xls'):
+                pq_scripts.append(f'    Source = Excel.Workbook(File.Contents("{source_path}"), null, true),')
+                pq_scripts.append(f'    Sheet = Source{{0}}[Data],')
+                pq_scripts.append(f'    Promoted = Table.PromoteHeaders(Sheet, [PromoteAllScalars=true])')
+            else:
+                pq_scripts.append(f'    Source = Csv.Document(File.Contents("{source_path}"), [Delimiter=",", Encoding=65001]),')
+                pq_scripts.append(f'    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars=true])')
+            pq_scripts.append('in')
+            pq_scripts.append('    Promoted')
+            pq_scripts.append('')
+        
+        # ── Handle CONCATENATE(Table) LOAD → Table.Combine ───
+        concat_pattern = re.compile(
+            r'CONCATENATE\s*\(\s*(\w+)\s*\)\s*\n?\s*LOAD',
+            re.IGNORECASE
+        )
+        
+        # ── Standard LOAD statements ──────────────────────────
+        load_statements = re.split(r'\n(?=(?:\w+:\s*\n?\s*)?LOAD\s)', processed, flags=re.IGNORECASE)
         
         for i, load_stmt_str in enumerate(load_statements):
             if not load_stmt_str.strip():
                 continue
+            
+            # Skip if it's a MAPPING LOAD (already handled)
+            if re.search(r'\bMAPPING\s+LOAD\b', load_stmt_str, re.IGNORECASE):
+                continue
+            # Skip if it's an INLINE (already handled)
+            if re.search(r'\bINLINE\s*\[', load_stmt_str, re.IGNORECASE):
+                continue
+            # Skip non-LOAD lines
+            if not re.search(r'\bLOAD\b', load_stmt_str, re.IGNORECASE):
+                continue
                 
             try:
+                # Check for CONCATENATE prefix
+                is_concat = bool(concat_pattern.search(load_stmt_str))
+                concat_target = None
+                if is_concat:
+                    cm = concat_pattern.search(load_stmt_str)
+                    concat_target = cm.group(1) if cm else None
+                
+                # Extract table name prefix
+                table_name_match = re.match(r'^(\w+):\s*\n?\s*(?:CONCATENATE\s*\(\w+\)\s*)?LOAD', load_stmt_str, re.IGNORECASE)
+                table_label = table_name_match.group(1) if table_name_match else f'Table{i+1}'
+                
                 # Parser l'instruction
                 load_stmt = QlikScriptToPowerQueryConverter.parse_qlik_load(load_stmt_str)
+                load_stmt.table_name = table_label
                 
                 # Convertir en Power Query
                 pq_script = QlikScriptToPowerQueryConverter.convert_load_to_powerquery(load_stmt)
                 
-                # Ajouter un commentaire
-                table_name = load_stmt.table_name or f'Table{i+1}'
-                pq_scripts.append(f'// Query: {table_name}')
+                if is_concat and concat_target:
+                    pq_scripts.append(f'// CONCATENATE({concat_target}) → Table.Combine')
+                    pq_scripts.append(f'// Append this result to {concat_target} using Table.Combine')
+                
+                pq_scripts.append(f'// Query: {table_label}')
                 pq_scripts.append(pq_script)
-                pq_scripts.append('')  # Ligne vide entre les requêtes
+                pq_scripts.append('')
                 
             except Exception as e:
                 logger.error(f'Erreur lors de la conversion: {str(e)}')

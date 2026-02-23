@@ -6,7 +6,7 @@ are lazy-imported and require ``pip install qlik-to-powerbi[azure]``.
 """
 from __future__ import annotations
 
-__version__ = "3.0.0"
+__version__ = "3.1.0"
 
 # Always-available — no heavy dependencies
 from .tmdl_generator import TMDLGenerator, create_pbi_project_from_migration

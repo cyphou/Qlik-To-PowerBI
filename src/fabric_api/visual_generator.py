@@ -515,6 +515,141 @@ def create_visual_container(
             }
         }]
 
+    # ── Subtitle ──────────────────────────────────────────────
+    subtitle = visualization.get("subtitle", "")
+    if subtitle:
+        visual_obj.setdefault("vcObjects", {})
+        visual_obj["vcObjects"]["subTitle"] = [{
+            "properties": {
+                "show": {"expr": {"Literal": {"Value": "true"}}},
+                "text": {"expr": {"Literal": {"Value": json.dumps(subtitle)}}},
+            }
+        }]
+
+    # ── Conditional formatting (Qlik color expressions) ──────
+    color_by = visualization.get("colorBy", visualization.get("color", {}))
+    if isinstance(color_by, dict) and color_by.get("mode"):
+        mode = color_by["mode"]
+        visual_obj.setdefault("objects", {})
+        if mode == "byMeasure" or mode == "measure":
+            # Color by measure → data colors with gradient
+            visual_obj["objects"]["dataPoint"] = [{
+                "properties": {
+                    "showAllDataPoints": {"expr": {"Literal": {"Value": "true"}}},
+                }
+            }]
+        elif mode == "byDimension" or mode == "dimension":
+            # Color by dimension → distinct colors per category
+            visual_obj["objects"].setdefault("dataPoint", [{}])
+
+    # ── Conditional formatting rules (explicit rules) ────────
+    cond_format = visualization.get("conditionalFormatting", [])
+    if cond_format:
+        rules = []
+        for cf in cond_format:
+            rule = {
+                "inputColor": cf.get("color", "#4CAF50"),
+                "operator": cf.get("operator", "greaterThan"),
+                "value": cf.get("value", 0),
+            }
+            rules.append(rule)
+        if rules:
+            visual_obj.setdefault("objects", {})
+            visual_obj["objects"]["dataPoint"] = [{
+                "properties": {
+                    "showAllDataPoints": {"expr": {"Literal": {"Value": "true"}}},
+                    # Note: PBI conditional formatting is stored differently, 
+                    # but this provides the closest migration path
+                }
+            }]
+
+    # ── Visual-level filters ─────────────────────────────────
+    viz_filters = visualization.get("filters", [])
+    if viz_filters:
+        filter_list = []
+        for vf in viz_filters:
+            field_name = vf.get("field", "")
+            filter_type = vf.get("type", "basic")
+            values = vf.get("values", [])
+            table_name = col_table_map.get(field_name, "Table")
+            
+            if filter_type == "topN":
+                # Top N filter
+                filter_entry = {
+                    "type": "TopN",
+                    "expression": {
+                        "Column": {
+                            "Expression": {"SourceRef": {"Entity": table_name}},
+                            "Property": field_name,
+                        }
+                    },
+                    "itemCount": vf.get("count", 10),
+                    "orderBy": [{"Direction": 2}],  # Descending
+                }
+            elif values:
+                # Basic filter with selected values
+                filter_entry = {
+                    "type": "Categorical",
+                    "expression": {
+                        "Column": {
+                            "Expression": {"SourceRef": {"Entity": table_name}},
+                            "Property": field_name,
+                        }
+                    },
+                    "values": [[{"Literal": {"Value": json.dumps(v)}} for v in values]],
+                }
+            else:
+                filter_entry = None
+            
+            if filter_entry:
+                filter_list.append(filter_entry)
+        
+        if filter_list:
+            visual_obj["filters"] = filter_list
+
+    # ── Sort order ────────────────────────────────────────────
+    sort_by = visualization.get("sortBy", visualization.get("sorting", []))
+    if sort_by:
+        sort_defs = sort_by if isinstance(sort_by, list) else [sort_by]
+        sort_state = []
+        for sd in sort_defs:
+            if isinstance(sd, dict):
+                sort_field = sd.get("field", sd.get("column", ""))
+                direction = sd.get("direction", "ascending")
+                st = col_table_map.get(sort_field, "Table")
+                sort_state.append({
+                    "field": {
+                        "Column": {
+                            "Expression": {"SourceRef": {"Entity": st}},
+                            "Property": sort_field,
+                        }
+                    },
+                    "direction": 1 if direction.lower() == "ascending" else 2,
+                })
+        if sort_state:
+            visual_obj.setdefault("query", {})
+            visual_obj["query"]["sortDefinition"] = {"sort": sort_state}
+
+    # ── Reference lines (Qlik reference lines → PBI constant lines)
+    ref_lines = visualization.get("referenceLines", [])
+    if ref_lines:
+        constant_lines = []
+        for rl in ref_lines:
+            line_val = rl.get("value", 0)
+            line_label = rl.get("label", "")
+            constant_lines.append({
+                "show": {"expr": {"Literal": {"Value": "true"}}},
+                "value": {"expr": {"Literal": {"Value": f"{line_val}D"}}},
+                "displayName": {"expr": {"Literal": {"Value": json.dumps(line_label)}}},
+                "color": {"solid": {"color": rl.get("color", "#FF0000")}},
+                "style": {"expr": {"Literal": {"Value": "'dashed'"}}},
+            })
+        if constant_lines:
+            visual_obj.setdefault("objects", {})
+            visual_obj["objects"]["constantLine"] = [
+                {"properties": cl} for cl in constant_lines
+            ]
+
     # ── Assemble container ────────────────────────────────────
     container = {
         "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
@@ -529,6 +664,49 @@ def create_visual_container(
         },
         "visual": visual_obj,
     }
+
+    # ── Action button navigation (Qlik sheet actions → PBI page navigation)
+    if pbi_type == "actionButton":
+        nav_target = visualization.get("navigation", visualization.get("action", {}))
+        if isinstance(nav_target, dict):
+            target_page = nav_target.get("sheet", nav_target.get("pageName", ""))
+            nav_url = nav_target.get("url", "")
+            if target_page:
+                visual_obj.setdefault("objects", {})
+                visual_obj["objects"]["action"] = [{
+                    "properties": {
+                        "show": {"expr": {"Literal": {"Value": "true"}}},
+                        "type": {"expr": {"Literal": {"Value": "'PageNavigation'"}}},
+                        "destination": {"expr": {"Literal": {"Value": json.dumps(target_page)}}},
+                    }
+                }]
+            elif nav_url:
+                visual_obj.setdefault("objects", {})
+                visual_obj["objects"]["action"] = [{
+                    "properties": {
+                        "show": {"expr": {"Literal": {"Value": "true"}}},
+                        "type": {"expr": {"Literal": {"Value": "'WebUrl'"}}},
+                        "destination": {"expr": {"Literal": {"Value": json.dumps(nav_url)}}},
+                    }
+                }]
+
+    # ── Slicer sync group (Qlik filter pane sync → PBI slicer sync) ──
+    if pbi_type == "slicer":
+        sync_group = visualization.get("syncGroup", visualization.get("filterScope", ""))
+        if sync_group:
+            container["syncGroup"] = {
+                "groupName": sync_group,
+                "syncField": True,
+                "syncFilters": True,
+            }
+
+    # ── Cross-filtering behavior ──────────────────────────────
+    interactions = visualization.get("interactions", visualization.get("crossFilter", {}))
+    if isinstance(interactions, dict) and interactions.get("disabled"):
+        container["filterConfig"] = {
+            "filters": [],
+            "disabled": True,
+        }
 
     return container
 

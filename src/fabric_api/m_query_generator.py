@@ -429,18 +429,42 @@ def _gen_m_web(ds: Dict) -> str:
 
 
 def _gen_m_qvd(ds: Dict) -> str:
-    """Generate M query for QVD source (requires custom connector)."""
-    path = ds.get("connection", {}).get("path", ds.get("path", "C:\\Data\\file.qvd"))
+    """Generate M query for QVD source.
 
-    return "\n".join([
+    QVD files are Qlik's proprietary columnar format.  Power BI cannot read
+    them natively, so we offer three strategies the user can choose from:
+      1) Pre-converted CSV/Parquet (default — fast to iterate)
+      2) QVD Reader custom connector (if installed)
+      3) ODBC via Qlik's ODBC driver
+    """
+    path = ds.get("connection", {}).get("path", ds.get("path", "C:\\Data\\file.qvd"))
+    table = ds.get("tableName", ds.get("table", "QvdTable"))
+    columns = ds.get("columns", [])
+
+    # Determine conversion path (prefer Parquet → CSV → ODBC)
+    parquet_path = path.rsplit(".", 1)[0] + ".parquet" if "." in path else path + ".parquet"
+    csv_path = path.rsplit(".", 1)[0] + ".csv" if "." in path else path + ".csv"
+
+    lines = [
         "let",
-        f'    // QVD source: {path}',
-        '    // QVD files require the Qlik QVD connector or conversion to CSV/Parquet',
-        f'    Source = Csv.Document(File.Contents("{path.replace(".qvd", ".csv")}"), [Delimiter=",", Encoding=65001]),',
-        '    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])',
-        "in",
-        "    PromotedHeaders",
-    ])
+        f'    // Original QVD: {path}',
+        f'    // Strategy 1 — Pre-converted Parquet (recommended):',
+        f'    //   Source = Parquet.Document(File.Contents("{parquet_path}")),',
+        f'    // Strategy 2 — QVD Reader custom connector:',
+        f'    //   Source = QvdFile.Content("{path}"),',
+        f'    // Strategy 3 — CSV export (default):',
+        f'    Source = Csv.Document(File.Contents("{csv_path}"), [Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.None]),',
+        '    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),',
+    ]
+    type_step = _build_type_step(columns, "PromotedHeaders")
+    if type_step:
+        lines.append(type_step)
+        lines.append("in")
+        lines.append("    ChangedTypes")
+    else:
+        lines.append("in")
+        lines.append("    PromotedHeaders")
+    return "\n".join(lines)
 
 
 def _gen_m_odbc(ds: Dict) -> str:
