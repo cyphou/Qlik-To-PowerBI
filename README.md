@@ -36,14 +36,221 @@ python migrate.py "MonApp.qvf" --output-dir output/step1 --skip-extraction
 
 ---
 
-## Architecture — 2-Step Pipeline
+## Architecture
 
+### End-to-End Pipeline
+
+```mermaid
+flowchart LR
+    subgraph INPUT["🔵 Qlik Source"]
+        QVF[".qvf file"]
+        JSON[".json export"]
+    end
+
+    subgraph EXTRACT["⚙️ Step 1 — Extraction"]
+        EO["extraction_orchestrator.py"]
+        QVE["qvf_extractor.py<br/>(ZIP reader)"]
+    end
+
+    subgraph INTERMEDIATE["📄 11 Intermediate JSON"]
+        direction TB
+        MD["app_metadata"]
+        DS["datasources"]
+        DIM["dimensions"]
+        MEA["measures"]
+        VIZ["visualizations"]
+        SH["sheets"]
+        VAR["variables"]
+        LS["loadscript"]
+        AS["associations"]
+        BK["bookmarks"]
+        MI["master_items"]
+    end
+
+    subgraph CONVERT["⚙️ Step 2 — Conversion"]
+        direction TB
+        DAX["dax_converter.py<br/>175+ functions"]
+        MQ["m_query_generator.py<br/>25 connectors"]
+        SC["qlik_script_converter.py<br/>LOAD → M"]
+        MB["m_query_builder.py<br/>40+ transforms"]
+    end
+
+    subgraph GENERATE["⚙️ Step 3 — Generation"]
+        direction TB
+        TMDL["tmdl_generator.py<br/>Semantic Model"]
+        VG["visual_generator.py<br/>60+ visual types"]
+    end
+
+    subgraph OUTPUT["🟢 Power BI Project"]
+        PBIP[".pbip project<br/>Git-friendly"]
+    end
+
+    QVF --> QVE --> EO
+    JSON --> EO
+    EO --> INTERMEDIATE
+    INTERMEDIATE --> DAX & MQ & SC
+    SC --> MB
+    DAX & MQ & MB --> TMDL & VG
+    TMDL & VG --> PBIP
 ```
-.qvf / .json → [Extraction] → 11 JSON files → [Generation] → .pbip project
+
+### Module Dependency Map
+
+```mermaid
+graph TD
+    CLI["migrate.py<br/><i>CLI entry point</i>"]
+
+    CLI --> EO["extraction_orchestrator"]
+    CLI --> DAX["dax_converter"]
+    CLI --> MQ["m_query_generator"]
+    CLI --> SC["qlik_script_converter"]
+    CLI --> TMDL["tmdl_generator"]
+
+    EO --> QVE["qvf_extractor"]
+
+    TMDL --> VG["visual_generator"]
+    TMDL --> MQB["m_query_builder"]
+
+    SC --> MQB
+
+    subgraph AZURE["Azure / Fabric (optional)"]
+        AUTH["auth.py"]
+        CLIENT["client.py"]
+        DEPLOY["deployer.py"]
+    end
+
+    CLIENT --> AUTH
+    DEPLOY --> CLIENT
+
+    TMDL -.->|"deploy"| DEPLOY
+
+    style CLI fill:#4A90D9,color:#fff
+    style TMDL fill:#6B007B,color:#fff
+    style DAX fill:#E66C37,color:#fff
+    style VG fill:#744EC2,color:#fff
+    style EO fill:#1AAB40,color:#fff
+    style AZURE fill:#f0f0f0,stroke:#999
+```
+
+### DAX Conversion Pipeline
+
+```mermaid
+flowchart TB
+    INPUT["Qlik Expression<br/><code>Sum({&lt;Year={2024}&gt;} TOTAL Sales)</code>"]
+
+    P1["Phase 1 — Operators<br/><code>&amp; → &amp;&amp;, or → ||</code>"]
+    P1B["Phase 1b — Variables<br/><code>$(vName) → resolved</code>"]
+    P2["Phase 2 — Structural<br/><code>If → IF, Match → SWITCH</code>"]
+    P3["Phase 3 — Set Analysis<br/><code>{&lt;Year={2024}&gt;} → CALCULATE</code>"]
+    P3B["Phase 3b — TOTAL<br/><code>TOTAL → ALL / ALLEXCEPT</code>"]
+    P4["Phase 4 — Aggr<br/><code>Aggr → SUMMARIZE</code>"]
+    P4B["Phase 4b — Inter-record<br/><code>Peek → EARLIER, Rank → RANKX</code>"]
+    P5["Phase 5 — Function Map<br/><code>175+ Qlik → DAX mappings</code>"]
+    P6["Phase 6 — Null Handling<br/><code>Alt → COALESCE</code>"]
+    P7["Phase 7 — Class<br/><code>Class → INT / DIVIDE</code>"]
+    P8["Phase 8 — RELATED<br/><code>cross-table → RELATED()</code>"]
+    P9["Phase 9 — Cleanup"]
+
+    OUTPUT["DAX Expression<br/><code>CALCULATE(SUM('T'[Sales]), 'T'[Year] = 2024, ALL('T'))</code>"]
+
+    INPUT --> P1 --> P1B --> P2 --> P3 --> P3B --> P4 --> P4B --> P5 --> P6 --> P7 --> P8 --> P9 --> OUTPUT
+
+    style INPUT fill:#12239E,color:#fff
+    style OUTPUT fill:#1AAB40,color:#fff
+```
+
+### Data Model Mapping
+
+```mermaid
+flowchart LR
+    subgraph QLIK["Qlik Sense"]
+        direction TB
+        Q_DS["Data connections"]
+        Q_LOAD["LOAD scripts"]
+        Q_DIM["Master dimensions"]
+        Q_MEA["Master measures"]
+        Q_ASSOC["Associations"]
+        Q_SA["Section Access"]
+        Q_VAR["Variables"]
+        Q_THEME["Theme"]
+        Q_BM["Bookmarks"]
+    end
+
+    subgraph PBI["Power BI (TMDL / PBIR)"]
+        direction TB
+        P_TBL["Tables + Columns<br/><i>displayFolder, dataCategory</i>"]
+        P_PQ["Power Query M<br/><i>expressions.tmdl</i>"]
+        P_HIER["Hierarchies"]
+        P_MEAS["DAX Measures<br/><i>CALCULATE, SUMMARIZE…</i>"]
+        P_REL["Relationships<br/><i>crossFilteringBehavior</i>"]
+        P_RLS["RLS Roles<br/><i>USERPRINCIPALNAME</i>"]
+        P_PARAM["Parameter Tables<br/><i>GENERATESERIES</i>"]
+        P_THEME["theme.json<br/><i>dataColors, textClasses</i>"]
+        P_BM["Bookmarks"]
+    end
+
+    Q_DS --> P_TBL
+    Q_LOAD --> P_PQ
+    Q_DIM --> P_HIER
+    Q_MEA --> P_MEAS
+    Q_ASSOC --> P_REL
+    Q_SA --> P_RLS
+    Q_VAR --> P_PARAM
+    Q_THEME --> P_THEME
+    Q_BM --> P_BM
+
+    style QLIK fill:#12239E,color:#fff
+    style PBI fill:#E66C37,color:#fff
+```
+
+### Generated Output Structure
+
+```mermaid
+graph TD
+    PBIP["MonApp.pbip"]
+
+    subgraph SM["MonApp.SemanticModel/"]
+        PBISM["definition.pbism"]
+        DB["database.tmdl"]
+        MODEL["model.tmdl"]
+        subgraph TABLES["tables/"]
+            T1["Sales.tmdl"]
+            T2["Customers.tmdl"]
+            T3["Calendar.tmdl"]
+        end
+        REL["relationships.tmdl"]
+        EXPR["expressions.tmdl"]
+        ROLES["roles.tmdl"]
+        PERSP["perspectives.tmdl"]
+        subgraph CULT["cultures/"]
+            FR["fr-FR.tmdl"]
+        end
+    end
+
+    subgraph RPT["MonApp.Report/"]
+        PBIR["definition.pbir"]
+        RJSON["report.json"]
+        subgraph PAGES["pages/"]
+            P1JSON["Page1/page.json"]
+            P1VIS["Page1/visuals/*/visual.json"]
+            P2JSON["Page2/page.json"]
+            P2VIS["Page2/visuals/*/visual.json"]
+        end
+        subgraph STATIC["StaticResources/"]
+            THEME["BaseThemes/theme.json"]
+        end
+    end
+
+    PBIP --> SM & RPT
+
+    style PBIP fill:#4A90D9,color:#fff
+    style SM fill:#6B007B,color:#fff
+    style RPT fill:#1AAB40,color:#fff
 ```
 
 1. **Extraction** (`extraction_orchestrator.py`): parse QVF or JSON → 11 intermediate JSON files
-2. **Generation** (`tmdl_generator.py` + `visual_generator.py`): consume JSON → `.pbip` project
+2. **Conversion** (`dax_converter.py` + `m_query_generator.py` + `qlik_script_converter.py`): transform expressions
+3. **Generation** (`tmdl_generator.py` + `visual_generator.py`): produce `.pbip` project
 
 ## What Gets Generated
 
