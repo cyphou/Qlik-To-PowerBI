@@ -711,6 +711,11 @@ class TMDLGenerator:
         if expressions:
             self._write_expressions_tmdl(definition_dir / "expressions.tmdl", expressions)
 
+        # roles.tmdl (RLS - Row-Level Security)
+        roles = model.get("roles", [])
+        if roles:
+            self._write_roles_tmdl(definition_dir / "roles.tmdl", roles)
+
         return table_names
 
     # ==================================================================
@@ -817,6 +822,14 @@ class TMDLGenerator:
         lines.append(f"table {_quote_tmdl(name)}")
         lines.append(f"\tlineageTag: {lineage_tag}")
 
+        # Table-level dataCategory (e.g., Time for calendar tables)
+        if table_def.get("dataCategory"):
+            lines.append(f"\tdataCategory: {table_def['dataCategory']}")
+
+        # Table-level isHidden
+        if table_def.get("isHidden"):
+            lines.append("\tisHidden")
+
         # Columns
         for col in table_def.get("columns", []):
             lines.append("")
@@ -825,15 +838,38 @@ class TMDLGenerator:
             col_tag = col.get("lineageTag", _new_guid())
             source_col = col.get("sourceColumn", col_name)
             summarize = col.get("summarizeBy", "none")
+            col_type = col.get("type", "")  # "calculated" for calc columns
 
-            lines.append(f"\tcolumn {_quote_tmdl(col_name)}")
+            if col_type == "calculated":
+                # Calculated column with DAX expression
+                expr = col.get("expression", col_name)
+                lines.append(f"\tcolumn {_quote_tmdl(col_name)} = {expr}")
+            else:
+                lines.append(f"\tcolumn {_quote_tmdl(col_name)}")
+
             lines.append(f"\t\tdataType: {data_type}")
             fmt_str = col.get("formatString", "")
             if fmt_str:
                 lines.append(f"\t\tformatString: {fmt_str}")
             lines.append(f"\t\tlineageTag: {col_tag}")
             lines.append(f"\t\tsummarizeBy: {summarize}")
-            lines.append(f"\t\tsourceColumn: {source_col}")
+
+            # dataCategory for geographic columns
+            data_cat = col.get("dataCategory", "")
+            if data_cat:
+                lines.append(f"\t\tdataCategory: {data_cat}")
+
+            # isHidden flag
+            if col.get("isHidden"):
+                lines.append("\t\tisHidden")
+
+            # sortByColumn
+            sort_by = col.get("sortByColumn", "")
+            if sort_by:
+                lines.append(f"\t\tsortByColumn: {_quote_tmdl(sort_by)}")
+
+            if col_type != "calculated":
+                lines.append(f"\t\tsourceColumn: {source_col}")
 
             for ann in col.get("annotations", []):
                 lines.append(f"\t\tannotation {ann.get('name', '')} = {ann.get('value', '')}")
@@ -949,6 +985,191 @@ class TMDLGenerator:
 
         path.write_text("\n".join(lines), encoding="utf-8")
         logger.debug(f"  Écrit: {path.name}")
+
+    @staticmethod
+    def _write_roles_tmdl(path: Path, roles: List[Dict]):
+        """Write roles.tmdl (Row-Level Security roles from Qlik Section Access)."""
+        lines: List[str] = []
+        for role in roles:
+            role_name = role.get("name", "DefaultRole")
+            description = role.get("description", "")
+            model_perm = role.get("modelPermission", "read")
+
+            lines.append(f"role {_quote_tmdl(role_name)}")
+            lines.append(f"\tmodelPermission: {model_perm}")
+            if description:
+                lines.append(f"\tdescription: {description}")
+
+            # Table permissions with filter expressions
+            for tp in role.get("tablePermissions", []):
+                tp_table = tp.get("name", tp.get("table", ""))
+                tp_filter = tp.get("filterExpression", "")
+                if tp_table and tp_filter:
+                    lines.append("")
+                    lines.append(f"\ttablePermission {_quote_tmdl(tp_table)}")
+                    lines.append(f"\t\tfilterExpression: {tp_filter}")
+
+            # RLS members (informational — PBI handles via AAD)
+            for member in role.get("members", []):
+                member_name = member.get("memberName", "")
+                if member_name:
+                    lines.append("")
+                    lines.append(f"\t/// Member: {member_name}")
+
+            lines.append("")
+
+        path.write_text("\n".join(lines), encoding="utf-8")
+        logger.debug(f"  Écrit: {path.name}")
+
+    # ==================================================================
+    # Calendar table generator (auto time-intelligence)
+    # ==================================================================
+    @staticmethod
+    def generate_calendar_table() -> Dict:
+        """
+        Generate a Calendar/Date table definition for time intelligence.
+
+        Returns a table_def dict suitable for _write_table_tmdl().
+        """
+        tag = _new_guid()
+        return {
+            "name": "Calendar",
+            "lineageTag": tag,
+            "dataCategory": "Time",
+            "columns": [
+                {"name": "Date", "dataType": "dateTime", "sourceColumn": "Date",
+                 "lineageTag": _new_guid(), "summarizeBy": "none",
+                 "formatString": "yyyy-MM-dd", "isKey": True},
+                {"name": "Year", "dataType": "int64", "sourceColumn": "Year",
+                 "lineageTag": _new_guid(), "summarizeBy": "none"},
+                {"name": "Month", "dataType": "int64", "sourceColumn": "Month",
+                 "lineageTag": _new_guid(), "summarizeBy": "none"},
+                {"name": "MonthName", "dataType": "string", "sourceColumn": "MonthName",
+                 "lineageTag": _new_guid(), "summarizeBy": "none",
+                 "sortByColumn": "Month"},
+                {"name": "Quarter", "dataType": "int64", "sourceColumn": "Quarter",
+                 "lineageTag": _new_guid(), "summarizeBy": "none"},
+                {"name": "QuarterLabel", "dataType": "string", "sourceColumn": "QuarterLabel",
+                 "lineageTag": _new_guid(), "summarizeBy": "none",
+                 "sortByColumn": "Quarter"},
+                {"name": "DayOfWeek", "dataType": "int64", "sourceColumn": "DayOfWeek",
+                 "lineageTag": _new_guid(), "summarizeBy": "none"},
+                {"name": "DayName", "dataType": "string", "sourceColumn": "DayName",
+                 "lineageTag": _new_guid(), "summarizeBy": "none",
+                 "sortByColumn": "DayOfWeek"},
+                {"name": "WeekNumber", "dataType": "int64", "sourceColumn": "WeekNumber",
+                 "lineageTag": _new_guid(), "summarizeBy": "none"},
+                {"name": "IsWeekend", "dataType": "boolean", "sourceColumn": "IsWeekend",
+                 "lineageTag": _new_guid(), "summarizeBy": "none"},
+            ],
+            "partitions": [
+                {
+                    "name": "Calendar",
+                    "mode": "import",
+                    "source": {
+                        "type": "m",
+                        "expression": (
+                            "let\n"
+                            '    StartDate = #date(2020, 1, 1),\n'
+                            '    EndDate = #date(2030, 12, 31),\n'
+                            '    DayCount = Duration.Days(EndDate - StartDate) + 1,\n'
+                            '    Source = List.Dates(StartDate, DayCount, #duration(1, 0, 0, 0)),\n'
+                            '    Table = Table.FromList(Source, Splitter.SplitByNothing(), {"Date"}, null, ExtraValues.Error),\n'
+                            '    ChangedType = Table.TransformColumnTypes(Table, {{"Date", type date}}),\n'
+                            '    AddYear = Table.AddColumn(ChangedType, "Year", each Date.Year([Date]), Int64.Type),\n'
+                            '    AddMonth = Table.AddColumn(AddYear, "Month", each Date.Month([Date]), Int64.Type),\n'
+                            '    AddMonthName = Table.AddColumn(AddMonth, "MonthName", each Date.MonthName([Date]), type text),\n'
+                            '    AddQuarter = Table.AddColumn(AddMonthName, "Quarter", each Date.QuarterOfYear([Date]), Int64.Type),\n'
+                            '    AddQuarterLabel = Table.AddColumn(AddQuarter, "QuarterLabel", each "Q" & Text.From(Date.QuarterOfYear([Date])), type text),\n'
+                            '    AddDayOfWeek = Table.AddColumn(AddQuarterLabel, "DayOfWeek", each Date.DayOfWeek([Date], Day.Monday) + 1, Int64.Type),\n'
+                            '    AddDayName = Table.AddColumn(AddDayOfWeek, "DayName", each Date.DayOfWeekName([Date]), type text),\n'
+                            '    AddWeekNumber = Table.AddColumn(AddDayName, "WeekNumber", each Date.WeekOfYear([Date]), Int64.Type),\n'
+                            '    AddIsWeekend = Table.AddColumn(AddWeekNumber, "IsWeekend", each Date.DayOfWeek([Date], Day.Monday) >= 5, type logical)\n'
+                            "in\n"
+                            "    AddIsWeekend"
+                        ),
+                    },
+                }
+            ],
+            "measures": [
+                {"name": "Today", "expression": "TODAY()",
+                 "lineageTag": _new_guid(), "formatString": "yyyy-MM-dd"},
+            ],
+        }
+
+    # ==================================================================
+    # Parameter / What-If table generator
+    # ==================================================================
+    @staticmethod
+    def generate_parameter_table(
+        param_name: str,
+        min_val: float = 0,
+        max_val: float = 100,
+        step: float = 1,
+        default_val: Optional[float] = None,
+    ) -> Dict:
+        """
+        Generate a parameter (What-If) table using GENERATESERIES.
+
+        Returns a table_def dict suitable for _write_table_tmdl().
+        """
+        tag = _new_guid()
+        default = default_val if default_val is not None else min_val
+        safe_name = param_name.replace(" ", "")
+
+        return {
+            "name": param_name,
+            "lineageTag": tag,
+            "isHidden": False,
+            "columns": [
+                {
+                    "name": f"{param_name} Value",
+                    "dataType": "double",
+                    "sourceColumn": f"{param_name} Value",
+                    "lineageTag": _new_guid(),
+                    "summarizeBy": "none",
+                    "type": "calculated",
+                    "expression": f"GENERATESERIES({min_val}, {max_val}, {step})",
+                },
+            ],
+            "measures": [
+                {
+                    "name": f"{safe_name}Value",
+                    "expression": f'SELECTEDVALUE(\'{param_name}\'[{param_name} Value], {default})',
+                    "lineageTag": _new_guid(),
+                },
+            ],
+        }
+
+    # ==================================================================
+    # Geographic data categories mapping
+    # ==================================================================
+    GEOGRAPHIC_CATEGORIES: Dict[str, str] = {
+        "country": "Country",
+        "state": "StateOrProvince",
+        "province": "StateOrProvince",
+        "city": "City",
+        "postalcode": "PostalCode",
+        "zipcode": "PostalCode",
+        "zip": "PostalCode",
+        "address": "Address",
+        "county": "County",
+        "continent": "Continent",
+        "latitude": "Latitude",
+        "longitude": "Longitude",
+        "lat": "Latitude",
+        "lon": "Longitude",
+        "lng": "Longitude",
+        "place": "Place",
+        "region": "StateOrProvince",
+        "countryregion": "Country",
+    }
+
+    @classmethod
+    def infer_data_category(cls, column_name: str) -> str:
+        """Infer geographic dataCategory from column name."""
+        lower = column_name.lower().strip()
+        return cls.GEOGRAPHIC_CATEGORIES.get(lower, "")
 
 
 # ==================================================================

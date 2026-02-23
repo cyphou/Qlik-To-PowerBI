@@ -6,7 +6,7 @@ are lazy-imported and require ``pip install qlik-to-powerbi[azure]``.
 """
 from __future__ import annotations
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
 # Always-available — no heavy dependencies
 from .tmdl_generator import TMDLGenerator, create_pbi_project_from_migration
@@ -16,6 +16,13 @@ from .qlik_script_converter import QlikScriptToPowerQueryConverter, QlikScriptMi
 from .qvf_extractor import QVFExtractor
 from .validator import ArtifactValidator
 from .utils import DeploymentReport, ArtifactCache
+
+# New v3.0 modules
+from .dax_converter import convert_qlik_expression_to_dax, convert_measures_to_dax, convert_dimensions_to_dax
+from .visual_generator import generate_visual_containers, create_visual_container, resolve_visual_type
+from .m_query_generator import generate_m_query, generate_all_m_queries
+from .m_query_builder import inject_m_steps, build_m_query_with_transforms
+from .extraction_orchestrator import ExtractionOrchestrator
 
 
 def __getattr__(name: str):
@@ -49,6 +56,21 @@ __all__ = [
     "ArtifactValidator",
     "DeploymentReport",
     "ArtifactCache",
+    # DAX conversion (v3.0)
+    "convert_qlik_expression_to_dax",
+    "convert_measures_to_dax",
+    "convert_dimensions_to_dax",
+    # Visual generation (v3.0)
+    "generate_visual_containers",
+    "create_visual_container",
+    "resolve_visual_type",
+    # Power Query M (v3.0)
+    "generate_m_query",
+    "generate_all_m_queries",
+    "inject_m_steps",
+    "build_m_query_with_transforms",
+    # Extraction orchestrator (v3.0)
+    "ExtractionOrchestrator",
     # Azure (lazy)
     "FabricClient",
     "FabricAuthenticator",
