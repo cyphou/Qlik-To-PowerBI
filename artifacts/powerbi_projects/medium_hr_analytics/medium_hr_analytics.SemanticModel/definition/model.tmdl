@@ -1,0 +1,8 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	discourageImplicitMeasures
+
+ref table Employees
+ref table Departments
+ref table Locations

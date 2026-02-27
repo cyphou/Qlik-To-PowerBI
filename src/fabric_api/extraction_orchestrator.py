@@ -210,6 +210,11 @@ class ExtractionOrchestrator:
                     "source_file": str(json_path),
                     "extracted_at": datetime.now().isoformat(),
                 }
+            # Auto-extract visualizations from sheet cells when not explicitly provided
+            if not self._data.get("visualizations"):
+                self._data["visualizations"] = self._extract_visuals_from_sheets(
+                    self._data.get("sheets", [])
+                )
             return
 
         # Qlik Sense Engine API export format
@@ -348,6 +353,52 @@ class ExtractionOrchestrator:
             }
             result.append(s)
         return result
+
+    def _extract_visuals_from_sheets(self, sheets: List[Dict]) -> List[Dict]:
+        """Extract visualization objects from sheet cells.
+
+        When the JSON export has no top-level 'visualizations' key, each
+        sheet may carry its visuals inline as 'cells'.  This method walks
+        through every sheet, pulls the cells out, and returns a flat list
+        of visualization dicts compatible with the downstream pipeline.
+        """
+        visuals: List[Dict] = []
+        for idx, sheet in enumerate(sheets):
+            # Resolve sheet id from multiple possible locations
+            sheet_id = (
+                sheet.get("id")
+                or sheet.get("qProperty", {}).get("qInfo", {}).get("qId")
+                or sheet.get("qInfo", {}).get("qId")
+                or f"sheet_{idx}"
+            )
+            # Resolve sheet title for fallback naming
+            sheet_title = (
+                sheet.get("title")
+                or sheet.get("qProperty", {}).get("qMetaDef", {}).get("title")
+                or sheet.get("qMeta", {}).get("title")
+                or f"Sheet {idx + 1}"
+            )
+            # Normalize the sheet dict so downstream code can use .get("id")
+            if "id" not in sheet:
+                sheet["id"] = sheet_id
+            if "title" not in sheet:
+                sheet["title"] = sheet_title
+
+            cells = sheet.get("cells", [])
+            for cell_idx, cell in enumerate(cells):
+                vis_id = cell.get("name", cell.get("id", f"{sheet_id}_vis_{cell_idx}"))
+                vis = {
+                    "id": vis_id,
+                    "type": cell.get("type", "unknown"),
+                    "title": cell.get("title", ""),
+                    "sheetId": sheet_id,
+                    "dimensions": cell.get("dimensions", []),
+                    "measures": cell.get("measures", []),
+                    "settings": cell.get("properties", cell.get("settings", {})),
+                    "position": cell.get("position", cell.get("bounds", {})),
+                }
+                visuals.append(vis)
+        return visuals
 
     def _build_variables(self, qvf: Dict) -> List[Dict]:
         variables = qvf.get("variables", [])

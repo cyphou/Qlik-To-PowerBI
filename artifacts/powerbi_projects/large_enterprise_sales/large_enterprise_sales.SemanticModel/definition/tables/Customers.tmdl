@@ -1,0 +1,47 @@
+table Customers
+	lineageTag: fd71d8e5-55e1-4201-8a1d-53306620d0d4
+
+	column CustomerID
+		dataType: string
+		lineageTag: 09ba5282-d9d1-4822-95a4-46f887f4738d
+		summarizeBy: none
+		sourceColumn: CustomerID
+
+	column CustomerName
+		dataType: string
+		lineageTag: de6dec83-7c90-4ea9-802c-db784f27da34
+		summarizeBy: none
+		sourceColumn: CustomerName
+
+	column Segment
+		dataType: string
+		lineageTag: 5b0e2d99-f11a-4d7e-a92d-7b397411641e
+		summarizeBy: none
+		sourceColumn: Segment
+
+	column Region
+		dataType: string
+		lineageTag: 8590d876-6c27-4ac8-b5a1-6172837a0d10
+		summarizeBy: none
+		sourceColumn: Region
+
+	column Country
+		dataType: string
+		lineageTag: 77f6fae8-9601-471a-90e1-984eccb950cb
+		summarizeBy: none
+		sourceColumn: Country
+
+	column City
+		dataType: string
+		lineageTag: 3e83bc88-efeb-4a76-9a3b-384448c0e264
+		summarizeBy: none
+		sourceColumn: City
+
+	partition Customers = m
+		mode: import
+		source =
+			let
+			    Source = Sql.Database("localhost", "master"),
+			    Table = Source{[Schema="dbo",Item="Customers"]}[Data]
+			in
+			    Table

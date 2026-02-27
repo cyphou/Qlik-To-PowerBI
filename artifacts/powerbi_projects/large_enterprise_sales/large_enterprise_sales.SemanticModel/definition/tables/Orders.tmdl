@@ -1,0 +1,95 @@
+table Orders
+	lineageTag: d3587681-3365-4f33-afa7-a9836048c2f9
+
+	column OrderID
+		dataType: string
+		lineageTag: 934c13e1-ef92-407c-814e-03f7a24cd6a8
+		summarizeBy: none
+		sourceColumn: OrderID
+
+	column OrderDate
+		dataType: dateTime
+		lineageTag: 760c8ef8-e8f0-4e48-b318-cff85bfe615c
+		summarizeBy: none
+		sourceColumn: OrderDate
+
+	column ShipDate
+		dataType: dateTime
+		lineageTag: 36526e86-af33-4685-9994-37d1da830319
+		summarizeBy: none
+		sourceColumn: ShipDate
+
+	column ShipMode
+		dataType: string
+		lineageTag: 1f5221c6-cc97-4eb0-aea3-26b645370450
+		summarizeBy: none
+		sourceColumn: ShipMode
+
+	column CustomerID
+		dataType: string
+		lineageTag: b0cebdee-c86e-4b51-935b-7777237094e1
+		summarizeBy: none
+		sourceColumn: CustomerID
+
+	column Segment
+		dataType: string
+		lineageTag: 058894b6-7b6f-4747-9258-97409a09d88e
+		summarizeBy: none
+		sourceColumn: Segment
+
+	column Region
+		dataType: string
+		lineageTag: 53c3492e-a967-4980-86bf-acbc9c18f0bc
+		summarizeBy: none
+		sourceColumn: Region
+
+	column Country
+		dataType: string
+		lineageTag: 35f3e894-03bf-4bc9-9c37-d1886dcb08ce
+		summarizeBy: none
+		sourceColumn: Country
+
+	column City
+		dataType: string
+		lineageTag: ced39979-90e4-40e6-99a2-6c691ac63fe8
+		summarizeBy: none
+		sourceColumn: City
+
+	column Sales
+		dataType: double
+		lineageTag: 5a802557-f783-44a7-81b9-a3593430db42
+		summarizeBy: none
+		sourceColumn: Sales
+
+	column Quantity
+		dataType: int64
+		lineageTag: a6100c91-8aef-4d8f-b4d7-bef8c7ef5b22
+		summarizeBy: none
+		sourceColumn: Quantity
+
+	column Discount
+		dataType: double
+		lineageTag: 08f2a757-7af7-42f9-b4db-34309c37d069
+		summarizeBy: none
+		sourceColumn: Discount
+
+	column Profit
+		dataType: double
+		lineageTag: 662a61cf-7521-49d1-89ba-690e493ce6b9
+		summarizeBy: none
+		sourceColumn: Profit
+
+	column Returned
+		dataType: string
+		lineageTag: 91a84d90-3613-4c3b-beea-6a30ccdea231
+		summarizeBy: none
+		sourceColumn: Returned
+
+	partition Orders = m
+		mode: import
+		source =
+			let
+			    Source = Sql.Database("localhost", "master"),
+			    Table = Source{[Schema="dbo",Item="Orders"]}[Data]
+			in
+			    Table

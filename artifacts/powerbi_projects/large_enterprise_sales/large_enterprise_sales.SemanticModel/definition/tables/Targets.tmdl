@@ -1,0 +1,35 @@
+table Targets
+	lineageTag: a8e8ba57-56d3-47b0-b0b4-d6df2c01a5c9
+
+	column Year
+		dataType: int64
+		lineageTag: f96309f8-5bec-4b30-b2a4-b55ce7319f8e
+		summarizeBy: none
+		sourceColumn: Year
+
+	column Region
+		dataType: string
+		lineageTag: f4b42905-55df-4e3d-80d9-f46b4a51f3e0
+		summarizeBy: none
+		sourceColumn: Region
+
+	column Category
+		dataType: string
+		lineageTag: 8ff075d9-3b77-493d-8a03-f6471fcd3963
+		summarizeBy: none
+		sourceColumn: Category
+
+	column Target
+		dataType: double
+		lineageTag: 43c7adbb-d24b-455b-899d-bf3a61408b63
+		summarizeBy: none
+		sourceColumn: Target
+
+	partition Targets = m
+		mode: import
+		source =
+			let
+			    Source = Sql.Database("localhost", "master"),
+			    Table = Source{[Schema="dbo",Item="Targets"]}[Data]
+			in
+			    Table

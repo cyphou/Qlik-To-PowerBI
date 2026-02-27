@@ -1,0 +1,29 @@
+expression Employees =
+		```
+		let
+		    Source = Sql.Database("localhost", "master"),
+		    Table = Source{[Schema="dbo",Item="Employees"]}[Data]
+		in
+		    Table
+		```
+	lineageTag: e9600486-216e-4a2b-985c-84edfbe93d9e
+
+expression Departments =
+		```
+		let
+		    Source = Sql.Database("localhost", "master"),
+		    Table = Source{[Schema="dbo",Item="Departments"]}[Data]
+		in
+		    Table
+		```
+	lineageTag: 70905faa-db13-4f63-805b-1bf29c970118
+
+expression Locations =
+		```
+		let
+		    Source = Sql.Database("localhost", "master"),
+		    Table = Source{[Schema="dbo",Item="Locations"]}[Data]
+		in
+		    Table
+		```
+	lineageTag: 8e1df81e-9e53-4dd0-a488-195fe0d3c21e

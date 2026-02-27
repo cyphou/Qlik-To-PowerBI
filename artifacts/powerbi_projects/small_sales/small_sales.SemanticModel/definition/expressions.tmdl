@@ -1,0 +1,10 @@
+expression Sales =
+		```
+		let
+		    Source = Csv.Document(File.Contents("C:\Data\file.csv"), [Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.None]),
+		    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+		    ChangedTypes = Table.TransformColumnTypes(PromotedHeaders, {{"ProductName", type text}, {"SalesDate", type date}, {"Revenue", type number}, {"Quantity", Int64.Type}})
+		in
+		    ChangedTypes
+		```
+	lineageTag: 4301c916-02c5-440d-9fdf-857d7b14aeb8

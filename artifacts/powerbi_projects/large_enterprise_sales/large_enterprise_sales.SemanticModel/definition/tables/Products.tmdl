@@ -1,0 +1,41 @@
+table Products
+	lineageTag: 9cf2c90c-574c-426c-996a-c87bc217885c
+
+	column ProductID
+		dataType: string
+		lineageTag: 6e967287-cdc9-4c43-93be-3af743e16f71
+		summarizeBy: none
+		sourceColumn: ProductID
+
+	column ProductName
+		dataType: string
+		lineageTag: 96f2e809-0d14-4522-9279-38ff02380626
+		summarizeBy: none
+		sourceColumn: ProductName
+
+	column Category
+		dataType: string
+		lineageTag: 93f60911-0d7c-4cd9-9d93-6ea1617495de
+		summarizeBy: none
+		sourceColumn: Category
+
+	column SubCategory
+		dataType: string
+		lineageTag: 71c26cc4-dfbb-4cd0-bb7a-04e0f232dd30
+		summarizeBy: none
+		sourceColumn: SubCategory
+
+	column UnitCost
+		dataType: double
+		lineageTag: e1a7b7ea-0685-4a65-8c58-b31c6fd3487d
+		summarizeBy: none
+		sourceColumn: UnitCost
+
+	partition Products = m
+		mode: import
+		source =
+			let
+			    Source = Sql.Database("localhost", "master"),
+			    Table = Source{[Schema="dbo",Item="Products"]}[Data]
+			in
+			    Table

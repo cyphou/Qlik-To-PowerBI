@@ -1,0 +1,80 @@
+expression Orders =
+		```
+		let
+		    Source = Sql.Database("localhost", "master"),
+		    Table = Source{[Schema="dbo",Item="Orders"]}[Data]
+		in
+		    Table
+		```
+	lineageTag: 0214eced-9e38-44e5-8d59-8c2e38beb9f1
+
+expression Products =
+		```
+		let
+		    Source = Sql.Database("localhost", "master"),
+		    Table = Source{[Schema="dbo",Item="Products"]}[Data]
+		in
+		    Table
+		```
+	lineageTag: 872ba468-ecbf-4b36-b59e-69053fcc59e1
+
+expression Customers =
+		```
+		let
+		    Source = Sql.Database("localhost", "master"),
+		    Table = Source{[Schema="dbo",Item="Customers"]}[Data]
+		in
+		    Table
+		```
+	lineageTag: 6c4dcd02-cf43-4908-9be3-48eed14cd8dc
+
+expression Targets =
+		```
+		let
+		    Source = Sql.Database("localhost", "master"),
+		    Table = Source{[Schema="dbo",Item="Targets"]}[Data]
+		in
+		    Table
+		```
+	lineageTag: 63f7ed18-9733-4e79-9739-8b18562f59f1
+
+expression SalesReps =
+		```
+		let
+		    Source = Sql.Database("localhost", "master"),
+		    Table = Source{[Schema="dbo",Item="SalesReps"]}[Data]
+		in
+		    Table
+		```
+	lineageTag: 467e73ba-6064-4694-871f-074d5c84536f
+
+expression LoadScript =
+		```
+		// Erreur de conversion: LOAD statement mal formé
+		// Script Qlik original:
+		// // Enterprise Sales Load Script
+		SET DateFormat='MM/DD/YYYY';
+		SET ThousandSep=',';
+		SET DecimalSep='.';
+		
+		
+		// Query: Table3
+		let
+		    Source = Csv.Document(File.Contents("lib://DataFiles/Orders.csv"),[Delimiter=",", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),
+		    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])
+		,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"OrderID", "OrderDate", "ShipDate", "ShipMode", "CustomerID", "Segment", "Region", "Country", "City", "Sales", "Quantity", "Discount", "Profit"})
+		
+		in
+		    SelectedColumns
+		
+		// Query: Table5
+		let
+		    Source = Csv.Document(File.Contents("lib://DataFiles/Products.csv"),[Delimiter=",", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),
+		    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])
+		,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"ProductID", "ProductName", "Category", "SubCategory", "UnitCost"})
+		
+		in
+		    SelectedColumns
+		
+		```
+	lineageTag: e8019edc-5594-4ceb-a8b0-6d38b237d4bd

@@ -37,7 +37,7 @@ def print_step(step_num, total_steps, text):
     print("-" * 80)
 
 
-def run_extraction(qlik_file, output_dir):
+def run_extraction(qlik_file, output_dir, stats=None):
     """Run Qlik extraction → intermediate JSON files."""
     print_step(1, 3, "QLIK OBJECTS EXTRACTION")
 
@@ -66,6 +66,18 @@ def run_extraction(qlik_file, output_dir):
         print(f"  Bookmarks:      {summary.get('bookmarks_count', 0)}")
         print(f"  Has load script:{summary.get('has_loadscript', False)}")
 
+        if stats:
+            stats.app_name = summary.get('app_name', 'Unknown')
+            stats.datasources = summary.get('datasources_count', 0)
+            stats.dimensions = summary.get('dimensions_count', 0)
+            stats.measures = summary.get('measures_count', 0)
+            stats.visualizations = summary.get('visualizations_count', 0)
+            stats.sheets = summary.get('sheets_count', 0)
+            stats.variables = summary.get('variables_count', 0)
+            stats.associations = summary.get('associations_count', 0)
+            stats.bookmarks = summary.get('bookmarks_count', 0)
+            stats.has_loadscript = summary.get('has_loadscript', False)
+
         print(f"\n✓ Extraction completed — intermediate JSON in {json_dir}")
         return True
 
@@ -76,7 +88,48 @@ def run_extraction(qlik_file, output_dir):
         return False
 
 
-def run_conversion(json_dir):
+# ── Migration statistics tracker ─────────────────────────────────────
+class MigrationStats:
+    """Collect statistics across all migration steps for the final report."""
+    def __init__(self):
+        self.app_name = "Unknown"
+        # Extraction
+        self.datasources = 0
+        self.dimensions = 0
+        self.measures = 0
+        self.visualizations = 0
+        self.sheets = 0
+        self.variables = 0
+        self.associations = 0
+        self.bookmarks = 0
+        self.has_loadscript = False
+        # Conversion
+        self.dax_measures_converted = 0
+        self.dax_dimensions_total = 0
+        self.dax_calc_dims = 0
+        self.m_queries_generated = 0
+        self.loadscript_converted = False
+        self.relationships_built = 0
+        self.tables_built = 0
+        self.variables_expanded = 0
+        self.expressions_resolved = 0
+        # Generation
+        self.tmdl_tables_written = 0
+        self.visuals_generated = 0
+        self.pages_generated = 0
+        self.pbip_path = ""
+        # Warnings
+        self.warnings: list = []
+        self.skipped: list = []
+
+    def add_warning(self, msg: str):
+        self.warnings.append(msg)
+
+    def add_skipped(self, msg: str):
+        self.skipped.append(msg)
+
+
+def run_conversion(json_dir, stats=None):
     """Convert Qlik expressions → DAX, load scripts → M, build BIM model."""
     print_step(2, 3, "EXPRESSION & MODEL CONVERSION")
 
@@ -101,6 +154,8 @@ def run_conversion(json_dir):
             vdef = v.get("definition", "")
             if vname:
                 var_map[vname] = vdef
+        if stats:
+            stats.variables_expanded = len(var_map)
         print(f"  Variables loaded: {len(var_map)}")
 
         def expand_variables(expr):
@@ -125,6 +180,8 @@ def run_conversion(json_dir):
         for m in measures:
             m["expression"] = expand_variables(m.get("expression", ""))
         measures_dax = convert_measures_to_dax(measures)
+        if stats:
+            stats.dax_measures_converted = len(measures_dax)
         print(f"  Measures converted: {len(measures_dax)}")
 
         # ── Dimensions → DAX (calculated dims) ──────────────
@@ -133,11 +190,16 @@ def run_conversion(json_dir):
             d["field"] = expand_variables(d.get("field", ""))
         dimensions_dax = convert_dimensions_to_dax(dimensions)
         calc_dims = [d for d in dimensions_dax if d.get("is_calculated")]
+        if stats:
+            stats.dax_dimensions_total = len(dimensions_dax)
+            stats.dax_calc_dims = len(calc_dims)
         print(f"  Dimensions: {len(dimensions_dax)} ({len(calc_dims)} calculated)")
 
         # ── Datasources → M queries ─────────────────────────
         datasources = data.get("datasources", [])
         m_queries = generate_all_m_queries(datasources)
+        if stats:
+            stats.m_queries_generated = len(m_queries)
         print(f"  M queries generated: {len(m_queries)}")
 
         # ── Load script → M ─────────────────────────────────
@@ -150,6 +212,8 @@ def run_conversion(json_dir):
             pq_script = converter.convert_qlik_script_to_powerquery(script_text)
             if pq_script:
                 script_m_queries["LoadScript"] = pq_script
+                if stats:
+                    stats.loadscript_converted = True
                 print(f"  Load script converted to M")
 
         # ── Associations → relationships ─────────────────────
@@ -165,7 +229,20 @@ def run_conversion(json_dir):
                 "crossFilteringBehavior": "oneDirection",
                 "isActive": True,
             })
+        if stats:
+            stats.relationships_built = len(relationships)
         print(f"  Relationships: {len(relationships)}")
+
+        # ── Build shared expressions from M queries ──────────
+        expressions_list = []
+        all_m = {**m_queries, **script_m_queries}
+        for expr_name, expr_text in all_m.items():
+            expressions_list.append({
+                "name": expr_name,
+                "expression": expr_text,
+            })
+        if stats:
+            stats.expressions_resolved = len(expressions_list)
 
         # ── Build BIM model dict ─────────────────────────────
         tables = []
@@ -235,6 +312,9 @@ def run_conversion(json_dir):
                 "partitions": [{"name": sq_name, "mode": "import", "source": {"type": "m", "expression": sq_m}}],
             })
 
+        if stats:
+            stats.tables_built = len(tables)
+
         bim_model = {
             "compatibilityLevel": 1600,
             "model": {
@@ -242,6 +322,7 @@ def run_conversion(json_dir):
                 "defaultPowerBIDataSourceVersion": "powerBI_V3",
                 "tables": tables,
                 "relationships": relationships,
+                "expressions": expressions_list,
                 "annotations": [],
             },
         }
@@ -276,7 +357,7 @@ def run_conversion(json_dir):
         return False
 
 
-def run_generation(json_dir, output_dir, report_name):
+def run_generation(json_dir, output_dir, report_name, stats=None):
     """Generate Power BI project (.pbip) from converted data."""
     print_step(3, 3, "POWER BI PROJECT GENERATION")
 
@@ -308,6 +389,21 @@ def run_generation(json_dir, output_dir, report_name):
             bookmarks=data.get("bookmarks"),
         )
 
+        if stats:
+            stats.pbip_path = str(pbip_path)
+            # Count generated artifacts
+            proj = Path(output_dir) / report_name
+            sm_tables = proj / f"{report_name}.SemanticModel" / "definition" / "tables"
+            if sm_tables.exists():
+                stats.tmdl_tables_written = len(list(sm_tables.glob("*.tmdl")))
+            rpt_pages = proj / f"{report_name}.Report" / "definition" / "pages"
+            if rpt_pages.exists():
+                stats.pages_generated = sum(1 for p in rpt_pages.iterdir() if p.is_dir())
+                for page_dir in rpt_pages.iterdir():
+                    visuals_dir = page_dir / "visuals"
+                    if visuals_dir.exists():
+                        stats.visuals_generated += sum(1 for v in visuals_dir.iterdir() if v.is_dir())
+
         print(f"\n✓ Power BI project generated: {pbip_path}")
         return True
 
@@ -316,6 +412,73 @@ def run_generation(json_dir, output_dir, report_name):
         import traceback
         traceback.print_exc()
         return False
+
+
+def print_migration_summary(stats, duration, results):
+    """Print a detailed migration summary report."""
+    print_header("MIGRATION SUMMARY REPORT")
+
+    # ── Step results ──────────────────────────────────────────
+    print("Pipeline Steps")
+    print("-" * 50)
+    for step_name, success in [
+        ("Qlik Extraction", results.get("extraction", False)),
+        ("Expression Conversion", results.get("conversion", False)),
+        ("Power BI Generation", results.get("generation", False)),
+    ]:
+        status = "✓ Success" if success else "✗ Failed"
+        print(f"  {step_name:<30} {status}")
+
+    # ── Extraction summary ────────────────────────────────────
+    print(f"\nSource Application: {stats.app_name}")
+    print("-" * 50)
+    print(f"  {'Datasources':<25} {stats.datasources:>5}")
+    print(f"  {'Dimensions':<25} {stats.dimensions:>5}")
+    print(f"  {'Measures':<25} {stats.measures:>5}")
+    print(f"  {'Visualizations':<25} {stats.visualizations:>5}")
+    print(f"  {'Sheets':<25} {stats.sheets:>5}")
+    print(f"  {'Variables':<25} {stats.variables:>5}")
+    print(f"  {'Associations':<25} {stats.associations:>5}")
+    print(f"  {'Bookmarks':<25} {stats.bookmarks:>5}")
+    print(f"  {'Load Script':<25} {'Yes' if stats.has_loadscript else 'No':>5}")
+
+    # ── Conversion summary ────────────────────────────────────
+    print(f"\nConversion Results")
+    print("-" * 50)
+    print(f"  {'DAX measures converted':<25} {stats.dax_measures_converted:>5}")
+    print(f"  {'Dimensions processed':<25} {stats.dax_dimensions_total:>5}")
+    print(f"  {'  Calculated columns':<25} {stats.dax_calc_dims:>5}")
+    print(f"  {'M queries generated':<25} {stats.m_queries_generated:>5}")
+    print(f"  {'Variables expanded':<25} {stats.variables_expanded:>5}")
+    print(f"  {'Shared expressions':<25} {stats.expressions_resolved:>5}")
+    print(f"  {'Relationships built':<25} {stats.relationships_built:>5}")
+    print(f"  {'Tables in model':<25} {stats.tables_built:>5}")
+    print(f"  {'Load script → M':<25} {'Yes' if stats.loadscript_converted else 'No':>5}")
+
+    # ── Generation summary ────────────────────────────────────
+    print(f"\nGenerated Output")
+    print("-" * 50)
+    print(f"  {'TMDL table files':<25} {stats.tmdl_tables_written:>5}")
+    print(f"  {'Report pages':<25} {stats.pages_generated:>5}")
+    print(f"  {'Visual containers':<25} {stats.visuals_generated:>5}")
+    if stats.pbip_path:
+        print(f"  Project path: {stats.pbip_path}")
+
+    # ── Warnings ──────────────────────────────────────────────
+    if stats.warnings:
+        print(f"\nWarnings ({len(stats.warnings)})")
+        print("-" * 50)
+        for w in stats.warnings:
+            print(f"  ⚠ {w}")
+
+    if stats.skipped:
+        print(f"\nSkipped Items ({len(stats.skipped)})")
+        print("-" * 50)
+        for s in stats.skipped:
+            print(f"  → {s}")
+
+    # ── Duration ──────────────────────────────────────────────
+    print(f"\nDuration: {duration}")
 
 
 def main():
@@ -365,6 +528,7 @@ def main():
 
     start_time = datetime.now()
     results = {}
+    stats = MigrationStats()
 
     # Determine report name from source file
     source_basename = os.path.splitext(os.path.basename(args.qlik_file))[0]
@@ -372,7 +536,7 @@ def main():
 
     # Step 1: Extraction
     if not args.skip_extraction:
-        results["extraction"] = run_extraction(args.qlik_file, json_dir)
+        results["extraction"] = run_extraction(args.qlik_file, json_dir, stats=stats)
         if not results["extraction"]:
             print("\nMigration aborted due to extraction failure")
             return 1
@@ -382,7 +546,7 @@ def main():
 
     # Step 2: Conversion (expressions → DAX, scripts → M, build model)
     if not args.skip_conversion:
-        results["conversion"] = run_conversion(json_dir)
+        results["conversion"] = run_conversion(json_dir, stats=stats)
         if not results["conversion"]:
             print("\nMigration aborted due to conversion failure")
             return 1
@@ -391,21 +555,11 @@ def main():
         results["conversion"] = True
 
     # Step 3: Generate .pbip project
-    results["generation"] = run_generation(json_dir, args.output_dir, source_basename)
+    results["generation"] = run_generation(json_dir, args.output_dir, source_basename, stats=stats)
 
-    # Final report
+    # Final summary report
     duration = datetime.now() - start_time
-    print_header("MIGRATION RESULT")
-    print(f"Duration: {duration}")
-    print()
-
-    for step_name, success in [
-        ("Qlik Extraction", results.get("extraction", False)),
-        ("Expression Conversion", results.get("conversion", False)),
-        ("Power BI Generation", results.get("generation", False)),
-    ]:
-        status = "✓ Success" if success else "✗ Failed"
-        print(f"  {step_name:<30} {status}")
+    print_migration_summary(stats, duration, results)
 
     all_success = all(results.values())
 

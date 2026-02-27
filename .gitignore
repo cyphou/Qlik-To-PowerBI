@@ -56,6 +56,13 @@ fabric-deployment.log
 artifacts/*.json
 !artifacts/*.example.json
 
+# Power BI local settings
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
+
+# Migration output (generated, not committed)
+test_output/
+
 # OS
 Thumbs.db
 .DS_Store

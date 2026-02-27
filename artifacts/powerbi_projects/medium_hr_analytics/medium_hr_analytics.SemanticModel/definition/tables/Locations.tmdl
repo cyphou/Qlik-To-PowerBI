@@ -1,0 +1,41 @@
+table Locations
+	lineageTag: 1c73cda1-0ac4-4805-877b-5df35741787c
+
+	column LocationID
+		dataType: int64
+		lineageTag: d5af2c4b-63a0-4b6e-a42c-276168546a9f
+		summarizeBy: none
+		sourceColumn: LocationID
+
+	column Country
+		dataType: string
+		lineageTag: 211aeb7b-8194-4c0b-8f2a-017c5d6674af
+		summarizeBy: none
+		sourceColumn: Country
+
+	column Region
+		dataType: string
+		lineageTag: f72222f7-9740-4b27-b7c9-f02dcfe9647a
+		summarizeBy: none
+		sourceColumn: Region
+
+	column City
+		dataType: string
+		lineageTag: 1777b5e2-f9a6-4788-a2c9-c1bf0a4bae96
+		summarizeBy: none
+		sourceColumn: City
+
+	column OfficeCode
+		dataType: string
+		lineageTag: acc19597-3849-4548-8eec-bf59b330b6e3
+		summarizeBy: none
+		sourceColumn: OfficeCode
+
+	partition Locations = m
+		mode: import
+		source =
+			let
+			    Source = Sql.Database("localhost", "master"),
+			    Table = Source{[Schema="dbo",Item="Locations"]}[Data]
+			in
+			    Table

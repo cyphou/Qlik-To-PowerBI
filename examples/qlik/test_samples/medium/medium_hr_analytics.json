@@ -1,0 +1,261 @@
+{
+  "qTitle": "Medium HR Analytics",
+  "qDocId": "medium-test-001",
+  "properties": {
+    "qDimensionList": {
+      "qItems": [
+        {
+          "qInfo": { "qId": "dim_dept", "qType": "dimension" },
+          "qMeta": { "title": "Department", "description": "Company department" },
+          "qDim": { "qFieldDefs": ["Department"], "qGrouping": "N", "qFieldLabels": ["Department"] }
+        },
+        {
+          "qInfo": { "qId": "dim_region", "qType": "dimension" },
+          "qMeta": { "title": "Region", "description": "Office region" },
+          "qDim": { "qFieldDefs": ["Region"], "qGrouping": "N", "qFieldLabels": ["Region"] }
+        },
+        {
+          "qInfo": { "qId": "dim_jobtitle", "qType": "dimension" },
+          "qMeta": { "title": "Job Title", "description": "Employee job title" },
+          "qDim": { "qFieldDefs": ["JobTitle"], "qGrouping": "N", "qFieldLabels": ["Job Title"] }
+        },
+        {
+          "qInfo": { "qId": "dim_hire_year", "qType": "dimension" },
+          "qMeta": { "title": "Hire Year", "description": "Year employee was hired" },
+          "qDim": { "qFieldDefs": ["Year(HireDate)"], "qGrouping": "N", "qFieldLabels": ["Hire Year"] }
+        },
+        {
+          "qInfo": { "qId": "dim_gender", "qType": "dimension" },
+          "qMeta": { "title": "Gender", "description": "Employee gender" },
+          "qDim": { "qFieldDefs": ["Gender"], "qGrouping": "N", "qFieldLabels": ["Gender"] }
+        },
+        {
+          "qInfo": { "qId": "dim_education", "qType": "dimension" },
+          "qMeta": { "title": "Education Level", "description": "Highest degree attained" },
+          "qDim": { "qFieldDefs": ["EducationLevel"], "qGrouping": "N", "qFieldLabels": ["Education"] }
+        },
+        {
+          "qInfo": { "qId": "dim_drill_location", "qType": "dimension" },
+          "qMeta": { "title": "Location Hierarchy", "description": "Country > Region > City drill-down" },
+          "qDim": {
+            "qFieldDefs": ["Country", "Region", "City"],
+            "qGrouping": "H",
+            "qFieldLabels": ["Country", "Region", "City"]
+          }
+        }
+      ]
+    },
+    "qMeasureList": {
+      "qItems": [
+        {
+          "qInfo": { "qId": "mea_headcount", "qType": "measure" },
+          "qMeta": { "title": "Headcount", "description": "Total employees" },
+          "qMeasure": {
+            "qDef": "Count(EmployeeID)",
+            "qNumFormat": { "qFmt": "#,##0" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_avg_salary", "qType": "measure" },
+          "qMeta": { "title": "Avg Salary", "description": "Average salary" },
+          "qMeasure": {
+            "qDef": "Avg(Salary)",
+            "qNumFormat": { "qFmt": "#,##0.00" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_turnover", "qType": "measure" },
+          "qMeta": { "title": "Turnover Rate", "description": "Employee turnover rate" },
+          "qMeasure": {
+            "qDef": "Count({<Status={'Left'}>} EmployeeID) / Count(EmployeeID)",
+            "qNumFormat": { "qFmt": "0.0%" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_total_comp", "qType": "measure" },
+          "qMeta": { "title": "Total Compensation", "description": "Sum of all compensation" },
+          "qMeasure": {
+            "qDef": "Sum(Salary) + Sum(Bonus)",
+            "qNumFormat": { "qFmt": "#,##0" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_avg_tenure", "qType": "measure" },
+          "qMeta": { "title": "Avg Tenure", "description": "Average years of service" },
+          "qMeasure": {
+            "qDef": "Avg(Today() - HireDate) / 365",
+            "qNumFormat": { "qFmt": "0.0" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_satisfaction", "qType": "measure" },
+          "qMeta": { "title": "Satisfaction Score", "description": "Average satisfaction" },
+          "qMeasure": {
+            "qDef": "Avg(SatisfactionScore)",
+            "qNumFormat": { "qFmt": "0.00" }
+          }
+        }
+      ]
+    }
+  },
+  "sheets": [
+    {
+      "qProperty": {
+        "qInfo": { "qId": "sheet_overview", "qType": "sheet" },
+        "qMetaDef": { "title": "HR Overview", "description": "Workforce summary" }
+      },
+      "cells": [
+        {
+          "name": "viz_headcount_kpi",
+          "type": "kpi",
+          "title": "Total Headcount",
+          "properties": { "fontSize": "large" }
+        },
+        {
+          "name": "viz_dept_bar",
+          "type": "barchart",
+          "title": "Headcount by Department",
+          "properties": { "orientation": "horizontal" }
+        },
+        {
+          "name": "viz_region_pie",
+          "type": "piechart",
+          "title": "Distribution by Region",
+          "properties": { "showLabels": true }
+        },
+        {
+          "name": "viz_salary_line",
+          "type": "linechart",
+          "title": "Avg Salary Trend",
+          "properties": { "dataPoints": true }
+        }
+      ]
+    },
+    {
+      "qProperty": {
+        "qInfo": { "qId": "sheet_compensation", "qType": "sheet" },
+        "qMetaDef": { "title": "Compensation", "description": "Salary analysis" }
+      },
+      "cells": [
+        {
+          "name": "viz_salary_scatter",
+          "type": "scatterplot",
+          "title": "Salary vs Tenure",
+          "properties": { "showTrendLine": true }
+        },
+        {
+          "name": "viz_comp_table",
+          "type": "table",
+          "title": "Employee Compensation Detail",
+          "properties": { "pagination": true, "rowsPerPage": 20 }
+        },
+        {
+          "name": "viz_gender_treemap",
+          "type": "treemap",
+          "title": "Compensation by Gender & Department",
+          "properties": { "showLabels": true }
+        }
+      ]
+    },
+    {
+      "qProperty": {
+        "qInfo": { "qId": "sheet_turnover", "qType": "sheet" },
+        "qMetaDef": { "title": "Turnover Analysis", "description": "Employee attrition" }
+      },
+      "cells": [
+        {
+          "name": "viz_turnover_gauge",
+          "type": "gauge",
+          "title": "Turnover Rate",
+          "properties": { "min": 0, "max": 100 }
+        },
+        {
+          "name": "viz_turnover_combo",
+          "type": "combo",
+          "title": "Hires vs Exits by Quarter",
+          "properties": { "barMeasure": "Hires", "lineMeasure": "Exits" }
+        }
+      ]
+    }
+  ],
+  "datasources": [
+    {
+      "connectionType": "sqlserver",
+      "connectionString": "Server=hrdb.company.com;Database=HR;",
+      "tableName": "Employees",
+      "columns": [
+        { "name": "EmployeeID", "dataType": "integer" },
+        { "name": "FirstName", "dataType": "text" },
+        { "name": "LastName", "dataType": "text" },
+        { "name": "Department", "dataType": "text" },
+        { "name": "JobTitle", "dataType": "text" },
+        { "name": "Region", "dataType": "text" },
+        { "name": "Country", "dataType": "text" },
+        { "name": "City", "dataType": "text" },
+        { "name": "HireDate", "dataType": "date" },
+        { "name": "Salary", "dataType": "number" },
+        { "name": "Bonus", "dataType": "number" },
+        { "name": "Gender", "dataType": "text" },
+        { "name": "EducationLevel", "dataType": "text" },
+        { "name": "Status", "dataType": "text" },
+        { "name": "SatisfactionScore", "dataType": "number" }
+      ]
+    },
+    {
+      "connectionType": "sqlserver",
+      "connectionString": "Server=hrdb.company.com;Database=HR;",
+      "tableName": "Departments",
+      "columns": [
+        { "name": "DeptID", "dataType": "integer" },
+        { "name": "Department", "dataType": "text" },
+        { "name": "Manager", "dataType": "text" },
+        { "name": "Budget", "dataType": "number" },
+        { "name": "CostCenter", "dataType": "text" }
+      ]
+    },
+    {
+      "connectionType": "sqlserver",
+      "connectionString": "Server=hrdb.company.com;Database=HR;",
+      "tableName": "Locations",
+      "columns": [
+        { "name": "LocationID", "dataType": "integer" },
+        { "name": "Country", "dataType": "text" },
+        { "name": "Region", "dataType": "text" },
+        { "name": "City", "dataType": "text" },
+        { "name": "OfficeCode", "dataType": "text" }
+      ]
+    }
+  ],
+  "associations": [
+    {
+      "table1": "Employees",
+      "field1": "Department",
+      "table2": "Departments",
+      "field2": "Department"
+    },
+    {
+      "table1": "Employees",
+      "field1": "City",
+      "table2": "Locations",
+      "field2": "City"
+    }
+  ],
+  "variables": [
+    { "name": "vCurrentYear", "definition": "Year(Today())", "comment": "Current fiscal year" },
+    { "name": "vTargetTurnover", "definition": "0.15", "comment": "Target turnover rate (15%)" }
+  ],
+  "bookmarks": [
+    {
+      "id": "bm_high_salary",
+      "title": "High Salary Employees",
+      "description": "Employees with salary > 100K",
+      "selections": { "Salary": "> 100000" }
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "created": "2026-02-27",
+    "author": "Test Generator",
+    "description": "Medium test sample — 3 tables, 7 dimensions (1 hierarchy), 6 measures, 3 sheets, 9 visuals, 2 associations, variables, bookmarks, set analysis"
+  }
+}

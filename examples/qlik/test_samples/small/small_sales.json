@@ -1,0 +1,81 @@
+{
+  "qTitle": "Small Sales Dashboard",
+  "qDocId": "small-test-001",
+  "properties": {
+    "qDimensionList": {
+      "qItems": [
+        {
+          "qInfo": { "qId": "dim_product", "qType": "dimension" },
+          "qMeta": { "title": "Product", "description": "Product name" },
+          "qDim": { "qFieldDefs": ["ProductName"], "qGrouping": "N", "qFieldLabels": ["Product"] }
+        },
+        {
+          "qInfo": { "qId": "dim_date", "qType": "dimension" },
+          "qMeta": { "title": "Date", "description": "Sales date" },
+          "qDim": { "qFieldDefs": ["SalesDate"], "qGrouping": "N", "qFieldLabels": ["Date"] }
+        }
+      ]
+    },
+    "qMeasureList": {
+      "qItems": [
+        {
+          "qInfo": { "qId": "mea_revenue", "qType": "measure" },
+          "qMeta": { "title": "Revenue", "description": "Total revenue" },
+          "qMeasure": {
+            "qDef": "Sum(Revenue)",
+            "qNumFormat": { "qFmt": "#,##0.00" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_qty", "qType": "measure" },
+          "qMeta": { "title": "Quantity", "description": "Units sold" },
+          "qMeasure": {
+            "qDef": "Sum(Quantity)",
+            "qNumFormat": { "qFmt": "#,##0" }
+          }
+        }
+      ]
+    }
+  },
+  "sheets": [
+    {
+      "qProperty": {
+        "qInfo": { "qId": "sheet_main", "qType": "sheet" },
+        "qMetaDef": { "title": "Overview", "description": "Main dashboard" }
+      },
+      "cells": [
+        {
+          "name": "viz_bar",
+          "type": "barchart",
+          "title": "Revenue by Product",
+          "properties": { "orientation": "vertical" }
+        },
+        {
+          "name": "viz_kpi",
+          "type": "kpi",
+          "title": "Total Revenue",
+          "properties": { "fontSize": "large" }
+        }
+      ]
+    }
+  ],
+  "datasources": [
+    {
+      "connectionType": "csv",
+      "connectionString": "sales_data.csv",
+      "tableName": "Sales",
+      "columns": [
+        { "name": "ProductName", "dataType": "text" },
+        { "name": "SalesDate", "dataType": "date" },
+        { "name": "Revenue", "dataType": "number" },
+        { "name": "Quantity", "dataType": "integer" }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "created": "2026-02-27",
+    "author": "Test Generator",
+    "description": "Small test sample — 1 table, 2 dimensions, 2 measures, 1 sheet, 2 visuals"
+  }
+}

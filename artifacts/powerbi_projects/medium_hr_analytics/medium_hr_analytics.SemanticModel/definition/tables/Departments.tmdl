@@ -1,0 +1,41 @@
+table Departments
+	lineageTag: 32cb3fb2-3925-4a5b-8b6b-76785a968436
+
+	column DeptID
+		dataType: int64
+		lineageTag: da2ea600-0430-4e40-801a-068b58d5d1bc
+		summarizeBy: none
+		sourceColumn: DeptID
+
+	column Department
+		dataType: string
+		lineageTag: ef0add25-a81e-46c9-a035-c592c9037fd8
+		summarizeBy: none
+		sourceColumn: Department
+
+	column Manager
+		dataType: string
+		lineageTag: faa5ea51-73f0-44ba-9d18-f4b07a10bdf6
+		summarizeBy: none
+		sourceColumn: Manager
+
+	column Budget
+		dataType: double
+		lineageTag: ef7b6042-5d08-4c73-a88f-3e7ad6186030
+		summarizeBy: none
+		sourceColumn: Budget
+
+	column CostCenter
+		dataType: string
+		lineageTag: f9632841-223d-4061-a995-4cdbc7d85ca9
+		summarizeBy: none
+		sourceColumn: CostCenter
+
+	partition Departments = m
+		mode: import
+		source =
+			let
+			    Source = Sql.Database("localhost", "master"),
+			    Table = Source{[Schema="dbo",Item="Departments"]}[Data]
+			in
+			    Table

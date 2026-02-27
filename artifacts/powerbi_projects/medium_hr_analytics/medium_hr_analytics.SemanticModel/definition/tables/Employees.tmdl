@@ -1,0 +1,101 @@
+table Employees
+	lineageTag: f8125e5b-28be-4dea-abf9-82dbec8f9305
+
+	column EmployeeID
+		dataType: int64
+		lineageTag: 53932388-b0e4-4ab5-bd50-089f67e3c708
+		summarizeBy: none
+		sourceColumn: EmployeeID
+
+	column FirstName
+		dataType: string
+		lineageTag: effc34d0-d84c-4b0b-91f1-6e08a57e724c
+		summarizeBy: none
+		sourceColumn: FirstName
+
+	column LastName
+		dataType: string
+		lineageTag: 517326d9-d5e2-4a34-9b51-a364833589a2
+		summarizeBy: none
+		sourceColumn: LastName
+
+	column Department
+		dataType: string
+		lineageTag: 7e7a3fb8-f83f-48db-abdc-85d278a10ecc
+		summarizeBy: none
+		sourceColumn: Department
+
+	column JobTitle
+		dataType: string
+		lineageTag: 2e01421d-e605-4807-bf74-3db6fbd9bd5c
+		summarizeBy: none
+		sourceColumn: JobTitle
+
+	column Region
+		dataType: string
+		lineageTag: 8f775262-5717-43ca-bdbf-524212b18da1
+		summarizeBy: none
+		sourceColumn: Region
+
+	column Country
+		dataType: string
+		lineageTag: 4c183bfb-27f4-43e1-a0a4-fddefa771ee0
+		summarizeBy: none
+		sourceColumn: Country
+
+	column City
+		dataType: string
+		lineageTag: 2b6c6f3a-ad79-44cc-a4ae-de4d0ced4c2f
+		summarizeBy: none
+		sourceColumn: City
+
+	column HireDate
+		dataType: dateTime
+		lineageTag: d41c4aae-a35c-40b8-8af6-7a3453ebca90
+		summarizeBy: none
+		sourceColumn: HireDate
+
+	column Salary
+		dataType: double
+		lineageTag: 52b1ab2a-83a3-4dd5-89b5-418712b7e959
+		summarizeBy: none
+		sourceColumn: Salary
+
+	column Bonus
+		dataType: double
+		lineageTag: 41c59aac-32f9-4491-a466-544d0fa083c4
+		summarizeBy: none
+		sourceColumn: Bonus
+
+	column Gender
+		dataType: string
+		lineageTag: 070b43ed-f133-4d15-8a70-0c921947a507
+		summarizeBy: none
+		sourceColumn: Gender
+
+	column EducationLevel
+		dataType: string
+		lineageTag: 112d756f-fec9-4c8f-b0d9-5148bdfb2af7
+		summarizeBy: none
+		sourceColumn: EducationLevel
+
+	column Status
+		dataType: string
+		lineageTag: c6714b2f-db81-4f24-8c0a-e005656d4c43
+		summarizeBy: none
+		sourceColumn: Status
+
+	column SatisfactionScore
+		dataType: double
+		lineageTag: 080e4671-d134-4b1a-841f-24ec3ab4efb8
+		summarizeBy: none
+		sourceColumn: SatisfactionScore
+
+	partition Employees = m
+		mode: import
+		source =
+			let
+			    Source = Sql.Database("localhost", "master"),
+			    Table = Source{[Schema="dbo",Item="Employees"]}[Data]
+			in
+			    Table

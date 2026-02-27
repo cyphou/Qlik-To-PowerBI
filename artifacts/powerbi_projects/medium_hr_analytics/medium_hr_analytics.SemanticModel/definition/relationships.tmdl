@@ -1,0 +1,7 @@
+relationship Employees_Departments
+	fromColumn: Employees.Department
+	toColumn: Departments.Department
+
+relationship Employees_Locations
+	fromColumn: Employees.City
+	toColumn: Locations.City

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/3.1.0/schema.json",
+  "themeCollection": {
+    "baseTheme": {
+      "name": "CY24SU06",
+      "reportVersionAtImport": {
+        "visual": "1.8.50",
+        "report": "2.0.50",
+        "page": "1.3.50"
+      },
+      "type": "SharedResources"
+    }
+  },
+  "settings": {
+    "hideVisualContainerHeader": true,
+    "useStylableVisualContainerHeader": true,
+    "defaultDrillFilterOtherVisuals": true,
+    "allowChangeFilterTypes": true,
+    "useEnhancedTooltips": true,
+    "useCrossReportDrillthrough": false,
+    "isPersistentUserStateDisabled": false
+  },
+  "bookmarks": [
+    {
+      "name": "209065511cba5a424c76",
+      "displayName": "High Salary Employees",
+      "explorationState": {}
+    }
+  ]
+}

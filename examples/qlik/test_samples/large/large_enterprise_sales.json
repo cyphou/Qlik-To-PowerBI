@@ -1,0 +1,396 @@
+{
+  "qTitle": "Enterprise Sales Analytics",
+  "qDocId": "large-test-001",
+  "properties": {
+    "qDimensionList": {
+      "qItems": [
+        {
+          "qInfo": { "qId": "dim_product_cat", "qType": "dimension" },
+          "qMeta": { "title": "Product Category", "description": "Top-level product category" },
+          "qDim": { "qFieldDefs": ["Category"], "qGrouping": "N", "qFieldLabels": ["Category"] }
+        },
+        {
+          "qInfo": { "qId": "dim_product_sub", "qType": "dimension" },
+          "qMeta": { "title": "Sub-Category", "description": "Product sub-category" },
+          "qDim": { "qFieldDefs": ["SubCategory"], "qGrouping": "N", "qFieldLabels": ["Sub-Category"] }
+        },
+        {
+          "qInfo": { "qId": "dim_product_name", "qType": "dimension" },
+          "qMeta": { "title": "Product", "description": "Product name" },
+          "qDim": { "qFieldDefs": ["ProductName"], "qGrouping": "N", "qFieldLabels": ["Product"] }
+        },
+        {
+          "qInfo": { "qId": "dim_customer_name", "qType": "dimension" },
+          "qMeta": { "title": "Customer", "description": "Customer name" },
+          "qDim": { "qFieldDefs": ["CustomerName"], "qGrouping": "N", "qFieldLabels": ["Customer"] }
+        },
+        {
+          "qInfo": { "qId": "dim_customer_segment", "qType": "dimension" },
+          "qMeta": { "title": "Segment", "description": "Customer segment" },
+          "qDim": { "qFieldDefs": ["Segment"], "qGrouping": "N", "qFieldLabels": ["Segment"] }
+        },
+        {
+          "qInfo": { "qId": "dim_region", "qType": "dimension" },
+          "qMeta": { "title": "Region", "description": "Sales region" },
+          "qDim": { "qFieldDefs": ["Region"], "qGrouping": "N", "qFieldLabels": ["Region"] }
+        },
+        {
+          "qInfo": { "qId": "dim_country", "qType": "dimension" },
+          "qMeta": { "title": "Country", "description": "Country" },
+          "qDim": { "qFieldDefs": ["Country"], "qGrouping": "N", "qFieldLabels": ["Country"] }
+        },
+        {
+          "qInfo": { "qId": "dim_city", "qType": "dimension" },
+          "qMeta": { "title": "City", "description": "City" },
+          "qDim": { "qFieldDefs": ["City"], "qGrouping": "N", "qFieldLabels": ["City"] }
+        },
+        {
+          "qInfo": { "qId": "dim_order_date", "qType": "dimension" },
+          "qMeta": { "title": "Order Date", "description": "Date of order" },
+          "qDim": { "qFieldDefs": ["OrderDate"], "qGrouping": "N", "qFieldLabels": ["Order Date"] }
+        },
+        {
+          "qInfo": { "qId": "dim_ship_mode", "qType": "dimension" },
+          "qMeta": { "title": "Ship Mode", "description": "Shipping mode" },
+          "qDim": { "qFieldDefs": ["ShipMode"], "qGrouping": "N", "qFieldLabels": ["Ship Mode"] }
+        },
+        {
+          "qInfo": { "qId": "dim_sales_rep", "qType": "dimension" },
+          "qMeta": { "title": "Sales Rep", "description": "Sales representative" },
+          "qDim": { "qFieldDefs": ["SalesRep"], "qGrouping": "N", "qFieldLabels": ["Sales Rep"] }
+        },
+        {
+          "qInfo": { "qId": "dim_drill_geography", "qType": "dimension" },
+          "qMeta": { "title": "Geography Hierarchy", "description": "Region > Country > City drill-down" },
+          "qDim": {
+            "qFieldDefs": ["Region", "Country", "City"],
+            "qGrouping": "H",
+            "qFieldLabels": ["Region", "Country", "City"]
+          }
+        },
+        {
+          "qInfo": { "qId": "dim_drill_product", "qType": "dimension" },
+          "qMeta": { "title": "Product Hierarchy", "description": "Category > SubCategory > Product" },
+          "qDim": {
+            "qFieldDefs": ["Category", "SubCategory", "ProductName"],
+            "qGrouping": "H",
+            "qFieldLabels": ["Category", "Sub-Category", "Product"]
+          }
+        }
+      ]
+    },
+    "qMeasureList": {
+      "qItems": [
+        {
+          "qInfo": { "qId": "mea_sales", "qType": "measure" },
+          "qMeta": { "title": "Sales", "description": "Total sales amount" },
+          "qMeasure": {
+            "qDef": "Sum(Sales)",
+            "qNumFormat": { "qFmt": "#,##0.00" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_profit", "qType": "measure" },
+          "qMeta": { "title": "Profit", "description": "Total profit" },
+          "qMeasure": {
+            "qDef": "Sum(Profit)",
+            "qNumFormat": { "qFmt": "#,##0.00" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_quantity", "qType": "measure" },
+          "qMeta": { "title": "Quantity", "description": "Units sold" },
+          "qMeasure": {
+            "qDef": "Sum(Quantity)",
+            "qNumFormat": { "qFmt": "#,##0" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_discount", "qType": "measure" },
+          "qMeta": { "title": "Avg Discount", "description": "Average discount" },
+          "qMeasure": {
+            "qDef": "Avg(Discount)",
+            "qNumFormat": { "qFmt": "0.0%" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_profit_margin", "qType": "measure" },
+          "qMeta": { "title": "Profit Margin", "description": "Profit as % of sales" },
+          "qMeasure": {
+            "qDef": "Sum(Profit) / Sum(Sales)",
+            "qNumFormat": { "qFmt": "0.0%" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_order_count", "qType": "measure" },
+          "qMeta": { "title": "Order Count", "description": "Number of orders" },
+          "qMeasure": {
+            "qDef": "Count(DISTINCT OrderID)",
+            "qNumFormat": { "qFmt": "#,##0" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_aov", "qType": "measure" },
+          "qMeta": { "title": "Avg Order Value", "description": "Average order value" },
+          "qMeasure": {
+            "qDef": "Sum(Sales) / Count(DISTINCT OrderID)",
+            "qNumFormat": { "qFmt": "#,##0.00" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_yoy_growth", "qType": "measure" },
+          "qMeta": { "title": "YoY Growth", "description": "Year-over-year growth" },
+          "qMeasure": {
+            "qDef": "(Sum(Sales) - Sum({<Year={$(=Max(Year)-1)}>} Sales)) / Sum({<Year={$(=Max(Year)-1)}>} Sales)",
+            "qNumFormat": { "qFmt": "0.0%" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_sales_target", "qType": "measure" },
+          "qMeta": { "title": "Sales vs Target", "description": "Sales performance vs target" },
+          "qMeasure": {
+            "qDef": "Sum(Sales) / Sum(Target)",
+            "qNumFormat": { "qFmt": "0.0%" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_customer_count", "qType": "measure" },
+          "qMeta": { "title": "Customer Count", "description": "Distinct customers" },
+          "qMeasure": {
+            "qDef": "Count(DISTINCT CustomerID)",
+            "qNumFormat": { "qFmt": "#,##0" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_return_rate", "qType": "measure" },
+          "qMeta": { "title": "Return Rate", "description": "Returned orders percentage" },
+          "qMeasure": {
+            "qDef": "Count({<Returned={'Yes'}>} OrderID) / Count(OrderID)",
+            "qNumFormat": { "qFmt": "0.0%" }
+          }
+        },
+        {
+          "qInfo": { "qId": "mea_days_to_ship", "qType": "measure" },
+          "qMeta": { "title": "Avg Days to Ship", "description": "Average shipping time" },
+          "qMeasure": {
+            "qDef": "Avg(ShipDate - OrderDate)",
+            "qNumFormat": { "qFmt": "0.0" }
+          }
+        }
+      ]
+    }
+  },
+  "sheets": [
+    {
+      "qProperty": {
+        "qInfo": { "qId": "sheet_exec", "qType": "sheet" },
+        "qMetaDef": { "title": "Executive Summary", "description": "High-level KPIs" }
+      },
+      "cells": [
+        { "name": "viz_sales_kpi", "type": "kpi", "title": "Total Sales", "properties": { "fontSize": "large" } },
+        { "name": "viz_profit_kpi", "type": "kpi", "title": "Total Profit", "properties": { "fontSize": "large" } },
+        { "name": "viz_orders_kpi", "type": "kpi", "title": "Order Count", "properties": { "fontSize": "large" } },
+        { "name": "viz_customers_kpi", "type": "kpi", "title": "Customers", "properties": { "fontSize": "large" } },
+        { "name": "viz_sales_trend", "type": "linechart", "title": "Sales Trend", "properties": { "dataPoints": true } },
+        { "name": "viz_profit_bar", "type": "barchart", "title": "Profit by Category", "properties": { "orientation": "horizontal" } },
+        { "name": "viz_region_map", "type": "map", "title": "Sales by Region", "properties": {} }
+      ]
+    },
+    {
+      "qProperty": {
+        "qInfo": { "qId": "sheet_product", "qType": "sheet" },
+        "qMetaDef": { "title": "Product Analysis", "description": "Product performance" }
+      },
+      "cells": [
+        { "name": "viz_cat_bar", "type": "barchart", "title": "Sales by Category", "properties": { "orientation": "vertical" } },
+        { "name": "viz_sub_tree", "type": "treemap", "title": "SubCategory Treemap", "properties": { "showLabels": true } },
+        { "name": "viz_product_table", "type": "table", "title": "Product Detail", "properties": { "pagination": true } },
+        { "name": "viz_product_waterfall", "type": "waterfall", "title": "Profit Waterfall by Sub-Category", "properties": {} },
+        { "name": "viz_discount_scatter", "type": "scatterplot", "title": "Discount vs Profit Margin", "properties": { "showTrendLine": true } }
+      ]
+    },
+    {
+      "qProperty": {
+        "qInfo": { "qId": "sheet_customer", "qType": "sheet" },
+        "qMetaDef": { "title": "Customer Analysis", "description": "Customer insights" }
+      },
+      "cells": [
+        { "name": "viz_segment_pie", "type": "piechart", "title": "Sales by Segment", "properties": { "showLabels": true } },
+        { "name": "viz_customer_scatter", "type": "scatterplot", "title": "Customer Sales vs Profit", "properties": {} },
+        { "name": "viz_customer_pivot", "type": "pivot-table", "title": "Customer Pivot", "properties": {} },
+        { "name": "viz_top_customers", "type": "barchart", "title": "Top 10 Customers", "properties": { "orientation": "horizontal" } }
+      ]
+    },
+    {
+      "qProperty": {
+        "qInfo": { "qId": "sheet_geo", "qType": "sheet" },
+        "qMetaDef": { "title": "Geographic Analysis", "description": "Regional performance" }
+      },
+      "cells": [
+        { "name": "viz_geo_map", "type": "map", "title": "Sales Heat Map", "properties": {} },
+        { "name": "viz_region_combo", "type": "combo", "title": "Sales & Profit by Region", "properties": {} },
+        { "name": "viz_city_bar", "type": "barchart", "title": "Top Cities", "properties": { "orientation": "horizontal" } }
+      ]
+    },
+    {
+      "qProperty": {
+        "qInfo": { "qId": "sheet_operations", "qType": "sheet" },
+        "qMetaDef": { "title": "Operations", "description": "Shipping & returns" }
+      },
+      "cells": [
+        { "name": "viz_ship_gauge", "type": "gauge", "title": "Avg Days to Ship", "properties": { "min": 0, "max": 10 } },
+        { "name": "viz_ship_mode_pie", "type": "piechart", "title": "Orders by Ship Mode", "properties": {} },
+        { "name": "viz_return_combo", "type": "combo", "title": "Return Rate by Category", "properties": {} },
+        { "name": "viz_orders_detail", "type": "table", "title": "Order Detail", "properties": { "pagination": true, "rowsPerPage": 25 } }
+      ]
+    }
+  ],
+  "datasources": [
+    {
+      "connectionType": "sqlserver",
+      "connectionString": "Server=salesdb.enterprise.com;Database=Sales;",
+      "tableName": "Orders",
+      "columns": [
+        { "name": "OrderID", "dataType": "text" },
+        { "name": "OrderDate", "dataType": "date" },
+        { "name": "ShipDate", "dataType": "date" },
+        { "name": "ShipMode", "dataType": "text" },
+        { "name": "CustomerID", "dataType": "text" },
+        { "name": "Segment", "dataType": "text" },
+        { "name": "Region", "dataType": "text" },
+        { "name": "Country", "dataType": "text" },
+        { "name": "City", "dataType": "text" },
+        { "name": "Sales", "dataType": "number" },
+        { "name": "Quantity", "dataType": "integer" },
+        { "name": "Discount", "dataType": "number" },
+        { "name": "Profit", "dataType": "number" },
+        { "name": "Returned", "dataType": "text" }
+      ]
+    },
+    {
+      "connectionType": "sqlserver",
+      "connectionString": "Server=salesdb.enterprise.com;Database=Sales;",
+      "tableName": "Products",
+      "columns": [
+        { "name": "ProductID", "dataType": "text" },
+        { "name": "ProductName", "dataType": "text" },
+        { "name": "Category", "dataType": "text" },
+        { "name": "SubCategory", "dataType": "text" },
+        { "name": "UnitCost", "dataType": "number" }
+      ]
+    },
+    {
+      "connectionType": "sqlserver",
+      "connectionString": "Server=salesdb.enterprise.com;Database=Sales;",
+      "tableName": "Customers",
+      "columns": [
+        { "name": "CustomerID", "dataType": "text" },
+        { "name": "CustomerName", "dataType": "text" },
+        { "name": "Segment", "dataType": "text" },
+        { "name": "Region", "dataType": "text" },
+        { "name": "Country", "dataType": "text" },
+        { "name": "City", "dataType": "text" }
+      ]
+    },
+    {
+      "connectionType": "sqlserver",
+      "connectionString": "Server=salesdb.enterprise.com;Database=Sales;",
+      "tableName": "Targets",
+      "columns": [
+        { "name": "Year", "dataType": "integer" },
+        { "name": "Region", "dataType": "text" },
+        { "name": "Category", "dataType": "text" },
+        { "name": "Target", "dataType": "number" }
+      ]
+    },
+    {
+      "connectionType": "sqlserver",
+      "connectionString": "Server=salesdb.enterprise.com;Database=Sales;",
+      "tableName": "SalesReps",
+      "columns": [
+        { "name": "SalesRepID", "dataType": "text" },
+        { "name": "SalesRep", "dataType": "text" },
+        { "name": "Region", "dataType": "text" },
+        { "name": "HireDate", "dataType": "date" },
+        { "name": "Quota", "dataType": "number" }
+      ]
+    }
+  ],
+  "associations": [
+    { "table1": "Orders", "field1": "CustomerID", "table2": "Customers", "field2": "CustomerID" },
+    { "table1": "Orders", "field1": "ProductID", "table2": "Products", "field2": "ProductID" },
+    { "table1": "Orders", "field1": "SalesRepID", "table2": "SalesReps", "field2": "SalesRepID" },
+    { "table1": "Targets", "field1": "Region", "table2": "Orders", "field2": "Region" }
+  ],
+  "variables": [
+    { "name": "vCurrentYear", "definition": "Year(Today())", "comment": "Current year" },
+    { "name": "vPriorYear", "definition": "Year(Today()) - 1", "comment": "Prior year" },
+    { "name": "vCurrencySymbol", "definition": "'$'", "comment": "Currency symbol" },
+    { "name": "vSalesTarget", "definition": "1000000", "comment": "Annual sales target" },
+    { "name": "vTopN", "definition": "10", "comment": "Number of top items to show" }
+  ],
+  "bookmarks": [
+    {
+      "id": "bm_current_year",
+      "title": "Current Year",
+      "description": "Filter to current year",
+      "selections": { "Year": "=$(vCurrentYear)" }
+    },
+    {
+      "id": "bm_high_value",
+      "title": "High Value Orders",
+      "description": "Orders over $1000",
+      "selections": { "Sales": "> 1000" }
+    },
+    {
+      "id": "bm_west_region",
+      "title": "West Region",
+      "description": "Filter to West region",
+      "selections": { "Region": "West" }
+    }
+  ],
+  "loadscript": {
+    "script": "// Enterprise Sales Load Script\nSET DateFormat='MM/DD/YYYY';\nSET ThousandSep=',';\nSET DecimalSep='.';\n\nOrders:\nLOAD\n    OrderID,\n    OrderDate,\n    ShipDate,\n    ShipMode,\n    CustomerID,\n    Segment,\n    Region,\n    Country,\n    City,\n    Sales,\n    Quantity,\n    Discount,\n    Profit\nFROM [lib://DataFiles/Orders.csv] (txt, codepage is 1252, embedded labels, delimiter is ',', msq);\n\nProducts:\nLOAD\n    ProductID,\n    ProductName,\n    Category,\n    SubCategory,\n    UnitCost\nFROM [lib://DataFiles/Products.csv] (txt, codepage is 1252, embedded labels, delimiter is ',', msq);"
+  },
+  "section_access": [
+    {
+      "access": "USER",
+      "userid": "*",
+      "region": "North",
+      "comment": "Users see only their region"
+    },
+    {
+      "access": "ADMIN",
+      "userid": "DOMAIN\\admin",
+      "comment": "Admin sees all data"
+    }
+  ],
+  "master_items": [
+    {
+      "id": "mi_sales",
+      "type": "measure",
+      "title": "Sales",
+      "expression": "Sum(Sales)",
+      "format": "#,##0.00"
+    },
+    {
+      "id": "mi_profit",
+      "type": "measure",
+      "title": "Profit",
+      "expression": "Sum(Profit)",
+      "format": "#,##0.00"
+    },
+    {
+      "id": "mi_product_cat",
+      "type": "dimension",
+      "title": "Product Category",
+      "field": "Category"
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "created": "2026-02-27",
+    "author": "Test Generator",
+    "description": "Large test sample — 5 tables, 13 dimensions (2 hierarchies), 12 measures, 5 sheets, 23 visuals, 4 associations, 5 variables, 3 bookmarks, load script, section access, master items, set analysis expressions"
+  }
+}

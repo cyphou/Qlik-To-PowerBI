@@ -1,0 +1,41 @@
+table SalesReps
+	lineageTag: 214256e7-46b9-424e-86ca-3ad1121bcec0
+
+	column SalesRepID
+		dataType: string
+		lineageTag: 209c0016-8693-4380-ad47-cc870fb61ecd
+		summarizeBy: none
+		sourceColumn: SalesRepID
+
+	column SalesRep
+		dataType: string
+		lineageTag: 4b5996fb-2a2d-4b9c-9ab2-0cfc6bdf9734
+		summarizeBy: none
+		sourceColumn: SalesRep
+
+	column Region
+		dataType: string
+		lineageTag: ac5e7822-4b07-439d-b727-c9c879b81237
+		summarizeBy: none
+		sourceColumn: Region
+
+	column HireDate
+		dataType: dateTime
+		lineageTag: e8c3fef5-acb9-4717-b90b-64fd51dfd7b2
+		summarizeBy: none
+		sourceColumn: HireDate
+
+	column Quota
+		dataType: double
+		lineageTag: 38755f18-3cb6-4e18-b082-f1cc7c9a2a80
+		summarizeBy: none
+		sourceColumn: Quota
+
+	partition SalesReps = m
+		mode: import
+		source =
+			let
+			    Source = Sql.Database("localhost", "master"),
+			    Table = Source{[Schema="dbo",Item="SalesReps"]}[Data]
+			in
+			    Table

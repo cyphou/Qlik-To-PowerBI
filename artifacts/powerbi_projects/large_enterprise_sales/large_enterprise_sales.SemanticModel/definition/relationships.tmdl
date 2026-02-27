@@ -1,0 +1,15 @@
+relationship Orders_Customers
+	fromColumn: Orders.CustomerID
+	toColumn: Customers.CustomerID
+
+relationship Orders_Products
+	fromColumn: Orders.ProductID
+	toColumn: Products.ProductID
+
+relationship Orders_SalesReps
+	fromColumn: Orders.SalesRepID
+	toColumn: SalesReps.SalesRepID
+
+relationship Targets_Orders
+	fromColumn: Targets.Region
+	toColumn: Orders.Region

@@ -4,14 +4,16 @@ Sample Validation Tool — validates generated PBI projects.
 
 Usage:
     python tools/testing/validate_samples.py output/my_project
-    python tools/testing/validate_samples.py --all   # validate all in output/
+    python tools/testing/validate_samples.py --all            # validate all in output/
+    python tools/testing/validate_samples.py --artifacts       # validate all in artifacts/powerbi_projects/
 
 Checks:
   1. Required files exist (.pbip, .pbism, .pbir, etc.)
   2. JSON files are parseable and contain required keys
-  3. TMDL files have valid syntax
+  3. TMDL files have valid syntax (model, database, table, expressions)
   4. Cross-references: visual bindings reference existing model columns
   5. Relationships reference existing tables/columns
+  6. Visuals present and well-formed
 """
 
 import json
@@ -132,6 +134,17 @@ def validate_project(project_dir: str) -> Tuple[int, int, List[str]]:
         else:
             fail("model.tmdl has no ref table entries")
 
+    # Check expressions.tmdl
+    expressions_tmdl = def_dir / "expressions.tmdl"
+    if expressions_tmdl.exists():
+        expr_content = expressions_tmdl.read_text(encoding="utf-8")
+        expr_count = expr_content.count("expression ")
+        if expr_count > 0:
+            ok(f"expressions.tmdl has {expr_count} expression(s)")
+        else:
+            fail("expressions.tmdl exists but has no expression entries")
+    # Not a failure if absent — expressions are optional
+
     # ── 5. Report ─────────────────────────────────────────────
     rpt_dir = root / f"{name}.Report"
     if rpt_dir.exists():
@@ -190,31 +203,44 @@ def validate_project(project_dir: str) -> Tuple[int, int, List[str]]:
     return passes, fails, errors
 
 
+def _validate_dir_tree(base_dir: Path) -> int:
+    """Validate all .pbip projects under a directory tree. Returns exit code."""
+    if not base_dir.exists():
+        print(f"No {base_dir} directory found")
+        return 1
+    total_pass = 0
+    total_fail = 0
+    project_count = 0
+    for sub in sorted(base_dir.iterdir()):
+        if sub.is_dir() and list(sub.glob("*.pbip")):
+            project_count += 1
+            print(f"\n{'='*60}")
+            print(f"Validating: {sub}")
+            print(f"{'='*60}")
+            p, f, _ = validate_project(str(sub))
+            total_pass += p
+            total_fail += f
+    if project_count == 0:
+        print(f"No .pbip projects found in {base_dir}")
+        return 1
+    print(f"\n{'='*60}")
+    print(f"TOTAL: {project_count} project(s), {total_pass} passed, {total_fail} failed")
+    return 1 if total_fail > 0 else 0
+
+
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python validate_samples.py <project_dir> [--all]")
+        print("Usage: python validate_samples.py <project_dir> | --all | --artifacts")
         sys.exit(1)
 
-    if sys.argv[1] == "--all":
-        output_dir = Path("output")
-        if not output_dir.exists():
-            print("No output/ directory found")
-            sys.exit(1)
-        total_pass = 0
-        total_fail = 0
-        for sub in sorted(output_dir.iterdir()):
-            if sub.is_dir() and list(sub.glob("*.pbip")):
-                print(f"\n{'='*60}")
-                print(f"Validating: {sub}")
-                print(f"{'='*60}")
-                p, f, _ = validate_project(str(sub))
-                total_pass += p
-                total_fail += f
-        print(f"\n{'='*60}")
-        print(f"TOTAL: {total_pass} passed, {total_fail} failed")
-        sys.exit(1 if total_fail > 0 else 0)
+    arg = sys.argv[1]
+
+    if arg == "--all":
+        sys.exit(_validate_dir_tree(Path("output")))
+    elif arg == "--artifacts":
+        sys.exit(_validate_dir_tree(Path("artifacts") / "powerbi_projects"))
     else:
-        project_dir = sys.argv[1]
+        project_dir = arg
         print(f"Validating: {project_dir}")
         print("=" * 60)
         p, f, errs = validate_project(project_dir)
