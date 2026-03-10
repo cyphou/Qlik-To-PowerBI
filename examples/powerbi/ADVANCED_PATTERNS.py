@@ -4,8 +4,8 @@ Advanced usage patterns and best practices for Fabric deployment.
 
 # Pattern 1: Custom Deployment with Progress Tracking
 """
-from fabric_api import FabricDeployer
-from fabric_api.utils import DeploymentReport, ArtifactCache
+from powerbi_import.deploy import FabricDeployer
+from powerbi_import.deploy.utils import DeploymentReport, ArtifactCache
 from pathlib import Path
 import json
 
@@ -48,7 +48,7 @@ report.save(Path('deployment_report.json'))
 
 # Pattern 2: Validation Before Deployment
 """
-from fabric_api.validator import ArtifactValidator
+from powerbi_import.validator import ArtifactValidator
 from pathlib import Path
 
 artifacts_dir = Path('artifacts')
@@ -68,9 +68,9 @@ print('All artifacts validated ✓')
 
 # Pattern 3: Environment-Specific Deployment
 """
-from fabric_api import FabricDeployer
-from fabric_api.config.environments import EnvironmentConfig, EnvironmentType
-from fabric_api.config.settings import get_settings
+from powerbi_import.deploy import FabricDeployer
+from powerbi_import.deploy.config.environments import EnvironmentConfig, EnvironmentType
+from powerbi_import.deploy.config.settings import get_settings
 settings = get_settings()
 
 # Apply production config
@@ -84,7 +84,7 @@ deployer = FabricDeployer()
 """
 import sys
 from pathlib import Path
-from fabric_api import FabricDeployer
+from powerbi_import.deploy import FabricDeployer
 
 deployer = FabricDeployer()
 failed_artifacts = []
@@ -121,8 +121,8 @@ if not workspace_id:
     print('Error: FABRIC_WORKSPACE_ID not set')
     sys.exit(1)
 
-from fabric_api import FabricDeployer
-from fabric_api.utils import DeploymentReport
+from powerbi_import.deploy import FabricDeployer
+from powerbi_import.deploy.utils import DeploymentReport
 
 deployer = FabricDeployer()
 report = DeploymentReport(workspace_id)
@@ -146,7 +146,7 @@ sys.exit(0 if success_count == total else 1)
 
 # Pattern 6: Authentication with Managed Identity
 """
-from fabric_api import FabricDeployer, FabricAuthenticator
+from powerbi_import.deploy import FabricDeployer, FabricAuthenticator
 
 # Use Managed Identity (for Azure-hosted deployments)
 auth = FabricAuthenticator(use_managed_identity=True)
@@ -159,7 +159,7 @@ deployer = FabricDeployer(client=None)  # Will use managed identity automaticall
 """
 import time
 from requests.exceptions import RequestException
-from fabric_api import FabricDeployer
+from powerbi_import.deploy import FabricDeployer
 
 deployer = FabricDeployer()
 
@@ -185,7 +185,7 @@ def deploy_with_custom_retry(artifact_config, max_retries=5):
 
 # Pattern 8: Monitor Deployment Status
 """
-from fabric_api import FabricClient
+from powerbi_import.deploy import FabricClient
 
 client = FabricClient()
 

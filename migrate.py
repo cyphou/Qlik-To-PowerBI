@@ -2,24 +2,123 @@
 Main script for Qlik to Power BI migration
 
 Pipeline:
-1. Extract objects from the Qlik file (.qvf or .json export)
-2. Convert Qlik expressions → DAX, load scripts → Power Query M
-3. Build BIM model (tables, relationships, measures, RLS)
-4. Generate the Power BI project (.pbip) with TMDL model + PBIR report
+1. Extract objects from the Qlik file (.qvf or .json export) → intermediate JSON
+2. Generate the Power BI project (.pbip) with TMDL model + PBIR report
+3. Generate migration report with per-item fidelity tracking
+
+Supports:
+- Single file migration:      python migrate.py app.qvf
+- JSON export migration:      python migrate.py export.json
+- Batch migration:             python migrate.py --batch folder/
+- Custom output directory:     python migrate.py app.qvf --output-dir out/
+- Skip extraction:             python migrate.py app.qvf --skip-extraction
+- Verbose logging:             python migrate.py app.qvf --verbose
 """
 
 import os
 import sys
-import argparse
+import glob
 import json
 import logging
+import argparse
 from datetime import datetime
-from pathlib import Path
+from enum import IntEnum
 
-# Ensure src/ is on the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-logger = logging.getLogger(__name__)
+# ── Structured exit codes ────────────────────────────────────────────
+
+class ExitCode(IntEnum):
+    """Structured exit codes for CI/CD integration."""
+    SUCCESS = 0
+    GENERAL_ERROR = 1
+    FILE_NOT_FOUND = 2
+    EXTRACTION_FAILED = 3
+    GENERATION_FAILED = 4
+    VALIDATION_FAILED = 5
+    ASSESSMENT_FAILED = 6
+    BATCH_PARTIAL_FAIL = 7
+    KEYBOARD_INTERRUPT = 130
+
+
+# Ensure Unicode output on Windows consoles (✓, →, ✗, etc.)
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
+
+# ── Structured logging setup ────────────────────────────────────────
+
+logger = logging.getLogger('qlik_to_powerbi')
+
+
+def setup_logging(verbose=False, log_file=None, quiet=False):
+    """Configure structured logging.
+
+    Args:
+        verbose: If True, set DEBUG level; otherwise INFO.
+        log_file: Optional path to a log file.
+        quiet: If True, suppress all output except ERROR level.
+    """
+    if quiet:
+        level = logging.ERROR
+    elif verbose:
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+    fmt = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+    datefmt = '%Y-%m-%d %H:%M:%S'
+
+    handlers = [logging.StreamHandler(sys.stdout)]
+    if log_file:
+        os.makedirs(os.path.dirname(log_file) or '.', exist_ok=True)
+        handlers.append(logging.FileHandler(log_file, encoding='utf-8'))
+
+    logging.basicConfig(level=level, format=fmt, datefmt=datefmt, handlers=handlers)
+    if not verbose:
+        logging.getLogger('qlik_to_powerbi').setLevel(logging.INFO)
+
+
+# ── Migration statistics tracker ────────────────────────────────────
+
+class MigrationStats:
+    """Tracks statistics across all pipeline steps."""
+
+    def __init__(self):
+        # Extraction
+        self.app_name = ""
+        self.datasources = 0
+        self.dimensions = 0
+        self.measures = 0
+        self.visualizations = 0
+        self.sheets = 0
+        self.variables = 0
+        self.associations = 0
+        self.bookmarks = 0
+        self.has_loadscript = False
+        self.master_items = 0
+        # Generation
+        self.tmdl_tables = 0
+        self.tmdl_columns = 0
+        self.tmdl_measures = 0
+        self.tmdl_relationships = 0
+        self.tmdl_hierarchies = 0
+        self.tmdl_roles = 0
+        self.visuals_generated = 0
+        self.pages_generated = 0
+        self.theme_applied = False
+        self.pbip_path = ""
+        # Diagnostics
+        self.warnings = []
+        self.skipped = []
+
+    def to_dict(self):
+        return {k: v for k, v in self.__dict__.items()}
+
+
+_stats = MigrationStats()
 
 
 def print_header(text):
@@ -37,555 +136,1055 @@ def print_step(step_num, total_steps, text):
     print("-" * 80)
 
 
-def run_extraction(qlik_file, output_dir, stats=None):
-    """Run Qlik extraction → intermediate JSON files."""
-    print_step(1, 3, "QLIK OBJECTS EXTRACTION")
+# ── Step 1: Qlik Extraction ─────────────────────────────────────────
+
+def run_extraction(qlik_file):
+    """Extract objects from a .qvf or JSON export → intermediate JSON files.
+
+    Writes the 11 Qlik intermediate JSON files to ``qlik_export/``.
+
+    Args:
+        qlik_file: Path to .qvf or .json Qlik file.
+
+    Returns:
+        bool: True if extraction succeeded.
+    """
+    global _stats
+    print_step(1, 2, "QLIK OBJECTS EXTRACTION")
 
     if not os.path.exists(qlik_file):
+        logger.error(f"Qlik file not found: {qlik_file}")
         print(f"Error: Qlik file not found: {qlik_file}")
         return False
 
     print(f"Source file: {qlik_file}")
+    _stats.app_name = os.path.splitext(os.path.basename(qlik_file))[0]
 
     try:
-        from fabric_api.extraction_orchestrator import ExtractionOrchestrator
+        from qlik_export.extraction_orchestrator import ExtractionOrchestrator
 
+        # Output JSON files to qlik_export/ (same pattern as tableau_export/)
+        output_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
         orchestrator = ExtractionOrchestrator(output_dir=output_dir)
         orchestrator.extract(qlik_file)
         json_dir = orchestrator.write_intermediate_json(output_dir)
 
+        # Collect extraction counts
         summary = orchestrator.get_extraction_summary()
-        print(f"  App name:       {summary.get('app_name', 'Unknown')}")
-        print(f"  Datasources:    {summary.get('datasources_count', 0)}")
-        print(f"  Dimensions:     {summary.get('dimensions_count', 0)}")
-        print(f"  Measures:       {summary.get('measures_count', 0)}")
-        print(f"  Visualizations: {summary.get('visualizations_count', 0)}")
-        print(f"  Sheets:         {summary.get('sheets_count', 0)}")
-        print(f"  Variables:      {summary.get('variables_count', 0)}")
-        print(f"  Associations:   {summary.get('associations_count', 0)}")
-        print(f"  Bookmarks:      {summary.get('bookmarks_count', 0)}")
-        print(f"  Has load script:{summary.get('has_loadscript', False)}")
+        _stats.datasources = summary.get('datasources_count', 0)
+        _stats.dimensions = summary.get('dimensions_count', 0)
+        _stats.measures = summary.get('measures_count', 0)
+        _stats.visualizations = summary.get('visualizations_count', 0)
+        _stats.sheets = summary.get('sheets_count', 0)
+        _stats.variables = summary.get('variables_count', 0)
+        _stats.associations = summary.get('associations_count', 0)
+        _stats.bookmarks = summary.get('bookmarks_count', 0)
+        _stats.has_loadscript = summary.get('has_loadscript', False)
+        _stats.master_items = summary.get('master_items_count', 0)
 
-        if stats:
-            stats.app_name = summary.get('app_name', 'Unknown')
-            stats.datasources = summary.get('datasources_count', 0)
-            stats.dimensions = summary.get('dimensions_count', 0)
-            stats.measures = summary.get('measures_count', 0)
-            stats.visualizations = summary.get('visualizations_count', 0)
-            stats.sheets = summary.get('sheets_count', 0)
-            stats.variables = summary.get('variables_count', 0)
-            stats.associations = summary.get('associations_count', 0)
-            stats.bookmarks = summary.get('bookmarks_count', 0)
-            stats.has_loadscript = summary.get('has_loadscript', False)
+        print(f"\n  App name:       {summary.get('app_name', 'Unknown')}")
+        print(f"  Datasources:    {_stats.datasources}")
+        print(f"  Dimensions:     {_stats.dimensions}")
+        print(f"  Measures:       {_stats.measures}")
+        print(f"  Visualizations: {_stats.visualizations}")
+        print(f"  Sheets:         {_stats.sheets}")
+        print(f"  Variables:      {_stats.variables}")
+        print(f"  Associations:   {_stats.associations}")
+        print(f"  Bookmarks:      {_stats.bookmarks}")
+        print(f"  Master Items:   {_stats.master_items}")
+        print(f"  Load Script:    {'Yes' if _stats.has_loadscript else 'No'}")
 
         print(f"\n✓ Extraction completed — intermediate JSON in {json_dir}")
         return True
 
     except Exception as e:
+        logger.error(f"Extraction failed: {e}", exc_info=True)
         print(f"\nError during extraction: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return False
 
 
-# ── Migration statistics tracker ─────────────────────────────────────
-class MigrationStats:
-    """Collect statistics across all migration steps for the final report."""
-    def __init__(self):
-        self.app_name = "Unknown"
-        # Extraction
-        self.datasources = 0
-        self.dimensions = 0
-        self.measures = 0
-        self.visualizations = 0
-        self.sheets = 0
-        self.variables = 0
-        self.associations = 0
-        self.bookmarks = 0
-        self.has_loadscript = False
-        # Conversion
-        self.dax_measures_converted = 0
-        self.dax_dimensions_total = 0
-        self.dax_calc_dims = 0
-        self.m_queries_generated = 0
-        self.loadscript_converted = False
-        self.relationships_built = 0
-        self.tables_built = 0
-        self.variables_expanded = 0
-        self.expressions_resolved = 0
-        # Generation
-        self.tmdl_tables_written = 0
-        self.visuals_generated = 0
-        self.pages_generated = 0
-        self.pbip_path = ""
-        # Warnings
-        self.warnings: list = []
-        self.skipped: list = []
+# ── Step 2: Power BI Generation ──────────────────────────────────────
 
-    def add_warning(self, msg: str):
-        self.warnings.append(msg)
+def run_generation(report_name=None, output_dir=None, calendar_start=None,
+                   calendar_end=None, culture=None, model_mode='import',
+                   output_format='pbip', paginated=False):
+    """Generate Power BI project (.pbip) from extracted Qlik data.
 
-    def add_skipped(self, msg: str):
-        self.skipped.append(msg)
+    Loads the intermediate JSON from ``qlik_export/``, transforms to
+    Tableau-compatible format via the adapter, then generates .pbip.
 
-
-def run_conversion(json_dir, stats=None):
-    """Convert Qlik expressions → DAX, load scripts → M, build BIM model."""
-    print_step(2, 3, "EXPRESSION & MODEL CONVERSION")
+    Args:
+        report_name: Override report name (defaults to app name or 'Report')
+        output_dir: Custom output directory for .pbip projects
+        calendar_start: Start year for Calendar table (default: 2020)
+        calendar_end: End year for Calendar table (default: 2030)
+        culture: Override culture/locale for semantic model
+        paginated: If True, generate paginated report layout
+    """
+    global _stats
+    print_step(2, 2, "POWER BI PROJECT GENERATION")
 
     try:
-        from fabric_api.extraction_orchestrator import ExtractionOrchestrator
-        from fabric_api.dax_converter import (
-            convert_measures_to_dax,
-            convert_dimensions_to_dax,
-            convert_qlik_expression_to_dax,
-            convert_qlik_type_to_dax,
-        )
-        from fabric_api.m_query_generator import generate_all_m_queries
-        from fabric_api.qlik_script_converter import QlikScriptToPowerQueryConverter
+        from powerbi_import.import_to_powerbi import PowerBIImporter
 
-        data = ExtractionOrchestrator.load_intermediate_json(json_dir)
+        importer = PowerBIImporter()
+        importer.import_all(generate_pbip=True, report_name=report_name, output_dir=output_dir,
+                            calendar_start=calendar_start, calendar_end=calendar_end,
+                            culture=culture, model_mode=model_mode,
+                            output_format=output_format)
 
-        # ── Variables: expand $(vName) references ────────────
-        variables = data.get("variables", [])
-        var_map = {}
-        for v in variables:
-            vname = v.get("name", "")
-            vdef = v.get("definition", "")
-            if vname:
-                var_map[vname] = vdef
-        if stats:
-            stats.variables_expanded = len(var_map)
-        print(f"  Variables loaded: {len(var_map)}")
+        # Collect generation stats from the output
+        base_dir = output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+        project_dir = os.path.join(base_dir, report_name or 'Report')
+        if os.path.exists(project_dir):
+            _stats.pbip_path = project_dir
+            # Count TMDL tables, pages, visuals
+            for root, dirs, files in os.walk(project_dir):
+                if os.path.basename(root) == 'tables':
+                    _stats.tmdl_tables = len([f for f in files if f.endswith('.tmdl')])
+                if os.path.basename(root) == 'pages':
+                    _stats.pages_generated = len([d for d in dirs if d.startswith('ReportSection')])
+                if os.path.basename(root) == 'visuals':
+                    _stats.visuals_generated += len(dirs)
+                if 'QlikMigrationTheme.json' in files or 'TableauMigrationTheme.json' in files:
+                    _stats.theme_applied = True
 
-        def expand_variables(expr):
-            """Expand $(vName) dollar-sign variable references."""
-            if not expr or "$(" not in expr:
-                return expr
-            import re
-            max_passes = 5
-            for _ in range(max_passes):
-                new_expr = re.sub(
-                    r'\$\((\w+)\)',
-                    lambda m: var_map.get(m.group(1), m.group(0)),
-                    expr,
-                )
-                if new_expr == expr:
-                    break
-                expr = new_expr
-            return expr
+            # Read TMDL stats from metadata if available
+            meta_path = os.path.join(project_dir, 'migration_metadata.json')
+            if os.path.exists(meta_path):
+                try:
+                    with open(meta_path, 'r', encoding='utf-8') as f:
+                        meta = json.load(f)
+                    tmdl = meta.get('tmdl_stats', {})
+                    _stats.tmdl_columns = tmdl.get('columns', 0)
+                    _stats.tmdl_measures = tmdl.get('measures', 0)
+                    _stats.tmdl_relationships = tmdl.get('relationships', 0)
+                    _stats.tmdl_hierarchies = tmdl.get('hierarchies', 0)
+                    _stats.tmdl_roles = tmdl.get('roles', 0)
+                except Exception:
+                    pass
 
-        # ── Measures → DAX ──────────────────────────────────
-        measures = data.get("measures", [])
-        for m in measures:
-            m["expression"] = expand_variables(m.get("expression", ""))
-        measures_dax = convert_measures_to_dax(measures)
-        if stats:
-            stats.dax_measures_converted = len(measures_dax)
-        print(f"  Measures converted: {len(measures_dax)}")
-
-        # ── Dimensions → DAX (calculated dims) ──────────────
-        dimensions = data.get("dimensions", [])
-        for d in dimensions:
-            d["field"] = expand_variables(d.get("field", ""))
-        dimensions_dax = convert_dimensions_to_dax(dimensions)
-        calc_dims = [d for d in dimensions_dax if d.get("is_calculated")]
-        if stats:
-            stats.dax_dimensions_total = len(dimensions_dax)
-            stats.dax_calc_dims = len(calc_dims)
-        print(f"  Dimensions: {len(dimensions_dax)} ({len(calc_dims)} calculated)")
-
-        # ── Datasources → M queries ─────────────────────────
-        datasources = data.get("datasources", [])
-        m_queries = generate_all_m_queries(datasources)
-        if stats:
-            stats.m_queries_generated = len(m_queries)
-        print(f"  M queries generated: {len(m_queries)}")
-
-        # ── Load script → M ─────────────────────────────────
-        loadscript = data.get("loadscript", {})
-        script_text = loadscript.get("script", "") if isinstance(loadscript, dict) else ""
-        script_text = expand_variables(script_text)
-        script_m_queries = {}
-        if script_text:
-            converter = QlikScriptToPowerQueryConverter()
-            pq_script = converter.convert_qlik_script_to_powerquery(script_text)
-            if pq_script:
-                script_m_queries["LoadScript"] = pq_script
-                if stats:
-                    stats.loadscript_converted = True
-                print(f"  Load script converted to M")
-
-        # ── Associations → relationships ─────────────────────
-        associations = data.get("associations", [])
-        relationships = []
-        for assoc in associations:
-            relationships.append({
-                "name": f"{assoc.get('table1','')}__{assoc.get('table2','')}",
-                "fromTable": assoc.get("table1", ""),
-                "fromColumn": assoc.get("field1", ""),
-                "toTable": assoc.get("table2", ""),
-                "toColumn": assoc.get("field2", ""),
-                "crossFilteringBehavior": "oneDirection",
-                "isActive": True,
-            })
-        if stats:
-            stats.relationships_built = len(relationships)
-        print(f"  Relationships: {len(relationships)}")
-
-        # ── Build shared expressions from M queries ──────────
-        expressions_list = []
-        all_m = {**m_queries, **script_m_queries}
-        for expr_name, expr_text in all_m.items():
-            expressions_list.append({
-                "name": expr_name,
-                "expression": expr_text,
-            })
-        if stats:
-            stats.expressions_resolved = len(expressions_list)
-
-        # ── Build BIM model dict ─────────────────────────────
-        tables = []
-        for ds in datasources:
-            table_name = ds.get("tableName", "Table")
-            columns = []
-            for col in ds.get("columns", []):
-                col_entry = {
-                    "name": col.get("name", ""),
-                    "dataType": convert_qlik_type_to_dax(col.get("dataType", "text")),
-                    "sourceColumn": col.get("name", ""),
-                    "summarizeBy": "none",
-                    "description": col.get("comment", col.get("description", "")),
-                }
-                # Auto-assign display folder from Qlik field tags or group
-                if col.get("group") or col.get("tag"):
-                    col_entry["displayFolder"] = col.get("group", col.get("tag", ""))
-                columns.append(col_entry)
-
-            # Measures for this table
-            table_measures = []
-            for m in measures_dax:
-                # Assign measures to first table for now
-                table_measures.append({
-                    "name": m.get("name", ""),
-                    "expression": m.get("dax_expression", m.get("expression", "")),
-                    "formatString": m.get("formatString", ""),
-                    "description": m.get("description", m.get("comment", "")),
-                    "displayFolder": m.get("group", m.get("tags", "")),
-                })
-
-            # Calculated columns from dimensions
-            for d in dimensions_dax:
-                if d.get("is_calculated"):
-                    columns.append({
-                        "name": d.get("name", ""),
-                        "dataType": "string",
-                        "type": "calculated",
-                        "expression": d.get("dax_expression", ""),
-                    })
-
-            # M query partition
-            m_query = m_queries.get(table_name, "")
-            partitions = []
-            if m_query:
-                partitions.append({
-                    "name": table_name,
-                    "mode": "import",
-                    "source": {"type": "m", "expression": m_query},
-                })
-
-            tables.append({
-                "name": table_name,
-                "columns": columns,
-                "measures": table_measures if tables == [] else [],  # measures on first table only
-                "partitions": partitions,
-            })
-
-            # Only assign measures to the first table
-            measures_dax_remaining = []
-
-        # Add script-derived tables
-        for sq_name, sq_m in script_m_queries.items():
-            tables.append({
-                "name": sq_name,
-                "columns": [{"name": "Column1", "dataType": "string", "sourceColumn": "Column1", "summarizeBy": "none"}],
-                "partitions": [{"name": sq_name, "mode": "import", "source": {"type": "m", "expression": sq_m}}],
-            })
-
-        if stats:
-            stats.tables_built = len(tables)
-
-        bim_model = {
-            "compatibilityLevel": 1600,
-            "model": {
-                "culture": "en-US",
-                "defaultPowerBIDataSourceVersion": "powerBI_V3",
-                "tables": tables,
-                "relationships": relationships,
-                "expressions": expressions_list,
-                "annotations": [],
-            },
-        }
-
-        # ── Write converted data back ────────────────────────
-        converted = {
-            "bim_model": bim_model,
-            "measures_dax": measures_dax,
-            "dimensions_dax": dimensions_dax,
-            "m_queries": m_queries,
-            "variables": var_map,
-            "visualizations": data.get("visualizations", []),
-            "sheets": data.get("sheets", []),
-            "dimensions": dimensions_dax,
-            "measures": measures_dax,
-            "bookmarks": data.get("bookmarks", []),
-            "app_metadata": data.get("app_metadata", {}),
-        }
-
-        converted_path = Path(json_dir) / "_converted.json"
-        with open(converted_path, "w", encoding="utf-8") as f:
-            json.dump(converted, f, indent=2, ensure_ascii=False, default=str)
-
-        print(f"  Model built: {len(tables)} tables, {len(relationships)} relationships")
-        print(f"\n✓ Conversion completed — {converted_path}")
+        print("\n✓ Power BI project generated successfully")
         return True
 
     except Exception as e:
-        print(f"\nError during conversion: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-
-def run_generation(json_dir, output_dir, report_name, stats=None):
-    """Generate Power BI project (.pbip) from converted data."""
-    print_step(3, 3, "POWER BI PROJECT GENERATION")
-
-    try:
-        from fabric_api.tmdl_generator import TMDLGenerator
-
-        converted_path = Path(json_dir) / "_converted.json"
-        if not converted_path.exists():
-            print("Error: Converted data not found. Run conversion step first.")
-            return False
-
-        with open(converted_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        generator = TMDLGenerator()
-
-        project_dir = Path(output_dir) / report_name
-        project_dir.mkdir(parents=True, exist_ok=True)
-
-        pbip_path = generator.create_pbi_project(
-            output_dir=project_dir,
-            report_name=report_name,
-            bim_model=data.get("bim_model"),
-            power_query_script=None,
-            visualizations=data.get("visualizations"),
-            dimensions=data.get("dimensions"),
-            measures=data.get("measures"),
-            sheets=data.get("sheets"),
-            bookmarks=data.get("bookmarks"),
-        )
-
-        if stats:
-            stats.pbip_path = str(pbip_path)
-            # Count generated artifacts
-            proj = Path(output_dir) / report_name
-            sm_tables = proj / f"{report_name}.SemanticModel" / "definition" / "tables"
-            if sm_tables.exists():
-                stats.tmdl_tables_written = len(list(sm_tables.glob("*.tmdl")))
-            rpt_pages = proj / f"{report_name}.Report" / "definition" / "pages"
-            if rpt_pages.exists():
-                stats.pages_generated = sum(1 for p in rpt_pages.iterdir() if p.is_dir())
-                for page_dir in rpt_pages.iterdir():
-                    visuals_dir = page_dir / "visuals"
-                    if visuals_dir.exists():
-                        stats.visuals_generated += sum(1 for v in visuals_dir.iterdir() if v.is_dir())
-
-        print(f"\n✓ Power BI project generated: {pbip_path}")
-        return True
-
-    except Exception as e:
+        logger.error(f"Generation failed: {e}", exc_info=True)
         print(f"\nError during generation: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return False
 
 
-def print_migration_summary(stats, duration, results):
-    """Print a detailed migration summary report."""
-    print_header("MIGRATION SUMMARY REPORT")
+# ── Step 3: Migration Report ────────────────────────────────────────
 
-    # ── Step results ──────────────────────────────────────────
-    print("Pipeline Steps")
-    print("-" * 50)
-    for step_name, success in [
-        ("Qlik Extraction", results.get("extraction", False)),
-        ("Expression Conversion", results.get("conversion", False)),
-        ("Power BI Generation", results.get("generation", False)),
-    ]:
-        status = "✓ Success" if success else "✗ Failed"
-        print(f"  {step_name:<30} {status}")
+def run_migration_report(report_name, output_dir=None):
+    """Generate a structured migration report with per-item fidelity tracking.
 
-    # ── Extraction summary ────────────────────────────────────
-    print(f"\nSource Application: {stats.app_name}")
-    print("-" * 50)
-    print(f"  {'Datasources':<25} {stats.datasources:>5}")
-    print(f"  {'Dimensions':<25} {stats.dimensions:>5}")
-    print(f"  {'Measures':<25} {stats.measures:>5}")
-    print(f"  {'Visualizations':<25} {stats.visualizations:>5}")
-    print(f"  {'Sheets':<25} {stats.sheets:>5}")
-    print(f"  {'Variables':<25} {stats.variables:>5}")
-    print(f"  {'Associations':<25} {stats.associations:>5}")
-    print(f"  {'Bookmarks':<25} {stats.bookmarks:>5}")
-    print(f"  {'Load Script':<25} {'Yes' if stats.has_loadscript else 'No':>5}")
+    Args:
+        report_name: Name of the report
+        output_dir: Custom output directory
 
-    # ── Conversion summary ────────────────────────────────────
-    print(f"\nConversion Results")
-    print("-" * 50)
-    print(f"  {'DAX measures converted':<25} {stats.dax_measures_converted:>5}")
-    print(f"  {'Dimensions processed':<25} {stats.dax_dimensions_total:>5}")
-    print(f"  {'  Calculated columns':<25} {stats.dax_calc_dims:>5}")
-    print(f"  {'M queries generated':<25} {stats.m_queries_generated:>5}")
-    print(f"  {'Variables expanded':<25} {stats.variables_expanded:>5}")
-    print(f"  {'Shared expressions':<25} {stats.expressions_resolved:>5}")
-    print(f"  {'Relationships built':<25} {stats.relationships_built:>5}")
-    print(f"  {'Tables in model':<25} {stats.tables_built:>5}")
-    print(f"  {'Load script → M':<25} {'Yes' if stats.loadscript_converted else 'No':>5}")
+    Returns:
+        dict or None: Report summary dict, or None on failure
+    """
+    try:
+        from powerbi_import.migration_report import MigrationReport
 
-    # ── Generation summary ────────────────────────────────────
-    print(f"\nGenerated Output")
-    print("-" * 50)
-    print(f"  {'TMDL table files':<25} {stats.tmdl_tables_written:>5}")
-    print(f"  {'Report pages':<25} {stats.pages_generated:>5}")
-    print(f"  {'Visual containers':<25} {stats.visuals_generated:>5}")
-    if stats.pbip_path:
-        print(f"  Project path: {stats.pbip_path}")
+        report = MigrationReport(report_name)
 
-    # ── Warnings ──────────────────────────────────────────────
-    if stats.warnings:
-        print(f"\nWarnings ({len(stats.warnings)})")
-        print("-" * 50)
-        for w in stats.warnings:
-            print(f"  ⚠ {w}")
+        # Load Qlik JSON files from qlik_export/
+        json_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+        _load = lambda fname: _load_json(os.path.join(json_dir, fname))
 
-    if stats.skipped:
-        print(f"\nSkipped Items ({len(stats.skipped)})")
-        print("-" * 50)
-        for s in stats.skipped:
-            print(f"  → {s}")
+        datasources = _load('datasources.json')
+        measures = _load('measures.json')
+        dimensions = _load('dimensions.json')
+        visualizations = _load('visualizations.json')
+        variables = _load('variables.json')
+        bookmarks = _load('bookmarks.json')
 
-    # ── Duration ──────────────────────────────────────────────
-    print(f"\nDuration: {duration}")
+        # Add datasources
+        if datasources:
+            report.add_datasources(datasources)
 
+        # Build calc_map from generated TMDL files
+        calc_map = _build_calc_map_from_tmdl(report_name, output_dir)
+
+        # Create calculations list from measures + dimensions
+        calculations = []
+        for m in measures:
+            calculations.append({
+                'name': m.get('name', m.get('label', '')),
+                'caption': m.get('label', m.get('name', '')),
+                'formula': m.get('expression', ''),
+                'role': 'measure',
+            })
+        for d in dimensions:
+            if d.get('is_calculated') or (d.get('field', '') and '(' in d.get('field', '')):
+                calculations.append({
+                    'name': d.get('name', d.get('label', '')),
+                    'caption': d.get('label', d.get('name', '')),
+                    'formula': d.get('field', ''),
+                    'role': 'dimension',
+                })
+
+        if calculations:
+            report.add_calculations(calculations, calc_map)
+
+        # Add visuals as worksheets
+        if visualizations:
+            worksheets = []
+            for viz in visualizations:
+                worksheets.append({
+                    'name': viz.get('title', viz.get('name', '')),
+                    'chart_type': viz.get('type', ''),
+                })
+            report.add_visuals(worksheets)
+
+        # Add variables as parameters
+        if variables:
+            params = [{'name': v.get('name', ''), 'caption': v.get('name', '')} for v in variables
+                      if not v.get('name', '').startswith('$')]
+            if params:
+                report.add_parameters(params)
+
+        # Save report
+        reports_dir = output_dir or os.path.join('artifacts', 'powerbi_projects', 'reports')
+        saved_path = report.save(reports_dir)
+        logger.info(f"Migration report saved: {saved_path}")
+
+        report.print_summary()
+
+        return report.get_summary()
+
+    except Exception as e:
+        logger.warning(f"Migration report generation failed: {e}")
+        return None
+
+
+def _load_json(filepath):
+    """Load a JSON file, returning empty list on failure."""
+    try:
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        else:
+            logger.debug("Optional JSON file not found: %s", filepath)
+    except json.JSONDecodeError as e:
+        logger.error("Corrupt JSON file '%s': %s", filepath, e)
+    except OSError as e:
+        logger.error("Cannot read JSON file '%s': %s", filepath, e)
+    return []
+
+
+def _build_calc_map_from_tmdl(report_name, output_dir=None):
+    """Scan generated TMDL table files to build a calculation→DAX map.
+
+    Returns:
+        dict: mapping calculation name → DAX expression
+    """
+    import re as _re
+
+    calc_map = {}
+    base_dir = output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+    tables_dir = os.path.join(base_dir, report_name,
+                              f'{report_name}.SemanticModel',
+                              'definition', 'tables')
+
+    if not os.path.isdir(tables_dir):
+        return calc_map
+
+    inline_pattern = _re.compile(r'(?:measure|column)\s+(.+?)\s*=\s*(.*)')
+    multiline_start = _re.compile(r'(?:measure|column)\s+(.+?)\s*=\s*```\s*$')
+
+    def _strip_quotes(name):
+        name = name.strip()
+        if name.startswith("'") and name.endswith("'"):
+            name = name[1:-1]
+        return name
+
+    for tmdl_file in os.listdir(tables_dir):
+        if not tmdl_file.endswith('.tmdl'):
+            continue
+        filepath = os.path.join(tables_dir, tmdl_file)
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            i = 0
+            while i < len(lines):
+                stripped = lines[i].strip()
+
+                m = multiline_start.match(stripped)
+                if m:
+                    name = _strip_quotes(m.group(1))
+                    expr_lines = []
+                    i += 1
+                    while i < len(lines):
+                        l = lines[i].strip()
+                        if l == '```':
+                            break
+                        expr_lines.append(l)
+                        i += 1
+                    expression = ' '.join(expr_lines).strip()
+                    if expression and not expression.startswith('let'):
+                        calc_map[name] = expression
+                    i += 1
+                    continue
+
+                m = inline_pattern.match(stripped)
+                if m:
+                    name = _strip_quotes(m.group(1))
+                    expression = m.group(2).strip()
+                    if expression and not expression.startswith('let'):
+                        calc_map[name] = expression
+                    i += 1
+                    continue
+
+                i += 1
+
+        except Exception:
+            continue
+
+    return calc_map
+
+
+# ── Batch migration ─────────────────────────────────────────────────
+
+def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
+                        calendar_start=None, calendar_end=None, culture=None):
+    """Batch migrate all .qvf/.json files in a directory.
+
+    Args:
+        batch_dir: Directory containing Qlik files
+        output_dir: Custom output directory for .pbip projects
+        skip_extraction: Skip extraction step
+        calendar_start: Start year for Calendar table
+        calendar_end: End year for Calendar table
+        culture: Override culture/locale
+    """
+    if not os.path.isdir(batch_dir):
+        print(f"Error: Batch directory not found: {batch_dir}")
+        return ExitCode.GENERAL_ERROR
+
+    # Find all Qlik files
+    patterns = ['*.qvf', '*.json']
+    qlik_files = []
+    for pattern in patterns:
+        qlik_files.extend(glob.glob(os.path.join(batch_dir, pattern)))
+
+    if not qlik_files:
+        print(f"Error: No .qvf/.json files found in {batch_dir}")
+        return ExitCode.GENERAL_ERROR
+
+    qlik_files.sort()
+
+    print_header("QLIK TO POWER BI BATCH MIGRATION")
+    print(f"  Directory:   {batch_dir}")
+    print(f"  Files found: {len(qlik_files)}")
+    if output_dir:
+        print(f"  Output dir:  {output_dir}")
+    print()
+
+    batch_start = datetime.now()
+    batch_results = {}
+
+    for i, qlik_file in enumerate(qlik_files, 1):
+        basename = os.path.splitext(os.path.basename(qlik_file))[0]
+        print(f"\n{'=' * 80}")
+        print(f"  [{i}/{len(qlik_files)}] Migrating: {basename}")
+        print(f"{'=' * 80}")
+
+        global _stats
+        _stats = MigrationStats()
+
+        file_results = {}
+
+        # Step 1: Extract
+        if not skip_extraction:
+            file_results['extraction'] = run_extraction(qlik_file)
+            if not file_results['extraction']:
+                logger.warning(f"Extraction failed for {basename}, skipping")
+                batch_results[basename] = {'success': False, 'error': 'extraction'}
+                continue
+        else:
+            file_results['extraction'] = True
+
+        # Step 2: Generate
+        file_results['generation'] = run_generation(
+            report_name=basename,
+            output_dir=output_dir,
+            calendar_start=calendar_start,
+            calendar_end=calendar_end,
+            culture=culture,
+        )
+
+        # Step 3: Migration report
+        report_summary = None
+        if file_results.get('generation'):
+            report_summary = run_migration_report(
+                report_name=basename,
+                output_dir=output_dir,
+            )
+
+        all_ok = all(v for v in file_results.values() if v is not None)
+        batch_results[basename] = {
+            'success': all_ok,
+            'stats': _stats.to_dict(),
+            'fidelity': report_summary.get('fidelity_score') if report_summary else None,
+        }
+
+    # Batch summary
+    batch_duration = datetime.now() - batch_start
+    succeeded = sum(1 for r in batch_results.values() if r['success'])
+    failed = len(batch_results) - succeeded
+
+    print_header("BATCH MIGRATION SUMMARY")
+    print(f"  Total files: {len(batch_results)}")
+    print(f"  Succeeded:   {succeeded}")
+    print(f"  Failed:      {failed}")
+    print(f"  Duration:    {batch_duration}")
+    print()
+
+    for name, result in batch_results.items():
+        status = "[OK]" if result['success'] else "[FAIL]"
+        fidelity = result.get('fidelity')
+        fid_str = f"  (fidelity: {fidelity}%)" if fidelity is not None else ""
+        print(f"  {status} {name}{fid_str}")
+
+    return ExitCode.SUCCESS if failed == 0 else ExitCode.BATCH_PARTIAL_FAIL
+
+
+def _run_batch_config(args):
+    """Run migrations using a JSON batch configuration file.
+
+    The config file is a JSON array of objects::
+
+        [
+          {"file": "sales.qvf", "culture": "fr-FR"},
+          {"file": "finance.json", "calendar_start": 2018}
+        ]
+    """
+    config_path = args.batch_config
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            entries = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Error: Cannot load batch config: {exc}")
+        return ExitCode.GENERAL_ERROR
+
+    if not isinstance(entries, list):
+        print("Error: Batch config must be a JSON array of objects")
+        return ExitCode.GENERAL_ERROR
+
+    config_dir = os.path.dirname(os.path.abspath(config_path))
+
+    print_header("QLIK TO POWER BI BATCH-CONFIG MIGRATION")
+    print(f"  Config file:  {config_path}")
+    print(f"  Entries:      {len(entries)}")
+    print()
+
+    global _stats
+    batch_start = datetime.now()
+    results = {}
+
+    for i, entry in enumerate(entries, 1):
+        raw_file = entry.get('file', '')
+        if not raw_file:
+            print(f"  [{i}/{len(entries)}] SKIP — missing 'file' key")
+            continue
+
+        qlik_file = raw_file if os.path.isabs(raw_file) else os.path.join(config_dir, raw_file)
+        if not os.path.isfile(qlik_file):
+            print(f"  [{i}/{len(entries)}] SKIP — file not found: {raw_file}")
+            results[raw_file] = {'success': False, 'error': 'file_not_found'}
+            continue
+
+        basename = os.path.splitext(os.path.basename(qlik_file))[0]
+        print(f"\n{'=' * 80}")
+        print(f"  [{i}/{len(entries)}] Migrating: {basename}")
+        print(f"{'=' * 80}")
+
+        _stats = MigrationStats()
+
+        skip = entry.get('skip_extraction', args.skip_extraction)
+        out_dir = entry.get('output_dir', args.output_dir)
+        cal_start = entry.get('calendar_start', args.calendar_start)
+        cal_end = entry.get('calendar_end', args.calendar_end)
+        culture = entry.get('culture', args.culture)
+        paginated = entry.get('paginated', getattr(args, 'paginated', False))
+
+        file_results = {}
+
+        if not skip:
+            file_results['extraction'] = run_extraction(qlik_file)
+            if not file_results['extraction']:
+                results[basename] = {'success': False, 'error': 'extraction'}
+                continue
+        else:
+            file_results['extraction'] = True
+
+        file_results['generation'] = run_generation(
+            report_name=basename,
+            output_dir=out_dir,
+            calendar_start=cal_start,
+            calendar_end=cal_end,
+            culture=culture,
+            paginated=paginated,
+        )
+
+        report_summary = None
+        if file_results.get('generation'):
+            report_summary = run_migration_report(report_name=basename, output_dir=out_dir)
+
+        all_ok = all(v for v in file_results.values() if v is not None)
+        results[basename] = {
+            'success': all_ok,
+            'stats': _stats.to_dict(),
+            'fidelity': report_summary.get('fidelity_score') if report_summary else None,
+        }
+
+    batch_duration = datetime.now() - batch_start
+    succeeded = sum(1 for r in results.values() if r.get('success'))
+    failed = len(results) - succeeded
+
+    print_header("BATCH-CONFIG MIGRATION SUMMARY")
+    print(f"  Total entries: {len(results)}")
+    print(f"  Succeeded:     {succeeded}")
+    print(f"  Failed:        {failed}")
+    print(f"  Duration:      {batch_duration}")
+    print()
+    for name, res in results.items():
+        status = "[OK]" if res.get('success') else "[FAIL]"
+        fid = res.get('fidelity')
+        fid_str = f"  (fidelity: {fid}%)" if fid is not None else ""
+        print(f"  {status} {name}{fid_str}")
+
+    return ExitCode.SUCCESS if failed == 0 else ExitCode.BATCH_PARTIAL_FAIL
+
+
+# ── Main entry point ────────────────────────────────────────────────
 
 def main():
     """Main entry point."""
+
     parser = argparse.ArgumentParser(
-        description="Migrate a Qlik Sense application to a Power BI project (.pbip)"
+        description='Migrate a Qlik Sense application to a Power BI project (.pbip)'
     )
 
     parser.add_argument(
-        "qlik_file",
-        help="Path to the Qlik file (.qvf or .json export)",
+        'qlik_file',
+        nargs='?',
+        default=None,
+        help='Path to the Qlik file (.qvf or .json export)'
     )
 
     parser.add_argument(
-        "--output-dir",
-        default="output/migrated",
-        help="Output directory for generated project (default: output/migrated)",
+        '--skip-extraction',
+        action='store_true',
+        help='Skip extraction (use existing intermediate JSON in qlik_export/)'
     )
 
     parser.add_argument(
-        "--skip-extraction",
-        action="store_true",
-        help="Skip extraction step (reuse existing intermediate JSON files)",
+        '--wizard',
+        action='store_true',
+        default=False,
+        help='Launch the interactive migration wizard'
     )
 
     parser.add_argument(
-        "--skip-conversion",
-        action="store_true",
-        help="Skip conversion step (reuse existing _converted.json)",
+        '--output-dir',
+        metavar='DIR',
+        default=None,
+        help='Custom output directory for generated .pbip projects (default: artifacts/powerbi_projects/)'
     )
 
     parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Enable verbose logging",
+        '--verbose', '-v',
+        action='store_true',
+        help='Enable verbose (DEBUG) logging'
+    )
+
+    parser.add_argument(
+        '--quiet', '-q',
+        action='store_true',
+        help='Suppress all output except errors (useful for scripted/CI usage)'
+    )
+
+    parser.add_argument(
+        '--log-file',
+        metavar='FILE',
+        default=None,
+        help='Write logs to a file in addition to console'
+    )
+
+    parser.add_argument(
+        '--batch',
+        metavar='DIR',
+        default=None,
+        help='Batch migrate all .qvf/.json files in the specified directory'
+    )
+
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Preview migration without writing any files (extraction + analysis only)'
+    )
+
+    parser.add_argument(
+        '--calendar-start',
+        metavar='YEAR',
+        type=int,
+        default=None,
+        help='Start year for the auto-generated Calendar table (default: 2020)'
+    )
+
+    parser.add_argument(
+        '--calendar-end',
+        metavar='YEAR',
+        type=int,
+        default=None,
+        help='End year for the auto-generated Calendar table (default: 2030)'
+    )
+
+    parser.add_argument(
+        '--culture',
+        metavar='LOCALE',
+        default=None,
+        help='Override culture/locale for the semantic model (e.g., fr-FR, de-DE). Default: en-US'
+    )
+
+    parser.add_argument(
+        '--assess',
+        action='store_true',
+        help='Run pre-migration assessment after extraction (no generation)'
+    )
+
+    parser.add_argument(
+        '--mode',
+        choices=['import', 'directquery', 'composite'],
+        default='import',
+        help='Semantic model mode: import (default), directquery, or composite'
+    )
+
+    parser.add_argument(
+        '--rollback',
+        action='store_true',
+        help='Backup existing .pbip project before overwriting'
+    )
+
+    parser.add_argument(
+        '--output-format',
+        choices=['pbip', 'tmdl', 'pbir'],
+        default='pbip',
+        help='Output format: pbip (default, full project), tmdl (semantic model only), pbir (report only)'
+    )
+
+    parser.add_argument(
+        '--config',
+        metavar='FILE',
+        default=None,
+        help='Path to a JSON configuration file (CLI args override config file values)'
+    )
+
+    parser.add_argument(
+        '--incremental',
+        metavar='DIR',
+        default=None,
+        help='Path to an existing .pbip project — merge changes incrementally, preserving manual edits'
+    )
+
+    parser.add_argument(
+        '--telemetry',
+        action='store_true',
+        default=False,
+        help='Enable anonymous usage telemetry (opt-in, no PII collected)'
+    )
+
+    parser.add_argument(
+        '--paginated',
+        action='store_true',
+        default=False,
+        help='Generate a paginated report layout alongside the interactive report'
+    )
+
+    parser.add_argument(
+        '--batch-config',
+        metavar='FILE',
+        default=None,
+        help=(
+            'Path to a JSON batch configuration file. '
+            'Example: [{"file": "sales.qvf", "culture": "fr-FR"}]'
+        )
+    )
+
+    parser.add_argument(
+        '--validate',
+        action='store_true',
+        default=False,
+        help='Run post-generation TMDL/schema validation on the output .pbip project'
     )
 
     args = parser.parse_args()
 
-    if args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
+    # Load configuration file if specified (CLI args take precedence)
+    if args.config:
+        try:
+            from powerbi_import.config.migration_config import load_config
+            config = load_config(filepath=args.config, args=args)
+            if not args.qlik_file and getattr(config, 'source_file', None):
+                args.qlik_file = config.source_file
+            if not args.output_dir and config.output_dir:
+                args.output_dir = config.output_dir
+            if args.mode == 'import' and config.model_mode != 'import':
+                args.mode = config.model_mode
+            if not args.culture and config.culture != 'en-US':
+                args.culture = config.culture
+            if args.calendar_start is None and config.calendar_start != 2020:
+                args.calendar_start = config.calendar_start
+            if args.calendar_end is None and config.calendar_end != 2030:
+                args.calendar_end = config.calendar_end
+            if args.output_format == 'pbip' and config.output_format != 'pbip':
+                args.output_format = config.output_format
+            if not args.rollback and config.rollback:
+                args.rollback = True
+            if not args.verbose and config.verbose:
+                args.verbose = True
+            if not args.log_file and config.log_file:
+                args.log_file = config.log_file
+            logger.info(f"Configuration loaded from: {args.config}")
+        except Exception as e:
+            print(f"Warning: Failed to load config file: {e}")
+
+    # ── Interactive wizard mode ───────────────────────────────
+    if getattr(args, 'wizard', False):
+        from powerbi_import.wizard import run_wizard, wizard_to_args
+        config = run_wizard()
+        if config is None:
+            return ExitCode.SUCCESS
+        args = wizard_to_args(config)
+
+    # Setup structured logging
+    setup_logging(verbose=args.verbose, log_file=args.log_file,
+                  quiet=getattr(args, 'quiet', False))
+
+    # ── Batch-config migration mode ───────────────────────────
+    if args.batch_config:
+        return _run_batch_config(args)
+
+    # ── Batch migration mode ──────────────────────────────────
+    if args.batch:
+        return run_batch_migration(
+            batch_dir=args.batch,
+            output_dir=args.output_dir,
+            skip_extraction=args.skip_extraction,
+            calendar_start=args.calendar_start,
+            calendar_end=args.calendar_end,
+            culture=args.culture,
+        )
+
+    # ── Single file migration ─────────────────────────────────
+    if not args.qlik_file:
+        parser.error('qlik_file is required (or use --batch DIR)')
 
     print_header("QLIK TO POWER BI MIGRATION")
     print(f"Source file: {args.qlik_file}")
-    print(f"Output dir:  {args.output_dir}")
+    if args.output_dir:
+        print(f"Output dir:  {args.output_dir}")
+    if args.dry_run:
+        print(f"Mode:        DRY RUN (no files will be written)")
+    if args.calendar_start or args.calendar_end:
+        cal_start = args.calendar_start or 2020
+        cal_end = args.calendar_end or 2030
+        print(f"Calendar:    {cal_start}-{cal_end}")
+    if args.culture:
+        print(f"Culture:     {args.culture}")
+    if args.mode and args.mode != 'import':
+        print(f"Mode:        {args.mode}")
+    if args.output_format and args.output_format != 'pbip':
+        print(f"Format:      {args.output_format}")
+    if args.rollback:
+        print(f"Rollback:    enabled")
+    if getattr(args, 'telemetry', False):
+        print(f"Telemetry:   enabled")
     print()
 
     start_time = datetime.now()
     results = {}
-    stats = MigrationStats()
 
-    # Determine report name from source file
-    source_basename = os.path.splitext(os.path.basename(args.qlik_file))[0]
-    json_dir = os.path.join(args.output_dir, source_basename, "_extracted")
+    # Initialize telemetry (opt-in)
+    telemetry = None
+    if getattr(args, 'telemetry', False):
+        try:
+            from powerbi_import.telemetry import TelemetryCollector
+            telemetry = TelemetryCollector(enabled=True)
+            telemetry.start()
+        except Exception:
+            pass
 
     # Step 1: Extraction
     if not args.skip_extraction:
-        results["extraction"] = run_extraction(args.qlik_file, json_dir, stats=stats)
-        if not results["extraction"]:
+        results['extraction'] = run_extraction(args.qlik_file)
+        if not results['extraction']:
             print("\nMigration aborted due to extraction failure")
-            return 1
+            return ExitCode.EXTRACTION_FAILED
     else:
         print("\nExtraction skipped (using existing intermediate JSON)")
-        results["extraction"] = True
+        results['extraction'] = True
 
-    # Step 2: Conversion (expressions → DAX, scripts → M, build model)
-    if not args.skip_conversion:
-        results["conversion"] = run_conversion(json_dir, stats=stats)
-        if not results["conversion"]:
-            print("\nMigration aborted due to conversion failure")
-            return 1
+    # Step 1b: Assessment (optional)
+    if args.assess and results.get('extraction'):
+        try:
+            from powerbi_import.assessment import run_assessment, print_assessment_report, save_assessment_report
+            from powerbi_import.strategy_advisor import recommend_strategy, print_recommendation
+
+            # Load Qlik data for assessment
+            qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+            from qlik_export.format_adapter import adapt_qlik_for_generation
+            from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+
+            extracted = ExtractionOrchestrator.load_intermediate_json(qlik_dir)
+            adapted = adapt_qlik_for_generation(extracted)
+
+            report = run_assessment(adapted)
+            print_assessment_report(report)
+
+            out_dir = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'assessments')
+            os.makedirs(out_dir, exist_ok=True)
+            source_basename = os.path.splitext(os.path.basename(args.qlik_file))[0]
+            assess_path = os.path.join(out_dir, f'assessment_{source_basename}.json')
+            save_assessment_report(report, assess_path)
+            print(f"\n  Assessment saved to: {assess_path}")
+
+            rec = recommend_strategy(adapted, prep_flow=False)
+            print_recommendation(rec)
+
+            print("\n✓ Assessment complete (no generation performed)")
+            return ExitCode.SUCCESS
+        except Exception as e:
+            logger.error(f"Assessment failed: {e}")
+            print(f"\n✗ Assessment failed: {e}")
+            return ExitCode.ASSESSMENT_FAILED
+
+    # Step 2: Generate .pbip project
+    source_basename = os.path.splitext(os.path.basename(args.qlik_file))[0]
+
+    # Rollback: backup existing output if requested
+    if args.rollback and not args.dry_run:
+        out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+        existing_dir = os.path.join(out_base, source_basename)
+        if os.path.exists(existing_dir):
+            import shutil
+            ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_dir = existing_dir + f'.backup_{ts}'
+            shutil.copytree(existing_dir, backup_dir)
+            logger.info(f"Rollback backup created: {backup_dir}")
+            print(f"  Rollback backup: {backup_dir}")
+
+    if args.dry_run:
+        print("\n[DRY RUN] Skipping generation — would produce:")
+        print(f"  Report:  {source_basename}")
+        out_dir = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+        print(f"  Output:  {os.path.join(out_dir, source_basename)}")
+        results['generation'] = True
     else:
-        print("\nConversion skipped (using existing _converted.json)")
-        results["conversion"] = True
+        results['generation'] = run_generation(
+            report_name=source_basename,
+            output_dir=args.output_dir,
+            calendar_start=args.calendar_start,
+            calendar_end=args.calendar_end,
+            culture=args.culture,
+            model_mode=args.mode,
+            output_format=args.output_format,
+            paginated=getattr(args, 'paginated', False),
+        )
 
-    # Step 3: Generate .pbip project
-    results["generation"] = run_generation(json_dir, args.output_dir, source_basename, stats=stats)
+    # Step 3: Incremental merge (optional)
+    if getattr(args, 'incremental', None) and results.get('generation'):
+        try:
+            from powerbi_import.incremental import IncrementalMerger
+            out_dir = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            generated_dir = os.path.join(out_dir, source_basename)
+            existing_dir = args.incremental
+            if os.path.isdir(existing_dir) and os.path.isdir(generated_dir):
+                print_header("INCREMENTAL MERGE")
+                merge_stats = IncrementalMerger.merge(
+                    existing_dir=existing_dir,
+                    incoming_dir=generated_dir,
+                    output_dir=generated_dir,
+                )
+                print(f"  Added: {merge_stats['added']}")
+                print(f"  Merged: {merge_stats['merged']}")
+                print(f"  Removed: {merge_stats['removed']}")
+                print(f"  Preserved: {merge_stats['preserved']}")
+                if merge_stats['conflicts']:
+                    print(f"  Conflicts: {len(merge_stats['conflicts'])}")
+                    for c in merge_stats['conflicts']:
+                        print(f"    ⚠ {c}")
+            else:
+                print(f"  ⚠ Incremental merge skipped: directory not found")
+        except Exception as exc:
+            print(f"  ⚠ Incremental merge failed: {exc}")
 
-    # Final summary report
+    # Step 4: Post-generation validation (optional)
+    if getattr(args, 'validate', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.validator import ArtifactValidator
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            print_step(3, 3, "POST-GENERATION VALIDATION")
+            vresult = ArtifactValidator.validate_project(project_dir)
+            results['validation'] = vresult.get('valid', False)
+            if vresult.get('errors'):
+                for err in vresult['errors']:
+                    print(f"    ✗ {err}")
+            if vresult.get('warnings'):
+                for w in vresult['warnings'][:10]:
+                    print(f"    ⚠ {w}")
+                remaining = len(vresult['warnings']) - 10
+                if remaining > 0:
+                    print(f"    ... and {remaining} more warnings")
+            if vresult.get('valid'):
+                print(f"    ✓ Validation passed ({vresult.get('files_checked', 0)} files checked)")
+            else:
+                print(f"    ✗ Validation failed — {len(vresult.get('errors', []))} error(s)")
+        except Exception as exc:
+            logger.warning("Validation failed: %s", exc)
+            results['validation'] = False
+
+    # Step 5: Migration report
+    report_summary = None
+    if results.get('generation'):
+        report_summary = run_migration_report(
+            report_name=source_basename,
+            output_dir=args.output_dir,
+        )
+
+    # ── Final summary ────────────────────────────────────────
     duration = datetime.now() - start_time
-    print_migration_summary(stats, duration, results)
+    print_header("MIGRATION SUMMARY")
 
-    all_success = all(results.values())
+    # Step results
+    print("  Step Results:")
+    for step_name, success in [
+        ("Qlik Extraction", results.get('extraction', False)),
+        ("Power BI Generation", results.get('generation', False)),
+        ("Validation", results.get('validation', None)),
+        ("Migration Report", report_summary is not None if results.get('generation') else None),
+    ]:
+        if success is None:
+            continue
+        status = "✓ Success" if success else "✗ Failed"
+        print(f"    {step_name:<30} {status}")
+
+    # Extraction summary
+    if results.get('extraction'):
+        print(f"\n  Extraction Summary ({_stats.app_name}):")
+        extraction_items = [
+            ("Datasources", _stats.datasources),
+            ("Dimensions", _stats.dimensions),
+            ("Measures", _stats.measures),
+            ("Visualizations", _stats.visualizations),
+            ("Sheets", _stats.sheets),
+            ("Variables", _stats.variables),
+            ("Associations", _stats.associations),
+            ("Bookmarks", _stats.bookmarks),
+            ("Master Items", _stats.master_items),
+        ]
+        for label, count in extraction_items:
+            if count > 0:
+                print(f"    {label:<30} {count}")
+        if _stats.has_loadscript:
+            print(f"    {'Load Script':<30} Yes")
+
+    # Generation summary
+    if results.get('generation'):
+        print(f"\n  Generation Summary:")
+        gen_items = [
+            ("TMDL Tables", _stats.tmdl_tables),
+            ("TMDL Columns", _stats.tmdl_columns),
+            ("DAX Measures", _stats.tmdl_measures),
+            ("Relationships", _stats.tmdl_relationships),
+            ("Hierarchies", _stats.tmdl_hierarchies),
+            ("RLS Roles", _stats.tmdl_roles),
+            ("Report Pages", _stats.pages_generated),
+            ("Visuals", _stats.visuals_generated),
+        ]
+        for label, count in gen_items:
+            if count > 0:
+                print(f"    {label:<30} {count}")
+        if _stats.theme_applied:
+            print(f"    {'Custom Theme':<30} ✓ Applied")
+
+    # Fidelity score from migration report
+    if report_summary:
+        fidelity = report_summary.get('fidelity_score', 0)
+        total = report_summary.get('total_items', 0)
+        exact = report_summary.get('exact', 0)
+        approx = report_summary.get('approximate', 0)
+        unsup = report_summary.get('unsupported', 0)
+        print(f"\n  Migration Fidelity:")
+        print(f"    {'Fidelity Score':<30} {fidelity}%")
+        print(f"    {'Exact Conversions':<30} {exact}/{total}")
+        if approx:
+            print(f"    {'Approximate':<30} {approx}")
+        if unsup:
+            print(f"    {'Unsupported':<30} {unsup}")
+
+    # Warnings
+    if _stats.warnings:
+        print(f"\n  Warnings ({len(_stats.warnings)}):")
+        for w in _stats.warnings[:10]:
+            print(f"    ⚠ {w}")
+        if len(_stats.warnings) > 10:
+            print(f"    ... and {len(_stats.warnings) - 10} more")
+
+    # Skipped items
+    if _stats.skipped:
+        print(f"\n  Skipped ({len(_stats.skipped)}):")
+        for s in _stats.skipped[:5]:
+            print(f"    → {s}")
+
+    print(f"\n  Duration: {duration}")
+
+    all_success = all(v for v in results.values() if v is not None)
 
     if all_success:
-        print("\nMigration completed successfully!")
-        print("\nNext steps:")
-        print(f"  1. Open the .pbip file in {args.output_dir}/{source_basename}/")
-        print("  2. Enable Developer Mode in Power BI Desktop → Options → Preview features")
-        print("  3. Configure data sources in Power Query Editor")
-        print("  4. Verify DAX measures and calculated columns")
-        print("  5. Review visual data bindings and fix any unresolved references")
+        print("\n✓ Migration completed successfully!")
+        if _stats.pbip_path:
+            print(f"\n  Output: {_stats.pbip_path}")
+        print("\n  Next steps:")
+        print("    1. Open the .pbip file in Power BI Desktop (Developer Mode)")
+        print("    2. Configure data sources in Power Query Editor")
+        print("    3. Verify DAX measures and calculated columns")
+        print("    4. Check relationships in the Model view")
+        print("    5. Compare visuals with the original Qlik application")
     else:
-        print("\nMigration completed with errors")
+        print("\n✗ Migration completed with errors")
 
-    return 0 if all_success else 1
+    # Finalize telemetry
+    if telemetry:
+        try:
+            telemetry.record_stats(
+                success=all_success,
+                extraction=bool(results.get('extraction')),
+                generation=bool(results.get('generation')),
+            )
+            telemetry.finish()
+            telemetry.save()
+            telemetry.send()
+        except Exception:
+            pass
+
+    return ExitCode.SUCCESS if all_success else ExitCode.GENERAL_ERROR
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     try:
         exit_code = main()
         sys.exit(exit_code)
     except KeyboardInterrupt:
         print("\n\nMigration interrupted by user")
-        sys.exit(1)
+        sys.exit(ExitCode.KEYBOARD_INTERRUPT)
     except Exception as e:
+        logger.critical(f"Fatal error: {e}", exc_info=True)
         print(f"\n\nFatal error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+        sys.exit(ExitCode.GENERAL_ERROR)

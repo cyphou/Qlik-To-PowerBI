@@ -19,7 +19,7 @@ from pathlib import Path
 # Ajouter le chemin source
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / 'src'))
 
-from fabric_api.qlik_script_converter import QlikScriptMigrator, QlikScriptToPowerQueryConverter
+from qlik_export.qlik_script_converter import QlikScriptMigrator, QlikScriptToPowerQueryConverter
 
 # Configuration du logging
 logging.basicConfig(

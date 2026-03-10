@@ -288,37 +288,37 @@ class TestDaxConverter:
     """Test DAX expression conversion from Qlik."""
 
     def test_basic_aggregation(self):
-        from fabric_api.dax_converter import convert_qlik_expression_to_dax
+        from qlik_export.dax_converter import convert_qlik_expression_to_dax
         result = convert_qlik_expression_to_dax("Sum(Amount)")
         assert "SUM" in result
 
     def test_if_conversion(self):
-        from fabric_api.dax_converter import convert_qlik_expression_to_dax
+        from qlik_export.dax_converter import convert_qlik_expression_to_dax
         result = convert_qlik_expression_to_dax("If(Amount > 100, 'High', 'Low')")
         assert "IF" in result
 
     def test_null_handling(self):
-        from fabric_api.dax_converter import convert_qlik_expression_to_dax
+        from qlik_export.dax_converter import convert_qlik_expression_to_dax
         result = convert_qlik_expression_to_dax("IsNull(Amount)")
         assert "ISBLANK" in result
 
     def test_date_function(self):
-        from fabric_api.dax_converter import convert_qlik_expression_to_dax
+        from qlik_export.dax_converter import convert_qlik_expression_to_dax
         result = convert_qlik_expression_to_dax("Year(OrderDate)")
         assert "YEAR" in result
 
     def test_string_function(self):
-        from fabric_api.dax_converter import convert_qlik_expression_to_dax
+        from qlik_export.dax_converter import convert_qlik_expression_to_dax
         result = convert_qlik_expression_to_dax("Upper(Name)")
         assert "UPPER" in result
 
     def test_empty_expression(self):
-        from fabric_api.dax_converter import convert_qlik_expression_to_dax
+        from qlik_export.dax_converter import convert_qlik_expression_to_dax
         result = convert_qlik_expression_to_dax("")
         assert result == ""
 
     def test_batch_measures(self):
-        from fabric_api.dax_converter import convert_measures_to_dax
+        from qlik_export.dax_converter import convert_measures_to_dax
         measures = [
             {"name": "Total", "expression": "Sum(Amount)"},
             {"name": "Avg", "expression": "Avg(Amount)"},
@@ -337,7 +337,7 @@ class TestMQueryGenerator:
     """Test Power Query M generation."""
 
     def test_csv_connector(self):
-        from fabric_api.m_query_generator import generate_m_query
+        from qlik_export.m_query_generator import generate_m_query
         result = generate_m_query({
             "connectionType": "csv",
             "connection": {"path": "C:\\data.csv"},
@@ -347,7 +347,7 @@ class TestMQueryGenerator:
         assert "in" in result
 
     def test_sql_server_connector(self):
-        from fabric_api.m_query_generator import generate_m_query
+        from qlik_export.m_query_generator import generate_m_query
         result = generate_m_query({
             "connectionType": "sqlserver",
             "connection": {"server": "srv", "database": "db"},
@@ -356,7 +356,7 @@ class TestMQueryGenerator:
         assert "Sql.Database" in result
 
     def test_postgresql_connector(self):
-        from fabric_api.m_query_generator import generate_m_query
+        from qlik_export.m_query_generator import generate_m_query
         result = generate_m_query({
             "connectionType": "postgresql",
             "connection": {"server": "pg", "database": "mydb"},
@@ -365,7 +365,7 @@ class TestMQueryGenerator:
         assert "PostgreSQL.Database" in result
 
     def test_snowflake_connector(self):
-        from fabric_api.m_query_generator import generate_m_query
+        from qlik_export.m_query_generator import generate_m_query
         result = generate_m_query({
             "connectionType": "snowflake",
             "connection": {"server": "acc.snowflakecomputing.com", "warehouse": "WH"},
@@ -373,12 +373,12 @@ class TestMQueryGenerator:
         assert "Snowflake.Databases" in result
 
     def test_unknown_type_generates_sample(self):
-        from fabric_api.m_query_generator import generate_m_query
+        from qlik_export.m_query_generator import generate_m_query
         result = generate_m_query({"connectionType": "unknown"})
         assert "TODO" in result
 
     def test_generate_all(self):
-        from fabric_api.m_query_generator import generate_all_m_queries
+        from qlik_export.m_query_generator import generate_all_m_queries
         result = generate_all_m_queries([
             {"connectionType": "csv", "tableName": "T1", "connection": {"path": "f.csv"}},
             {"connectionType": "excel", "tableName": "T2", "connection": {"path": "f.xlsx"}},
@@ -395,18 +395,18 @@ class TestMQueryBuilder:
     """Test Power Query M transforms and step injection."""
 
     def test_rename_columns(self):
-        from fabric_api.m_query_builder import rename_columns
+        from qlik_export.m_query_builder import rename_columns
         name, code = rename_columns("Source", {"Old": "New"})
         assert name == "RenamedColumns"
         assert "Table.RenameColumns" in code
 
     def test_filter_values(self):
-        from fabric_api.m_query_builder import filter_values
+        from qlik_export.m_query_builder import filter_values
         name, code = filter_values("Source", "Status", ["Active"])
         assert "Table.SelectRows" in code
 
     def test_group_by(self):
-        from fabric_api.m_query_builder import group_by
+        from qlik_export.m_query_builder import group_by
         name, code = group_by("Source", ["Cat"], [
             {"column": "Amount", "agg": "sum", "alias": "Total"},
         ])
@@ -414,7 +414,7 @@ class TestMQueryBuilder:
         assert "List.Sum" in code
 
     def test_inject_steps(self):
-        from fabric_api.m_query_builder import inject_m_steps
+        from qlik_export.m_query_builder import inject_m_steps
         base = 'let\n    Source = Table.FromRecords({})\nin\n    Source'
         steps = [("Step1", '    Step1 = Table.Distinct(Source)')]
         result = inject_m_steps(base, steps)
@@ -422,7 +422,7 @@ class TestMQueryBuilder:
         assert "Table.Distinct" in result
 
     def test_build_with_transforms(self):
-        from fabric_api.m_query_builder import build_m_query_with_transforms
+        from qlik_export.m_query_builder import build_m_query_with_transforms
         base = 'let\n    Source = Table.FromRecords({})\nin\n    Source'
         result = build_m_query_with_transforms(base, [
             {"type": "rename", "mapping": {"A": "B"}},
@@ -440,7 +440,7 @@ class TestExtractionOrchestrator:
     """Test the extraction orchestrator with JSON input."""
 
     def test_load_from_json(self):
-        from fabric_api.extraction_orchestrator import ExtractionOrchestrator
+        from qlik_export.extraction_orchestrator import ExtractionOrchestrator
         # Create a sample JSON export
         sample = {
             "name": "TestApp",
@@ -460,7 +460,7 @@ class TestExtractionOrchestrator:
         assert len(data["datasources"]) == 1
 
     def test_write_11_files(self):
-        from fabric_api.extraction_orchestrator import ExtractionOrchestrator, INTERMEDIATE_FILES
+        from qlik_export.extraction_orchestrator import ExtractionOrchestrator, INTERMEDIATE_FILES
         sample = {"name": "WF", "datasources": [], "dimensions": [], "measures": []}
         tmpdir = tempfile.mkdtemp()
         json_path = os.path.join(tmpdir, "test.json")
@@ -476,7 +476,7 @@ class TestExtractionOrchestrator:
             assert os.path.exists(os.path.join(out_dir, fname)), f"Missing: {fname}"
 
     def test_load_intermediate(self):
-        from fabric_api.extraction_orchestrator import ExtractionOrchestrator, INTERMEDIATE_FILES
+        from qlik_export.extraction_orchestrator import ExtractionOrchestrator, INTERMEDIATE_FILES
         tmpdir = tempfile.mkdtemp()
         for fname in INTERMEDIATE_FILES:
             with open(os.path.join(tmpdir, fname), "w") as f:

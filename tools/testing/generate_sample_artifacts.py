@@ -21,14 +21,14 @@ sys.path.insert(0, str(ROOT / "src"))
 
 def generate_from_json_export(json_path: Path, output_dir: Path) -> bool:
     """Generate a .pbip project from a Qlik JSON export."""
-    from fabric_api.extraction_orchestrator import ExtractionOrchestrator
-    from fabric_api.dax_converter import (
+    from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+    from qlik_export.dax_converter import (
         convert_measures_to_dax,
         convert_dimensions_to_dax,
         convert_qlik_type_to_dax,
     )
-    from fabric_api.m_query_generator import generate_all_m_queries
-    from fabric_api.qlik_script_converter import QlikScriptToPowerQueryConverter
+    from qlik_export.m_query_generator import generate_all_m_queries
+    from qlik_export.qlik_script_converter import QlikScriptToPowerQueryConverter
     from fabric_api.tmdl_generator import TMDLGenerator
 
     report_name = json_path.stem

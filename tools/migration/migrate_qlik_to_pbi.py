@@ -22,10 +22,10 @@ from typing import List, Dict, Any
 # Ajouter le chemin source
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / 'src'))
 
-from fabric_api.qlik_migrator import QlikToPowerBIMigrator
-from fabric_api import FabricDeployer
-from fabric_api.utils import DeploymentReport
-from fabric_api.config.settings import settings
+from qlik_export.qlik_migrator import QlikToPowerBIMigrator
+from powerbi_import.deploy import FabricDeployer
+from powerbi_import.deploy.utils import DeploymentReport
+from powerbi_import.deploy.config.settings import settings
 
 # Configuration du logging
 logging.basicConfig(

@@ -82,19 +82,19 @@ Logs are written to:
 
 # 3. Test authentication separately
 """
-from fabric_api import FabricAuthenticator
+from powerbi_import.deploy import FabricAuthenticator
 auth = FabricAuthenticator()
 token = auth.get_token()  # This will raise if auth fails
 """
 
 # 4. Validate environment
 """
-python -c "from fabric_api.config.settings import get_settings; print(get_settings())"
+python -c "from powerbi_import.deploy.config.settings import get_settings; print(get_settings())"
 """
 
 # 5. Test API connectivity
 """
-from fabric_api import FabricClient
+from powerbi_import.deploy import FabricClient
 client = FabricClient()
 workspaces = client.list_workspaces()
 print(workspaces)

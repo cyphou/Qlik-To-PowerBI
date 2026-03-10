@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / 'src'))
 
-from fabric_api.qlik_model_converter import QlikModelMigrator
+from qlik_export.qlik_model_converter import QlikModelMigrator
 
 # Configuration du logging
 logging.basicConfig(

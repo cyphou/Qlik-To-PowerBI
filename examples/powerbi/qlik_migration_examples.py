@@ -9,8 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / 'src'))
 
-from fabric_api import QlikToPowerBIMigrator, FabricDeployer
-from fabric_api.qlik_migrator import QlikMetadataExtractor, QlikToPowerBIConverter
+from qlik_export.qlik_migrator import QlikToPowerBIMigrator; from powerbi_import.deploy import FabricDeployer
+from qlik_export.qlik_migrator import QlikMetadataExtractor, QlikToPowerBIConverter
 
 
 def exemple_1_migration_simple():
@@ -143,7 +143,7 @@ def exemple_6_workflow_complet():
     """
     print("\n=== Exemple 6: Workflow Complet ===")
     
-    from fabric_api.utils import DeploymentReport
+    from powerbi_import.deploy.utils import DeploymentReport
     
     # Configuration
     qlik_dir = Path('qlik_exports')

@@ -1,5 +1,64 @@
 # Changelog
 
+## v5.0.0 — Pipeline Hardening & Test Coverage Release
+
+### New Test Suites (Phase 1)
+
+- **`test_format_adapter.py`**: 45+ tests for the Qlik→generation bridge layer — input validation, chart-type mapping, datasource/calculation/visual/parameter/story adaptation, edge cases
+- **`test_migrate_cli.py`**: 25+ tests for CLI argument parsing, exit codes, `--dry-run`, `--skip-extraction`, batch modes, `_load_json` resilience
+- **`test_import_to_powerbi.py`**: 15+ tests for `PowerBIImporter` JSON loading, format adapter integration, legacy fallback, error handling
+
+### Format Adapter Hardening (Phase 3)
+
+- **Renamed** `adapt_qlik_to_tableau_format` → `adapt_qlik_for_generation` (old name kept as deprecated alias with `DeprecationWarning`)
+- **Input validation**: `None` and non-dict inputs now raise `ValueError` with clear message
+- **Logging**: added warnings for empty columns, unmapped chart types, missing datasource names, empty datasources
+- **Edge-case resilience**: missing `columns` key, empty table name, string connection fallback all handled
+
+### Pipeline Robustness (Phase 4)
+
+- **Eliminated all 5 `sys.path.insert()` hacks** in `migrate.py` — replaced with proper package imports (`qlik_export.*`, `powerbi_import.*`)
+- **Added `--validate` CLI flag**: runs `ArtifactValidator.validate_project()` post-generation for TMDL/schema validation
+- **Fixed `_load_json()` silent failures**: corrupt JSON now logs explicit error; missing files log debug message (no more bare `except Exception: pass`)
+- **Renamed `tableau_file` → `source_file`** in `migration_config.py` defaults, with backward-compat migration for legacy config files
+
+### Housekeeping
+
+- **Fixed unqualified import** in `powerbi_import/import_to_powerbi.py` (`pbip_generator` → try/except with `powerbi_import.pbip_generator`)
+
+### Version & Metadata
+
+- Bumped `pyproject.toml` version to `5.0.0`
+- Bumped `src/fabric_api/__init__.py` `__version__` to `5.0.0`
+
+---
+
+## v4.0.0 — Clean Architecture Release
+
+### Architecture Overhaul
+
+- **2-folder canonical layout**: `qlik_export/` (Qlik extraction) + `powerbi_import/` (PBI generation)
+- **`src/fabric_api/` converted to backward-compatibility shim**: 13 modules now re-export from canonical locations with deprecation warnings. `tmdl_generator.py` and `visual_generator.py` remain local (unique `TMDLGenerator` class).
+- **200+ Tableau references renamed** across 17 files in `powerbi_import/`:
+  - `_clean_tableau_field_ref` → `_clean_field_ref`
+  - `_convert_tableau_format_to_pbi` → `_convert_source_format_to_pbi`
+  - `TableauMigrationTheme` → `QlikMigrationTheme`
+  - `_TABLEAU_FUNCTION_LEAK_PATTERNS` → `_SOURCE_FUNCTION_LEAK_PATTERNS`
+  - `_RE_TABLEAU_DERIVATION_REF` → `_RE_SOURCE_DERIVATION_REF`
+  - All function parameters, config keys, docstrings, and UI strings updated
+- **Proper package imports**: `sys.path.insert()` hacks replaced with package imports in `datasource_extractor.py`, `tmdl_generator.py`, `pbip_generator.py`, `import_to_powerbi.py`
+- **`pyproject.toml` updated**: discovers `fabric_api`, `qlik_export`, and `powerbi_import` packages
+- **Test suite migrated**: 58 import statements updated across 9 test files to use canonical `qlik_export.*` / `powerbi_import.deploy.*` paths
+- **Examples & tools updated**: 28+ imports updated across 8 example files and 6 tool files
+
+### Cleanup
+
+- Removed empty `src/fabric_api/tableau/` directory
+- Removed broken `src/fabric_api/base/` directory (dead abstract pipeline)
+- Removed deprecated `migrate_old.py` (replaced by `migrate.py`)
+
+---
+
 ## v3.0.0 — February 2026
 
 ### Unified Migration Pipeline (Phase 6)

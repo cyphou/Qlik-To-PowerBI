@@ -105,7 +105,7 @@ class MigrationTester:
         try:
             # Importer migrate_qvf
             sys.path.insert(0, str(Path(__file__).parent))
-            from fabric_api.qvf_extractor import QVFExtractor
+            from qlik_export.qvf_extractor import QVFExtractor
             from fabric_api.qlik_script_to_pq import QlikScriptConverter
             from fabric_api.qlik_model_to_bim import QlikModelToBIM
             

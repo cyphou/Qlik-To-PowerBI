@@ -13,9 +13,9 @@ _project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_project_root / 'src'))
 
 from fabric_api.tmdl_generator import TMDLGenerator, create_pbi_project_from_migration
-from fabric_api.qvf_extractor import QVFExtractor
-from fabric_api.qlik_model_converter import QlikModelMigrator
-from fabric_api.qlik_script_converter import QlikScriptToPowerQueryConverter
+from qlik_export.qvf_extractor import QVFExtractor
+from qlik_export.qlik_model_converter import QlikModelMigrator
+from qlik_export.qlik_script_converter import QlikScriptToPowerQueryConverter
 
 # Configuration du logging
 logging.basicConfig(

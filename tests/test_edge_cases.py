@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from fabric_api.dax_converter import (
+from qlik_export.dax_converter import (
     convert_qlik_expression_to_dax,
     convert_measures_to_dax,
     convert_dimensions_to_dax,
@@ -24,8 +24,8 @@ from fabric_api.dax_converter import (
     _cleanup_dax,
     convert_qlik_type_to_dax,
 )
-from fabric_api.m_query_generator import generate_m_query, generate_all_m_queries
-from fabric_api.m_query_builder import (
+from qlik_export.m_query_generator import generate_m_query, generate_all_m_queries
+from qlik_export.m_query_builder import (
     rename_columns, filter_values, group_by, sort_rows,
     remove_columns, select_columns, upper_case, lower_case,
     replace_values, fill_down, add_custom_column, join_tables,
@@ -41,7 +41,7 @@ from fabric_api.visual_generator import (
     create_visual_container, resolve_visual_type, generate_visual_containers,
 )
 from fabric_api.tmdl_generator import TMDLGenerator
-from fabric_api.qlik_script_converter import QlikScriptToPowerQueryConverter
+from qlik_export.qlik_script_converter import QlikScriptToPowerQueryConverter
 
 
 # ══════════════════════════════════════════════════════════════════

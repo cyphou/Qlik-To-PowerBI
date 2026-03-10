@@ -21,25 +21,25 @@ print("✓ Imports Python réussis")
 print("\n1️⃣  Vérification des modules...")
 
 try:
-    from fabric_api.qvf_extractor import QVFExtractor
+    from qlik_export.qvf_extractor import QVFExtractor
     print("   ✓ QVF Extractor")
 except Exception as e:
     print(f"   ❌ QVF Extractor: {e}")
 
 try:
-    from fabric_api.qlik_script_converter import QlikScriptConverter
+    from qlik_export.qlik_script_converter import QlikScriptConverter
     print("   ✓ Qlik Script Converter")
 except Exception as e:
     print(f"   ❌ Qlik Script Converter: {e}")
 
 try:
-    from fabric_api.qlik_model_converter import QlikModelConverter
+    from qlik_export.qlik_model_converter import QlikModelConverter
     print("   ✓ Qlik Model Converter")
 except Exception as e:
     print(f"   ❌ Qlik Model Converter: {e}")
 
 try:
-    from fabric_api.qlik_migrator import QlikToPowerBIMigrator
+    from qlik_export.qlik_migrator import QlikToPowerBIMigrator
     print("   ✓ Qlik Migrator")
 except Exception as e:
     print(f"   ❌ Qlik Migrator: {e}")
@@ -53,7 +53,7 @@ output_dir.mkdir(exist_ok=True)
 # Test du convertisseur de script
 print("\n   A. Test conversion script Qlik → Power Query M")
 try:
-    from fabric_api.qlik_script_converter import QlikScriptConverter
+    from qlik_export.qlik_script_converter import QlikScriptConverter
     
     converter = QlikScriptConverter()
     
@@ -89,7 +89,7 @@ except Exception as e:
 # Test du convertisseur de modèle
 print("\n   B. Test conversion modèle Qlik → BIM")
 try:
-    from fabric_api.qlik_model_converter import QlikModelConverter
+    from qlik_export.qlik_model_converter import QlikModelConverter
     import json
     
     converter = QlikModelConverter()
@@ -142,7 +142,7 @@ except Exception as e:
 # Test du migrateur de rapport
 print("\n   C. Test conversion visualisations")
 try:
-    from fabric_api.qlik_migrator import QlikToPowerBIMigrator
+    from qlik_export.qlik_migrator import QlikToPowerBIMigrator
     import json
     
     migrator = QlikToPowerBIMigrator()

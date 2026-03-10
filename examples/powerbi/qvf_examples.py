@@ -11,7 +11,7 @@ import json
 # Ajouter src au path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / 'src'))
 
-from fabric_api.qvf_extractor import QVFExtractor, extract_qvf
+from qlik_export.qvf_extractor import QVFExtractor, extract_qvf
 
 
 def create_sample_qvf():
@@ -321,8 +321,8 @@ def example_migration_workflow():
         qvf_path = create_sample_qvf()
     
     # Import des autres modules
-    from fabric_api.qlik_script_converter import QlikScriptToPowerQueryConverter
-    from fabric_api.qlik_model_converter import QlikModelMigrator
+    from qlik_export.qlik_script_converter import QlikScriptToPowerQueryConverter
+    from qlik_export.qlik_model_converter import QlikModelMigrator
     
     # Étape 1: Extraction
     print("\n🔍 Étape 1: Extraction du QVF")

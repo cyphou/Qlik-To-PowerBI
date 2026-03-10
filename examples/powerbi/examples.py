@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / 'src'))
 
-from fabric_api import FabricClient, FabricDeployer, FabricAuthenticator
+from powerbi_import.deploy import FabricClient, FabricDeployer, FabricAuthenticator
 
 
 def example_1_list_workspaces():

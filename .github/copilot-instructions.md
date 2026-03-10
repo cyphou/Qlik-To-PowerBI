@@ -29,23 +29,29 @@ python migrate.py app.qvf --skip-extraction # Reuse existing JSON
 
 ```
 ├── migrate.py                          # Root CLI entry point
-├── src/fabric_api/                     # Core library
-│   ├── tmdl_generator.py              # PBI Project / TMDL output
+├── qlik_export/                        # Qlik-specific extraction (canonical)
 │   ├── dax_converter.py               # 175+ Qlik expression → DAX conversions
-│   ├── visual_generator.py            # 60+ visual types, 30+ config templates
-│   ├── m_query_generator.py           # 25 connector types → Power Query M
-│   ├── m_query_builder.py             # 40+ chainable M transforms + inject_m_steps
 │   ├── extraction_orchestrator.py     # QVF/JSON → 11 intermediate JSON files
+│   ├── format_adapter.py             # Qlik 11-key → generation-layer bridge
+│   ├── datasource_extractor.py       # API bridge (type/formula/M adapters)
+│   ├── m_query_generator.py          # 25 connector types → Power Query M
+│   ├── m_query_builder.py            # 40+ chainable M transforms + inject_m_steps
 │   ├── qlik_migrator.py              # QlikApp → Power BI converter
 │   ├── qlik_model_converter.py
 │   ├── qlik_script_converter.py      # Qlik script → Power Query M (30 functions)
-│   ├── qvf_extractor.py             # .qvf ZIP reader
-│   ├── config/                       # Settings (pydantic-settings)
-│   ├── auth.py                       # Azure auth (lazy-loaded)
-│   ├── client.py                     # Fabric REST client
-│   ├── deployer.py                   # Fabric deployment
+│   └── qvf_extractor.py              # .qvf ZIP reader
+├── powerbi_import/                     # Power BI generation layer (canonical)
+│   ├── tmdl_generator.py             # TMDL semantic model output
+│   ├── pbip_generator.py             # Full .pbip project output
+│   ├── visual_generator.py           # 60+ visual types, 30+ config templates
+│   ├── import_to_powerbi.py          # Import orchestrator
 │   ├── validator.py                  # Artifact validation
-│   └── utils.py                      # Reports & caching
+│   ├── config/                       # Migration config (pydantic-settings)
+│   └── deploy/                       # Azure deployment (auth, client, deployer)
+├── src/fabric_api/                     # Deprecated — backward-compat shims
+│   ├── tmdl_generator.py             # Unique TMDLGenerator class (not yet migrated)
+│   ├── visual_generator.py           # Unique implementation (not yet migrated)
+│   └── *.py                          # Re-export shims → qlik_export/powerbi_import
 ├── tools/migration/                   # 28 standalone migration scripts
 ├── tools/analysis/                    # Diagnostic tools
 ├── tools/testing/                     # Integration test suites

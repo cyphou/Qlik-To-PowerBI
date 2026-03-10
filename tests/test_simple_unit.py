@@ -5,7 +5,7 @@ Isolated tests for individual functions with trivial inputs.
 No file I/O, no side effects, each test ≤5 lines.
 """
 import pytest
-from fabric_api.dax_converter import (
+from qlik_export.dax_converter import (
     convert_qlik_expression_to_dax,
     convert_qlik_format_to_dax,
     convert_qlik_type_to_dax,
@@ -26,8 +26,8 @@ from fabric_api.dax_converter import (
     _convert_inter_record,
     _cleanup_dax,
 )
-from fabric_api.m_query_generator import generate_m_query, generate_all_m_queries, map_qlik_to_m_type
-from fabric_api.m_query_builder import (
+from qlik_export.m_query_generator import generate_m_query, generate_all_m_queries, map_qlik_to_m_type
+from qlik_export.m_query_builder import (
     rename_columns, remove_columns, select_columns, duplicate_column,
     reorder_columns, split_column_by_delimiter, merge_columns,
     replace_values, replace_nulls, trim_text, clean_text,

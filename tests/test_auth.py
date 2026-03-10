@@ -4,9 +4,8 @@ from unittest.mock import patch, MagicMock
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from fabric_api.auth import FabricAuthenticator
+from powerbi_import.deploy.auth import FabricAuthenticator
 
 
 def _fake_settings(**overrides):
@@ -21,8 +20,8 @@ def _fake_settings(**overrides):
 class TestFabricAuthenticator:
     """Test FabricAuthenticator class."""
 
-    @patch("fabric_api.auth.ClientSecretCredential")
-    @patch("fabric_api.auth.get_settings")
+    @patch("powerbi_import.deploy.auth.ClientSecretCredential")
+    @patch("powerbi_import.deploy.auth.get_settings")
     def test_init_service_principal(self, mock_get_settings, mock_credential):
         """Test initialization with Service Principal."""
         mock_get_settings.return_value = _fake_settings()
@@ -32,8 +31,8 @@ class TestFabricAuthenticator:
         assert auth.use_managed_identity is False
         mock_credential.assert_called_once()
 
-    @patch("fabric_api.auth.DefaultAzureCredential")
-    @patch("fabric_api.auth.get_settings")
+    @patch("powerbi_import.deploy.auth.DefaultAzureCredential")
+    @patch("powerbi_import.deploy.auth.get_settings")
     def test_init_managed_identity(self, mock_get_settings, mock_credential):
         """Test initialization with Managed Identity."""
         mock_get_settings.return_value = _fake_settings()
@@ -43,8 +42,8 @@ class TestFabricAuthenticator:
         assert auth.use_managed_identity is True
         mock_credential.assert_called_once()
 
-    @patch("fabric_api.auth.ClientSecretCredential")
-    @patch("fabric_api.auth.get_settings")
+    @patch("powerbi_import.deploy.auth.ClientSecretCredential")
+    @patch("powerbi_import.deploy.auth.get_settings")
     def test_get_token(self, mock_get_settings, mock_cred_class):
         """Test token acquisition."""
         mock_get_settings.return_value = _fake_settings()
@@ -61,8 +60,8 @@ class TestFabricAuthenticator:
         assert token == "test-token-123"
         mock_cred.get_token.assert_called_once()
 
-    @patch("fabric_api.auth.ClientSecretCredential")
-    @patch("fabric_api.auth.get_settings")
+    @patch("powerbi_import.deploy.auth.ClientSecretCredential")
+    @patch("powerbi_import.deploy.auth.get_settings")
     def test_get_headers(self, mock_get_settings, mock_cred_class):
         """Test header generation."""
         mock_get_settings.return_value = _fake_settings()

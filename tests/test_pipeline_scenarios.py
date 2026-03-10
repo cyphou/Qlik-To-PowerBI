@@ -13,13 +13,13 @@ from pathlib import Path
 import pytest
 
 # -- imports under test --
-from fabric_api.qvf_extractor import QVFExtractor
-from fabric_api.qlik_model_converter import (
+from qlik_export.qvf_extractor import QVFExtractor
+from qlik_export.qlik_model_converter import (
     QlikDataModelExtractor,
     QlikModelMigrator,
     _infer_column_datatype,
 )
-from fabric_api.qlik_script_converter import QlikScriptToPowerQueryConverter
+from qlik_export.qlik_script_converter import QlikScriptToPowerQueryConverter
 from fabric_api.tmdl_generator import TMDLGenerator
 
 
