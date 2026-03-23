@@ -165,7 +165,7 @@ def run_extraction(qlik_file):
     try:
         from qlik_export.extraction_orchestrator import ExtractionOrchestrator
 
-        # Output JSON files to qlik_export/ (same pattern as tableau_export/)
+        # Output JSON files to qlik_export/ directory
         output_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
         orchestrator = ExtractionOrchestrator(output_dir=output_dir)
         orchestrator.extract(qlik_file)
@@ -252,7 +252,7 @@ def run_generation(report_name=None, output_dir=None, calendar_start=None,
                     _stats.pages_generated = len([d for d in dirs if d.startswith('ReportSection')])
                 if os.path.basename(root) == 'visuals':
                     _stats.visuals_generated += len(dirs)
-                if 'QlikMigrationTheme.json' in files or 'TableauMigrationTheme.json' in files:
+                if 'QlikMigrationTheme.json' in files:
                     _stats.theme_applied = True
 
             # Read TMDL stats from metadata if available

@@ -19,10 +19,10 @@ Decision signals
 | No Custom SQL                        | ✓      |             |
 | Custom SQL present                   |        | ✓           |
 | Simple calcs only                    | ✓      |             |
-| LOD / table calcs / REGEX            |        | ✓           |
+| Set Analysis / Aggr / dollar-sign    |        | ✓           |
 | Few calculated columns (≤ 10)       | ✓      |             |
 | Many calculated columns (> 10)      |        | ✓           |
-| Prep flow transforms                 |        | ✓           |
+| Stacked LOADs / Section Access       |        | ✓           |
 +--------------------------------------+--------+-------------+
 
 Scoring
@@ -65,35 +65,31 @@ _DQ_FRIENDLY_CONNECTORS = frozenset({
     'Google Analytics',
 })
 
-# LOD / table-calc / complex formula patterns
+# Qlik complex formula patterns — set analysis, Aggr, dollar-sign, inter-record
 _COMPLEX_FORMULA_PATTERN = re.compile(
-    r'\{?\s*(FIXED|INCLUDE|EXCLUDE)\s+.*?:'
-    r'|RUNNING_(SUM|AVG|COUNT|MAX|MIN)\s*\('
-    r'|WINDOW_(SUM|AVG|MAX|MIN|COUNT)\s*\('
-    r'|LOOKUP\s*\('
-    r'|PREVIOUS_VALUE\s*\('
-    r'|RANK\s*\('
-    r'|INDEX\s*\('
-    r'|RAWSQL',
+    r'\{\s*<'                                # Set Analysis {<...>}
+    r'|\bAggr\s*\('                           # Aggr() nesting
+    r'|\$\(\s*='                               # Dollar-sign expression $(=...)
+    r'|\bTOTAL\b'                              # TOTAL qualifier
+    r'|\bPeek\s*\('                            # Peek() inter-record
+    r'|\bPrevious\s*\('                        # Previous() inter-record
+    r'|\bAbove\s*\('                           # Above() inter-record
+    r'|\bBelow\s*\('                           # Below() inter-record
+    r'|\bRangeSum\s*\(',                       # RangeSum running totals
     re.IGNORECASE,
 )
 
-# Regex / string-heavy patterns
-_REGEX_PATTERN = re.compile(
-    r'REGEXP_(MATCH|EXTRACT|REPLACE)\s*\(', re.IGNORECASE,
+# Section Access pattern — indicates RLS complexity
+_SECTION_ACCESS_PATTERN = re.compile(
+    r'Section\s+Access', re.IGNORECASE,
 )
 
-# Aggregation detection
+# Qlik aggregation detection
 _AGG_PATTERN = re.compile(
-    r'\b(SUM|COUNT|COUNTA|COUNTD|COUNTROWS|AVERAGE|AVG|MIN|MAX|MEDIAN|'
-    r'STDEV|STDEVP|VAR|VARP|PERCENTILE|DISTINCTCOUNT|CALCULATE|'
-    r'TOTALYTD|SAMEPERIODLASTYEAR|RANKX|SUMX|AVERAGEX|MINX|MAXX|COUNTX|'
-    r'CORR|COVAR|COVARP|'
-    r'RUNNING_SUM|RUNNING_AVG|RUNNING_COUNT|RUNNING_MAX|RUNNING_MIN|'
-    r'WINDOW_SUM|WINDOW_AVG|WINDOW_MAX|WINDOW_MIN|WINDOW_COUNT|'
-    r'WINDOW_MEDIAN|WINDOW_STDEV|WINDOW_STDEVP|WINDOW_VAR|WINDOW_VARP|'
-    r'RANK|RANK_UNIQUE|RANK_DENSE|RANK_MODIFIED|RANK_PERCENTILE|'
-    r'ATTR|SELECTEDVALUE)\s*\(',
+    r'\b(Sum|Count|CountDistinct|Avg|Min|Max|Median|Stdev|Only|'
+    r'Mode|Fractile|Correl|Skew|FirstSortedValue|Concat|'
+    r'RangeSum|RangeAvg|RangeCount|RangeMin|RangeMax|RangeStdev|'
+    r'Rank|NumericCount|NullCount|MissingCount|TextCount)\s*\(',
     re.IGNORECASE,
 )
 
@@ -274,7 +270,6 @@ def recommend_strategy(
 
     # ── 5. Calculation complexity ───────────────────────────────
     complex_calc_count = 0
-    regex_calc_count = 0
 
     calc_columns, measures = _classify_calculations(calculations)
     calc_col_count = len(calc_columns)
@@ -283,21 +278,17 @@ def recommend_strategy(
         formula = calc.get('formula', '')
         if _COMPLEX_FORMULA_PATTERN.search(formula):
             complex_calc_count += 1
-        if _REGEX_PATTERN.search(formula):
-            regex_calc_count += 1
 
-    if complex_calc_count == 0 and regex_calc_count == 0:
+    if complex_calc_count == 0:
         signals.append(StrategySignal(
             'simple_calcs',
-            'All calculations are simple (no LOD/table calcs/REGEX)',
+            'All calculations are simple (no Set Analysis/Aggr/dollar-sign)',
             'import',
         ))
     else:
         parts = []
         if complex_calc_count:
-            parts.append(f'{complex_calc_count} LOD/table calc(s)')
-        if regex_calc_count:
-            parts.append(f'{regex_calc_count} REGEX calc(s)')
+            parts.append(f'{complex_calc_count} Set Analysis/Aggr/dollar-sign calc(s)')
         signals.append(StrategySignal(
             'complex_calcs',
             f'Complex calculations: {", ".join(parts)}',

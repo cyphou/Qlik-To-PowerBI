@@ -1,0 +1,57 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "44ed3fb89d0845e9b051",
+  "position": {
+    "x": 434,
+    "y": 0,
+    "z": 1000,
+    "height": 720,
+    "width": 846,
+    "tabOrder": 1000
+  },
+  "visual": {
+    "visualType": "lineStackedColumnComboChart",
+    "drillFilterOtherVisuals": true,
+    "objects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Hires vs Exits by Quarter'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "categoryAxis": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "valueAxis": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

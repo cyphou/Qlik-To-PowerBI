@@ -1,0 +1,77 @@
+table Sales
+	lineageTag: 17498945-6f02-4937-94bb-ea348c986cc9
+
+	measure 'CA Total' = SUM(Amount)
+		formatString: #,0.00
+		displayFolder: Measures
+		lineageTag: f20bd4dd-db9f-4429-a5e2-0139e27baa66
+
+	measure 'Qté Totale' = SUM(Quantity)
+		formatString: #,0.00
+		displayFolder: Measures
+		lineageTag: d9ab278c-9955-40a9-b308-9b336e578f43
+
+	measure 'Année en cours' = "Year(Today())"
+		lineageTag: 7a3c6d91-af76-4e26-8468-debefc4aad99
+
+	column SaleID
+		dataType: string
+		lineageTag: 522b28f8-265a-42c8-a0ee-2678711d5aa5
+		summarizeBy: none
+		sourceColumn: SaleID
+
+		annotation SummarizationSetBy = Automatic
+
+	column CustomerID
+		dataType: string
+		lineageTag: 7978f035-2561-4756-8e7f-edcaea8d4ae4
+		summarizeBy: none
+		sourceColumn: CustomerID
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProductID
+		dataType: string
+		lineageTag: b5c8fc45-6f4a-46c4-bf21-9b9d6c732e1a
+		summarizeBy: none
+		sourceColumn: ProductID
+
+		annotation SummarizationSetBy = Automatic
+
+	column OrderDate
+		dataType: string
+		lineageTag: 21e655a8-f85c-4b3d-abba-8150a5443585
+		summarizeBy: none
+		sourceColumn: OrderDate
+
+		annotation SummarizationSetBy = Automatic
+
+	column Amount
+		dataType: string
+		lineageTag: 8fa766ee-6b80-4f03-875b-5540c985b636
+		summarizeBy: none
+		sourceColumn: Amount
+
+		annotation SummarizationSetBy = Automatic
+
+	column Quantity
+		dataType: string
+		lineageTag: 9ac7ff21-a7be-4c39-844c-e20ff7d1de2a
+		summarizeBy: none
+		sourceColumn: Quantity
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Sales-2e6003d2-82af-4ad6-a7e7-166d76c8468f' = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("Sales.csv"),[Delimiter=",", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),
+				    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])
+				,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"SaleID", "CustomerID", "ProductID", "OrderDate", "Amount", "Quantity"})
+				
+				in
+				    SelectedColumns
+
+	annotation PBI_ResultType = Table
+

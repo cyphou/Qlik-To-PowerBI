@@ -1,0 +1,57 @@
+table SalesReps
+	lineageTag: 7904067e-2e5a-41ee-8b81-e9ffde33c163
+
+	column SalesRepID
+		dataType: string
+		lineageTag: 9c395b07-fe5b-4ddd-9be4-fc867839cfd2
+		summarizeBy: none
+		sourceColumn: SalesRepID
+
+		annotation SummarizationSetBy = Automatic
+
+	column SalesRep
+		dataType: string
+		lineageTag: a53d3dcb-6e33-41bc-934c-3c9eba96280b
+		summarizeBy: none
+		sourceColumn: SalesRep
+
+		annotation SummarizationSetBy = Automatic
+
+	column Region
+		dataType: string
+		lineageTag: 4b7676c3-7046-49bd-bfb3-9c5a61749bfd
+		summarizeBy: none
+		sourceColumn: Region
+		dataCategory: StateOrProvince
+
+		annotation SummarizationSetBy = Automatic
+
+	column HireDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 8433ac6c-3e2a-4b6a-abee-745f8b3146bb
+		summarizeBy: none
+		sourceColumn: HireDate
+		dataCategory: DateTime
+
+		annotation SummarizationSetBy = Automatic
+
+	column Quota
+		dataType: double
+		lineageTag: 91642d52-3d30-4573-bec9-d1b93a9a248d
+		summarizeBy: none
+		sourceColumn: Quota
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'SalesReps-a31dce3c-ac99-47c9-a84c-e08e902ddc72' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost", "master"),
+				    Table = Source{[Schema="dbo",Item="SalesReps"]}[Data]
+				in
+				    Table
+
+	annotation PBI_ResultType = Table
+

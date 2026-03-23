@@ -1,0 +1,121 @@
+table Calendar
+	lineageTag: 7b8fe989-ee1f-4957-bafb-eea609c7addb
+
+	column Date
+		dataType: dateTime
+		formatString: dd/mm/yyyy
+		lineageTag: a4dee6c4-5ea0-4857-a7b3-8b2521cf7501
+		summarizeBy: none
+		sourceColumn: Date
+		isKey
+		dataCategory: DateTime
+
+		annotation SummarizationSetBy = Automatic
+
+	column Year
+		dataType: int64
+		lineageTag: 0efe5aa8-b693-48ea-ada4-93c52694f8ae
+		summarizeBy: none
+		sourceColumn: Year
+		dataCategory: Years
+
+		annotation SummarizationSetBy = Automatic
+
+	column Quarter
+		dataType: string
+		lineageTag: f79387ea-7b4e-48bc-9970-9768a8a27c83
+		summarizeBy: none
+		sourceColumn: Quarter
+
+		annotation SummarizationSetBy = Automatic
+
+	column Month
+		dataType: int64
+		lineageTag: c69e8f37-b40f-4aba-b0f2-565f6b0e7529
+		summarizeBy: none
+		sourceColumn: Month
+		dataCategory: Months
+
+		annotation SummarizationSetBy = Automatic
+
+	column MonthName
+		dataType: string
+		lineageTag: e5a6d509-51b8-4d28-88a0-7e27450807fc
+		summarizeBy: none
+		sourceColumn: MonthName
+		sortByColumn: Month
+
+		annotation SummarizationSetBy = Automatic
+
+	column Day
+		dataType: int64
+		lineageTag: 829dee3b-17f2-4f5f-ab4e-03f512516147
+		summarizeBy: none
+		sourceColumn: Day
+		dataCategory: Days
+
+		annotation SummarizationSetBy = Automatic
+
+	column DayOfWeek
+		dataType: int64
+		lineageTag: 2437bec0-6bf6-462c-8f6b-ecd624a2985f
+		summarizeBy: none
+		sourceColumn: DayOfWeek
+
+		annotation SummarizationSetBy = Automatic
+
+	column DayName
+		dataType: string
+		lineageTag: 586e91db-b9df-4c1c-bb78-f0bc5685b8dd
+		summarizeBy: none
+		sourceColumn: DayName
+		sortByColumn: DayOfWeek
+
+		annotation SummarizationSetBy = Automatic
+
+	hierarchy 'Date Hierarchy'
+		lineageTag: 2cd8e324-5a07-4328-b1a8-42db87e45cb1
+
+		level Year
+			ordinal: 0
+			column: Year
+			lineageTag: 6d2c4a32-f137-42d6-93e1-c46a31d74738
+
+		level Quarter
+			ordinal: 1
+			column: Quarter
+			lineageTag: 9384cb23-708b-4e88-9d45-daff2b48019c
+
+		level Month
+			ordinal: 2
+			column: MonthName
+			lineageTag: fe959efb-c78f-4d22-9502-f7c8fb3d917d
+
+		level Day
+			ordinal: 3
+			column: Day
+			lineageTag: 12f656ff-382e-458a-a4da-597e27aae12a
+
+
+	partition 'Calendar-d2a83069-3559-47cc-8034-227b5480d7cd' = m
+		mode: import
+		source =
+				let
+				    StartDate = #date(2020, 1, 1),
+				    EndDate = #date(2030, 12, 31),
+				    DayCount = Duration.Days(EndDate - StartDate) + 1,
+				    DateList = List.Dates(StartDate, DayCount, #duration(1, 0, 0, 0)),
+				    #"Date Table" = Table.FromList(DateList, Splitter.SplitByNothing(), {"Date"}, null, ExtraValues.Error),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Date Table", {{"Date", type date}}),
+				    #"Added Year" = Table.AddColumn(#"Changed Type", "Year", each Date.Year([Date]), Int64.Type),
+				    #"Added Quarter" = Table.AddColumn(#"Added Year", "Quarter", each "Q" & Text.From(Date.QuarterOfYear([Date]))),
+				    #"Added Month" = Table.AddColumn(#"Added Quarter", "Month", each Date.Month([Date]), Int64.Type),
+				    #"Added MonthName" = Table.AddColumn(#"Added Month", "MonthName", each Date.MonthName([Date])),
+				    #"Added Day" = Table.AddColumn(#"Added MonthName", "Day", each Date.Day([Date]), Int64.Type),
+				    #"Added DayOfWeek" = Table.AddColumn(#"Added Day", "DayOfWeek", each Date.DayOfWeek([Date], Day.Monday) + 1, Int64.Type),
+				    #"Added DayName" = Table.AddColumn(#"Added DayOfWeek", "DayName", each Date.DayOfWeekName([Date]))
+				in
+				    #"Added DayName"
+
+	annotation PBI_ResultType = Table
+

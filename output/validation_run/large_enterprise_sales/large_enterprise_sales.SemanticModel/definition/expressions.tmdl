@@ -1,0 +1,6 @@
+expression DataFolder = "C:\\lib:\\\\DataFiles" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+expression ServerName = "localhost" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+expression DatabaseName = "master" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+

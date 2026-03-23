@@ -1,0 +1,100 @@
+[
+  {
+    "qProperty": {
+      "qInfo": {
+        "qId": "sheet_overview",
+        "qType": "sheet"
+      },
+      "qMetaDef": {
+        "title": "Vue d'ensemble",
+        "description": "Tableau de bord principal"
+      }
+    },
+    "cells": [
+      {
+        "name": "viz_sales_by_category",
+        "type": "barchart",
+        "title": "Ventes par Catégorie",
+        "properties": {
+          "orientation": "vertical",
+          "showLegend": true,
+          "color": {
+            "auto": false,
+            "mode": "primary"
+          }
+        }
+      },
+      {
+        "name": "viz_sales_trend",
+        "type": "linechart",
+        "title": "Tendance des Ventes",
+        "properties": {
+          "dataPoints": true,
+          "showLegend": true,
+          "gridlines": true
+        }
+      },
+      {
+        "name": "viz_regional_breakdown",
+        "type": "piechart",
+        "title": "Répartition Régionale",
+        "properties": {
+          "showLabels": true,
+          "showValues": true
+        }
+      },
+      {
+        "name": "viz_kpi_total",
+        "type": "kpi",
+        "title": "Total Ventes",
+        "properties": {
+          "fontSize": "large",
+          "alignment": "center"
+        }
+      },
+      {
+        "name": "viz_orders_table",
+        "type": "table",
+        "title": "Détail des Ventes",
+        "properties": {
+          "pagination": true,
+          "rowsPerPage": 10
+        }
+      }
+    ],
+    "id": "sheet_overview",
+    "title": "Vue d'ensemble"
+  },
+  {
+    "qProperty": {
+      "qInfo": {
+        "qId": "sheet_analysis",
+        "qType": "sheet"
+      },
+      "qMetaDef": {
+        "title": "Analyse Détaillée",
+        "description": "Analyses avancées"
+      }
+    },
+    "cells": [
+      {
+        "name": "viz_customer_scatter",
+        "type": "scatterplot",
+        "title": "Analyse Clients",
+        "properties": {
+          "showTrendLine": true
+        }
+      },
+      {
+        "name": "viz_product_treemap",
+        "type": "treemap",
+        "title": "Hiérarchie Produits",
+        "properties": {
+          "showLabels": true
+        }
+      }
+    ],
+    "id": "sheet_analysis",
+    "title": "Analyse Détaillée"
+  }
+]

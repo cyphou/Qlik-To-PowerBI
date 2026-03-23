@@ -96,12 +96,13 @@ class MigrationConfig:
         self._config = copy.deepcopy(_DEFAULTS)
         if config_dict:
             self._merge(self._config, config_dict)
-            # Migrate legacy key: source.tableau_file → source.source_file
+            # Migrate legacy keys: tableau_file / qlik_file → source_file
             src = self._config.get('source', {})
-            if 'tableau_file' in src and src.get('source_file') is None:
-                src['source_file'] = src.pop('tableau_file')
-            elif 'tableau_file' in src:
-                src.pop('tableau_file', None)
+            for legacy_key in ('tableau_file', 'qlik_file'):
+                if legacy_key in src and src.get('source_file') is None:
+                    src['source_file'] = src.pop(legacy_key)
+                elif legacy_key in src:
+                    src.pop(legacy_key, None)
 
     @classmethod
     def from_file(cls, filepath):
@@ -143,13 +144,14 @@ class MigrationConfig:
         data = copy.deepcopy(_DEFAULTS)
 
         # Source
-        # Source — accept both source_file and legacy tableau_file
+        # Source — accept source_file and legacy aliases
         if hasattr(args, 'source_file') and args.source_file:
             data['source']['source_file'] = args.source_file
-        if hasattr(args, 'tableau_file') and args.tableau_file:
-            data['source']['source_file'] = args.tableau_file
         if hasattr(args, 'qlik_file') and args.qlik_file:
             data['source']['source_file'] = args.qlik_file
+        # Legacy Tableau alias (backward compat)
+        if hasattr(args, 'tableau_file') and args.tableau_file:
+            data['source']['source_file'] = args.tableau_file
         if hasattr(args, 'prep') and args.prep:
             data['source']['prep_flow'] = args.prep
 
@@ -230,11 +232,17 @@ class MigrationConfig:
     # Backward-compatible alias (deprecated)
     @property
     def tableau_file(self):
+        """Deprecated — use ``.source_file``."""
         import warnings
         warnings.warn(
             "MigrationConfig.tableau_file is deprecated; use .source_file.",
             DeprecationWarning, stacklevel=2,
         )
+        return self._config['source']['source_file']
+
+    @property
+    def qlik_file(self):
+        """Alias for ``.source_file``."""
         return self._config['source']['source_file']
 
     @property

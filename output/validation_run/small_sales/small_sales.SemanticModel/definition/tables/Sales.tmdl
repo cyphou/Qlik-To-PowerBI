@@ -1,0 +1,49 @@
+table Sales
+	lineageTag: 04677b4a-fc14-425a-a170-b6948298b849
+
+	column ProductName
+		dataType: string
+		lineageTag: 29c82279-195f-4e67-a2ca-31cc5fc9e408
+		summarizeBy: none
+		sourceColumn: ProductName
+
+		annotation SummarizationSetBy = Automatic
+
+	column SalesDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 89bd163c-c10a-4da5-9d9e-e852f6feffdb
+		summarizeBy: none
+		sourceColumn: SalesDate
+		dataCategory: DateTime
+
+		annotation SummarizationSetBy = Automatic
+
+	column Revenue
+		dataType: double
+		lineageTag: d0549af1-7c1d-423a-900b-550251ac7cba
+		summarizeBy: none
+		sourceColumn: Revenue
+
+		annotation SummarizationSetBy = Automatic
+
+	column Quantity
+		dataType: int64
+		lineageTag: 0ced4ad5-ea95-446c-a51d-85cd38337494
+		summarizeBy: sum
+		sourceColumn: Quantity
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Sales-e3fa1ece-b5e2-4d60-9331-df5a7f5e19d7' = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents("C:\Data\file.csv"), [Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.None]),
+				    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    ChangedTypes = Table.TransformColumnTypes(PromotedHeaders, {{"ProductName", type text}, {"SalesDate", type text}, {"Revenue", type text}, {"Quantity", type text}})
+				in
+				    ChangedTypes
+
+	annotation PBI_ResultType = Table
+

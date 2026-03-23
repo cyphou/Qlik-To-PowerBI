@@ -1,0 +1,145 @@
+table Employees
+	lineageTag: 36e79309-34c1-4b21-85ab-185289b0233b
+
+	measure 'Current fiscal year' = "Year(Today())"
+		lineageTag: 6fd10d44-b084-4c38-b330-24f3eb453a2e
+
+	measure 'Target turnover rate (15%)' = "0.15"
+		lineageTag: ba75d598-9e9f-428e-a232-a27e9f088f57
+
+	column EmployeeID
+		dataType: int64
+		lineageTag: 5c2bb0f0-3394-4554-b54e-05116946548d
+		summarizeBy: sum
+		sourceColumn: EmployeeID
+
+		annotation SummarizationSetBy = Automatic
+
+	column FirstName
+		dataType: string
+		lineageTag: e3454881-ab58-41e5-ade7-08d206b9a46b
+		summarizeBy: none
+		sourceColumn: FirstName
+
+		annotation SummarizationSetBy = Automatic
+
+	column LastName
+		dataType: string
+		lineageTag: 27dac4d6-3e1d-463a-9638-b7d77eeb59ae
+		summarizeBy: none
+		sourceColumn: LastName
+
+		annotation SummarizationSetBy = Automatic
+
+	column Department
+		dataType: string
+		lineageTag: 51a0e359-bffc-4ba2-952a-27f576b8a9ea
+		summarizeBy: none
+		sourceColumn: Department
+
+		annotation SummarizationSetBy = Automatic
+
+	column JobTitle
+		dataType: string
+		lineageTag: 1bcec141-bbd0-472a-9f6b-92d9c952bae4
+		summarizeBy: none
+		sourceColumn: JobTitle
+
+		annotation SummarizationSetBy = Automatic
+
+	column Region
+		dataType: string
+		lineageTag: ae7336dd-7e11-44aa-9103-057d2cfc8bbe
+		summarizeBy: none
+		sourceColumn: Region
+		dataCategory: StateOrProvince
+
+		annotation SummarizationSetBy = Automatic
+
+	column Country
+		dataType: string
+		lineageTag: f34ada31-6a81-4d87-b08d-5d1c18d2ab8a
+		summarizeBy: none
+		sourceColumn: Country
+		dataCategory: Country
+
+		annotation SummarizationSetBy = Automatic
+
+	column City
+		dataType: string
+		lineageTag: fdfcd828-aea0-4fd3-a2c7-4e52db7ffbce
+		summarizeBy: none
+		sourceColumn: City
+		dataCategory: City
+
+		annotation SummarizationSetBy = Automatic
+
+	column HireDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 4af1808b-4b38-4498-ad0b-bbf59955342f
+		summarizeBy: none
+		sourceColumn: HireDate
+		dataCategory: DateTime
+
+		annotation SummarizationSetBy = Automatic
+
+	column Salary
+		dataType: double
+		lineageTag: a22994c9-ef7d-422f-941f-8a76a6270f38
+		summarizeBy: none
+		sourceColumn: Salary
+
+		annotation SummarizationSetBy = Automatic
+
+	column Bonus
+		dataType: double
+		lineageTag: a2fc17dc-b0f3-4c85-89ad-eef70c4d3f20
+		summarizeBy: none
+		sourceColumn: Bonus
+
+		annotation SummarizationSetBy = Automatic
+
+	column Gender
+		dataType: string
+		lineageTag: 0393cb5d-0d91-4a11-a2a0-86db5fb0ec98
+		summarizeBy: none
+		sourceColumn: Gender
+
+		annotation SummarizationSetBy = Automatic
+
+	column EducationLevel
+		dataType: string
+		lineageTag: 58dc25bb-95f1-4b00-831f-df33e0a08bd8
+		summarizeBy: none
+		sourceColumn: EducationLevel
+
+		annotation SummarizationSetBy = Automatic
+
+	column Status
+		dataType: string
+		lineageTag: 7cc61810-7860-4f12-ae0f-da4d2af9c70a
+		summarizeBy: none
+		sourceColumn: Status
+
+		annotation SummarizationSetBy = Automatic
+
+	column SatisfactionScore
+		dataType: double
+		lineageTag: b2f52fd6-16b1-4f4f-9e15-a52eb123137b
+		summarizeBy: none
+		sourceColumn: SatisfactionScore
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Employees-5a9bda70-0622-43dc-9d39-99547e65ba5c' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost", "master"),
+				    Table = Source{[Schema="dbo",Item="Employees"]}[Data]
+				in
+				    Table
+
+	annotation PBI_ResultType = Table
+

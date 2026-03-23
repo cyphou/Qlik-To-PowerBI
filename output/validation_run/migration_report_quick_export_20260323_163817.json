@@ -1,0 +1,86 @@
+{
+  "report_name": "quick_export",
+  "created_at": "2026-03-23T16:38:17.426836",
+  "summary": {
+    "total_items": 9,
+    "exact": 9,
+    "approximate": 0,
+    "placeholder": 0,
+    "unsupported": 0,
+    "skipped": 0,
+    "fidelity_score": 100.0,
+    "by_category": {
+      "datasource": {
+        "total": 3,
+        "exact": 3
+      },
+      "calculation": {
+        "total": 2,
+        "exact": 2
+      },
+      "visual": {
+        "total": 3,
+        "exact": 3
+      },
+      "parameter": {
+        "total": 1,
+        "exact": 1
+      }
+    }
+  },
+  "items": [
+    {
+      "category": "datasource",
+      "name": "Unknown",
+      "status": "exact",
+      "note": "loadscript, 0 table(s)"
+    },
+    {
+      "category": "datasource",
+      "name": "Unknown",
+      "status": "exact",
+      "note": "loadscript, 0 table(s)"
+    },
+    {
+      "category": "datasource",
+      "name": "Unknown",
+      "status": "exact",
+      "note": "loadscript, 0 table(s)"
+    },
+    {
+      "category": "calculation",
+      "name": "CA Total",
+      "status": "exact",
+      "source_formula": "Sum(Amount)",
+      "dax": "SUM(Amount)"
+    },
+    {
+      "category": "calculation",
+      "name": "Qté Totale",
+      "status": "exact",
+      "source_formula": "Sum(Quantity)",
+      "dax": "SUM(Quantity)"
+    },
+    {
+      "category": "visual",
+      "name": "",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "",
+      "status": "exact"
+    },
+    {
+      "category": "parameter",
+      "name": "vCurrentYear",
+      "status": "exact",
+      "note": "domain=?"
+    }
+  ]
+}

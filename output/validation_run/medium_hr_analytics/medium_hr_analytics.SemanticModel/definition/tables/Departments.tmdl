@@ -1,0 +1,54 @@
+table Departments
+	lineageTag: bcd4e9cb-a67f-432d-8cd3-55c5bad825b8
+
+	column DeptID
+		dataType: int64
+		lineageTag: 94f01ba9-22d1-4b0e-80af-30b9f5e34d5c
+		summarizeBy: sum
+		sourceColumn: DeptID
+
+		annotation SummarizationSetBy = Automatic
+
+	column Department
+		dataType: string
+		lineageTag: 87a44feb-c122-486e-994e-8bd55645710f
+		summarizeBy: none
+		sourceColumn: Department
+
+		annotation SummarizationSetBy = Automatic
+
+	column Manager
+		dataType: string
+		lineageTag: f44ffe75-7d04-45fb-9b70-8bf0e4750d6a
+		summarizeBy: none
+		sourceColumn: Manager
+
+		annotation SummarizationSetBy = Automatic
+
+	column Budget
+		dataType: double
+		lineageTag: bc6024dd-4677-49fb-a716-8a687e2eff7c
+		summarizeBy: none
+		sourceColumn: Budget
+
+		annotation SummarizationSetBy = Automatic
+
+	column CostCenter
+		dataType: string
+		lineageTag: cb238ece-709c-4a61-aeb3-4dd7f2d509be
+		summarizeBy: none
+		sourceColumn: CostCenter
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Departments-b78e6c29-3a66-459b-bd06-630fe74cc626' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost", "master"),
+				    Table = Source{[Schema="dbo",Item="Departments"]}[Data]
+				in
+				    Table
+
+	annotation PBI_ResultType = Table
+

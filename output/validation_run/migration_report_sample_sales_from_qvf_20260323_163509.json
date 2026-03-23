@@ -1,0 +1,64 @@
+{
+  "report_name": "sample_sales_from_qvf",
+  "created_at": "2026-03-23T16:35:09.009877",
+  "summary": {
+    "total_items": 6,
+    "exact": 4,
+    "approximate": 0,
+    "placeholder": 0,
+    "unsupported": 0,
+    "skipped": 2,
+    "fidelity_score": 66.7,
+    "by_category": {
+      "calculation": {
+        "total": 2,
+        "skipped": 2
+      },
+      "visual": {
+        "total": 3,
+        "exact": 3
+      },
+      "parameter": {
+        "total": 1,
+        "exact": 1
+      }
+    }
+  },
+  "items": [
+    {
+      "category": "calculation",
+      "name": "CA Total",
+      "status": "skipped",
+      "source_formula": "Sum(Amount)",
+      "note": "No DAX output generated"
+    },
+    {
+      "category": "calculation",
+      "name": "Qté Totale",
+      "status": "skipped",
+      "source_formula": "Sum(Quantity)",
+      "note": "No DAX output generated"
+    },
+    {
+      "category": "visual",
+      "name": "",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "",
+      "status": "exact"
+    },
+    {
+      "category": "parameter",
+      "name": "vCurrentYear",
+      "status": "exact",
+      "note": "domain=?"
+    }
+  ]
+}

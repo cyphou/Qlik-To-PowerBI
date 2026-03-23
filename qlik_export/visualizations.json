@@ -1,0 +1,96 @@
+[
+  {
+    "id": "viz_sales_by_category",
+    "type": "barchart",
+    "title": "Ventes par Catégorie",
+    "sheetId": "sheet_overview",
+    "dimensions": [],
+    "measures": [],
+    "settings": {
+      "orientation": "vertical",
+      "showLegend": true,
+      "color": {
+        "auto": false,
+        "mode": "primary"
+      }
+    },
+    "position": {}
+  },
+  {
+    "id": "viz_sales_trend",
+    "type": "linechart",
+    "title": "Tendance des Ventes",
+    "sheetId": "sheet_overview",
+    "dimensions": [],
+    "measures": [],
+    "settings": {
+      "dataPoints": true,
+      "showLegend": true,
+      "gridlines": true
+    },
+    "position": {}
+  },
+  {
+    "id": "viz_regional_breakdown",
+    "type": "piechart",
+    "title": "Répartition Régionale",
+    "sheetId": "sheet_overview",
+    "dimensions": [],
+    "measures": [],
+    "settings": {
+      "showLabels": true,
+      "showValues": true
+    },
+    "position": {}
+  },
+  {
+    "id": "viz_kpi_total",
+    "type": "kpi",
+    "title": "Total Ventes",
+    "sheetId": "sheet_overview",
+    "dimensions": [],
+    "measures": [],
+    "settings": {
+      "fontSize": "large",
+      "alignment": "center"
+    },
+    "position": {}
+  },
+  {
+    "id": "viz_orders_table",
+    "type": "table",
+    "title": "Détail des Ventes",
+    "sheetId": "sheet_overview",
+    "dimensions": [],
+    "measures": [],
+    "settings": {
+      "pagination": true,
+      "rowsPerPage": 10
+    },
+    "position": {}
+  },
+  {
+    "id": "viz_customer_scatter",
+    "type": "scatterplot",
+    "title": "Analyse Clients",
+    "sheetId": "sheet_analysis",
+    "dimensions": [],
+    "measures": [],
+    "settings": {
+      "showTrendLine": true
+    },
+    "position": {}
+  },
+  {
+    "id": "viz_product_treemap",
+    "type": "treemap",
+    "title": "Hiérarchie Produits",
+    "sheetId": "sheet_analysis",
+    "dimensions": [],
+    "measures": [],
+    "settings": {
+      "showLabels": true
+    },
+    "position": {}
+  }
+]

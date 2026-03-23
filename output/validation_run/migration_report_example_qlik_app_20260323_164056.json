@@ -1,0 +1,56 @@
+{
+  "report_name": "example_qlik_app",
+  "created_at": "2026-03-23T16:40:56.548365",
+  "summary": {
+    "total_items": 7,
+    "exact": 7,
+    "approximate": 0,
+    "placeholder": 0,
+    "unsupported": 0,
+    "skipped": 0,
+    "fidelity_score": 100.0,
+    "by_category": {
+      "visual": {
+        "total": 7,
+        "exact": 7
+      }
+    }
+  },
+  "items": [
+    {
+      "category": "visual",
+      "name": "Ventes par Catégorie",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Tendance des Ventes",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Répartition Régionale",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Total Ventes",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Détail des Ventes",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Analyse Clients",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Hiérarchie Produits",
+      "status": "exact"
+    }
+  ]
+}

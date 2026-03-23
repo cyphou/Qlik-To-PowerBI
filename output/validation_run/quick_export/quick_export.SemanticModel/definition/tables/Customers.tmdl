@@ -1,0 +1,33 @@
+table Customers
+	lineageTag: c2c9a7fb-3d3d-4d74-a3ad-78d04cedd056
+
+	column Sheet1
+		dataType: string
+		lineageTag: cfb57daa-2881-45bf-b73e-07eb86358713
+		summarizeBy: none
+		sourceColumn: Sheet1
+
+		annotation SummarizationSetBy = Automatic
+
+	column Sheet
+		dataType: string
+		lineageTag: c0490f1e-151d-4376-b231-cb0b894fe84c
+		summarizeBy: none
+		sourceColumn: Sheet
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Customers-00fc62d3-d490-460a-9dcb-59ffd150e014' = m
+		mode: import
+		source =
+				let
+				    Source = Excel.Workbook(File.Contents("Customers.xlsx"), null, true),
+				    Sheet1 = Source{{[Item="Sheet1",Kind="Sheet"]}}[Data],
+				    PromotedHeaders = Table.PromoteHeaders(Sheet1, [PromoteAllScalars=true])
+				,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"CustomerID", "CustomerName", "Country", "City", "Region"})
+				
+				in
+				    SelectedColumns
+
+	annotation PBI_ResultType = Table
+

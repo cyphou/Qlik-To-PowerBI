@@ -1,0 +1,57 @@
+table Locations
+	lineageTag: 6a6e3069-3b99-49b5-aae2-f8cbbafb8902
+
+	column LocationID
+		dataType: int64
+		lineageTag: d0a84214-a29f-4c7f-acc8-547c4c1c6afc
+		summarizeBy: sum
+		sourceColumn: LocationID
+
+		annotation SummarizationSetBy = Automatic
+
+	column Country
+		dataType: string
+		lineageTag: 5075f9ca-6ad4-43a1-aeb7-95f2dacb6b4d
+		summarizeBy: none
+		sourceColumn: Country
+		dataCategory: Country
+
+		annotation SummarizationSetBy = Automatic
+
+	column Region
+		dataType: string
+		lineageTag: e4373863-aeae-450c-abe8-a8d4a2c06c37
+		summarizeBy: none
+		sourceColumn: Region
+		dataCategory: StateOrProvince
+
+		annotation SummarizationSetBy = Automatic
+
+	column City
+		dataType: string
+		lineageTag: fd4c6f10-0506-4690-a6d3-ee631ef5fb88
+		summarizeBy: none
+		sourceColumn: City
+		dataCategory: City
+
+		annotation SummarizationSetBy = Automatic
+
+	column OfficeCode
+		dataType: string
+		lineageTag: eed01462-4e4b-4460-89e7-60f104f03fd0
+		summarizeBy: none
+		sourceColumn: OfficeCode
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Locations-c6a946ff-7f9c-41a6-a9c6-e4257a50d85c' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost", "master"),
+				    Table = Source{[Schema="dbo",Item="Locations"]}[Data]
+				in
+				    Table
+
+	annotation PBI_ResultType = Table
+

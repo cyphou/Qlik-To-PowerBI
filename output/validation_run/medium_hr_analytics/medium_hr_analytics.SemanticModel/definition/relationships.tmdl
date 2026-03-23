@@ -1,0 +1,15 @@
+relationship 5dbf287e-8c08-4df0-9f68-1d2b65693951
+	fromColumn: Employees.Department
+	toColumn: Departments.Department
+	crossFilteringBehavior: oneDirection
+
+relationship bccf238e-21ab-4ccd-b0e4-749685930755
+	fromColumn: Employees.City
+	toColumn: Locations.City
+	crossFilteringBehavior: oneDirection
+
+relationship e16a508d-4129-43de-95ea-72daa330f349
+	fromColumn: Employees.HireDate
+	toColumn: Calendar.Date
+	crossFilteringBehavior: oneDirection
+

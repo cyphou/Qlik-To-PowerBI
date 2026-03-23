@@ -1,0 +1,5 @@
+relationship bb1d7fc5-8c60-4072-843b-b47c2626b922
+	fromColumn: Sales.SalesDate
+	toColumn: Calendar.Date
+	crossFilteringBehavior: oneDirection
+

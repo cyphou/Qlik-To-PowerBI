@@ -62,11 +62,11 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bMax\s*\(', 'MAX('),
     (r'\bMedian\s*\(', 'MEDIAN('),
     (r'\bStdev\s*\(', 'STDEV.S('),
-    (r'\bSkew\s*\(', 'STDEV.S( /* skew: manual */'),
+    (r'\bSkew\s*\(', '/* Skew: no DAX equivalent — use custom measure with SUMX/AVERAGEX */ 0'),  # unsupported
     (r'\bOnly\s*\(', 'FIRSTNONBLANK('),
     (r'\bMode\s*\(', 'MINX(TOPN(1, ADDCOLUMNS(VALUES({0}), "@cnt", CALCULATE(COUNTROWS({1}))), [@cnt], DESC), {0})'),
     (r'\bFractile\s*\(', 'PERCENTILE.INC('),
-    (r'\bCorrel\s*\(', '/* CORREL: manual */ 0'),
+    (r'\bCorrel\s*\(', '/* Correl: no DAX equivalent — use custom SUMX/AVERAGEX Pearson formula */ 0'),  # unsupported
     (r'\bRangeSum\s*\(', 'SUM( /* RangeSum */ '),
     (r'\bRangeAvg\s*\(', 'AVERAGE( /* RangeAvg */ '),
     (r'\bRangeCount\s*\(', 'COUNT( /* RangeCount */ '),
@@ -111,7 +111,7 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bInMonth\s*\(', 'YEAR({0}) = YEAR({1}) && MONTH({0}) = MONTH({1})'),
     (r'\bInQuarter\s*\(', 'YEAR({0}) = YEAR({1}) && QUARTER({0}) = QUARTER({1})'),
     (r'\bAge\s*\(', 'DATEDIFF({0}, {1}, YEAR)'),
-    (r'\bNetWorkDays\s*\(', '/* NetWorkDays manual */ DATEDIFF({0}, {1}, DAY)'),
+    (r'\bNetWorkDays\s*\(', '/* NetWorkDays: approximate — excludes weekends only */ DATEDIFF({0}, {1}, DAY) - 2 * INT(DATEDIFF({0}, {1}, DAY) / 7)'),
     (r'\bDayNumberOfYear\s*\(', 'DATEDIFF(DATE(YEAR({0}), 1, 1), {0}, DAY) + 1'),
 
     # ── String ────────────────────────────────────────────────
@@ -127,19 +127,19 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bReplace\s*\(', 'SUBSTITUTE('),
     (r'\bSubStringCount\s*\(', '(LEN({0}) - LEN(SUBSTITUTE({0}, {1}, ""))) / LEN({1})'),
     (r'\bPurgeChar\s*\(', 'SUBSTITUTE('),
-    (r'\bKeepChar\s*\(', '/* KeepChar manual */ {0}'),
+    (r'\bKeepChar\s*\(', '/* KeepChar: no DAX equivalent — returns input unchanged */ {0}'),  # no native DAX
     (r'\bRepeat\s*\(', 'REPT('),
     (r'\bCapitalize\s*\(', '/* Capitalize: no direct DAX */ UPPER(LEFT({0}, 1)) & LOWER(MID({0}, 2, LEN({0})))'),
     (r'\bTextBetween\s*\(', 'MID({0}, SEARCH({1}, {0}) + LEN({1}), SEARCH({2}, {0}, SEARCH({1}, {0}) + LEN({1})) - SEARCH({1}, {0}) - LEN({1}))'),
     (r'\bOrd\s*\(', 'UNICODE('),
     (r'\bChr\s*\(', 'UNICHAR('),
-    (r'\bSubField\s*\(', '/* SubField: use PATHITEM or manual split */ {0}'),
+    (r'\bSubField\s*\(', 'PATHITEM(SUBSTITUTE({0}, {1}, "|"), {2})'),
     (r'\bHash128\s*\(', '/* Hash128: no DAX equivalent */ {0}'),
     (r'\bHash160\s*\(', '/* Hash160: no DAX equivalent */ {0}'),
     (r'\bHash256\s*\(', '/* Hash256: no DAX equivalent */ {0}'),
     (r'\bEvaluate\s*\(', '/* Evaluate: no DAX equivalent */ {0}'),
     (r'\bApplyMap\s*\(', 'LOOKUPVALUE('),
-    (r'\bMapSubstring\s*\(', '/* MapSubstring: manual */ SUBSTITUTE('),
+    (r'\bMapSubstring\s*\(', '/* MapSubstring: partial — single SUBSTITUTE only */ SUBSTITUTE('),
     (r'\bWildMatch\s*\(', '/* WildMatch */ CONTAINSSTRING('),
     (r'\bMatch\s*\(', 'SWITCH('),
     (r'\bMixMatch\s*\(', 'SWITCH(TRUE(),'),
@@ -169,8 +169,8 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bAsin\s*\(', 'ASIN('),
     (r'\bAcos\s*\(', 'ACOS('),
     (r'\bAtan\s*\(', 'ATAN('),
-    (r'\bAtan2\s*\(', '/* Atan2: manual */ ATAN({1}/{0})'),
-    (r'\bBitCount\s*\(', '/* BitCount: no direct DAX */ 0'),
+    (r'\bAtan2\s*\(', 'IF({0} > 0, ATAN({1}/{0}), IF({0} < 0 && {1} >= 0, ATAN({1}/{0}) + PI(), IF({0} < 0 && {1} < 0, ATAN({1}/{0}) - PI(), IF({1} > 0, PI()/2, -PI()/2))))'),
+    (r'\bBitCount\s*\(', '/* BitCount: no DAX equivalent */ 0'),  # unsupported
 
     # ── Type conversion ───────────────────────────────────────
     (r'\bNum\s*\(', 'VALUE('),
@@ -178,7 +178,7 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bText\s*\(', 'FORMAT('),
     (r'\bDate\s*\(', 'DATE('),
     (r'\bTime\s*\(', 'TIME('),
-    (r'\bInterval\s*\(', '/* Interval: manual */ VALUE('),
+    (r'\bInterval\s*\(', 'FORMAT(INT({0}/3600), "00") & ":" & FORMAT(MOD(INT({0}/60), 60), "00") & ":" & FORMAT(MOD(INT({0}), 60), "00")'),
     (r'\bMoney\s*\(', 'FORMAT({0}, "$#,0.00")'),
     (r'\bDual\s*\(', 'VALUE( /* Dual */ '),
 
