@@ -959,7 +959,8 @@ def main():
             extracted = ExtractionOrchestrator.load_intermediate_json(qlik_dir)
             adapted = adapt_qlik_for_generation(extracted)
 
-            report = run_assessment(adapted)
+            source_basename = os.path.splitext(os.path.basename(args.qlik_file))[0]
+            report = run_assessment(adapted, app_name=source_basename)
             print_assessment_report(report)
 
             out_dir = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'assessments')

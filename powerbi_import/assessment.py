@@ -1,7 +1,7 @@
 """
 Pre-Migration Assessment Module for Qlik → Power BI.
 
-Runs a comprehensive checklist against an extracted Qlik app
+Runs a comprehensive checklist against extracted Qlik app data
 and produces a structured readiness report with:
 
 - **Overall readiness score** (GREEN / YELLOW / RED)
@@ -12,7 +12,7 @@ and produces a structured readiness report with:
 
 Usage (CLI)::
 
-    python migrate.py my_workbook.twbx --assess
+    python migrate.py app.qvf --assess
 
 Usage (programmatic)::
 
@@ -44,58 +44,88 @@ FAIL = "fail"
 
 _FULLY_SUPPORTED_CONNECTORS = frozenset({
     "Excel", "CSV", "SQL Server", "PostgreSQL", "MySQL",
-    "GeoJSON", "OData", "Azure Blob", "ADLS",
     "Azure SQL", "Synapse", "Google Sheets", "SharePoint",
-    "JSON", "XML", "PDF", "Web",
-    # Qlik extract / flat-file connectors
-    "dataengine", "DATAENGINE", "textscan", "hyper",
-    "sqlserver", "postgres", "mysql", "excel-direct",
+    "JSON", "XML", "PDF", "Web", "ODBC", "OLE DB",
+    # Qlik connector type names (from m_query_generator)
+    "excel", "csv", "sqlserver", "postgresql", "postgres",
+    "mysql", "azuresql", "synapse", "googlesheets",
+    "sharepoint", "json", "xml", "pdf", "web", "odbc", "oledb",
+    "txt", "qvd",
 })
 
 _PARTIALLY_SUPPORTED_CONNECTORS = frozenset({
-    "BigQuery", "Oracle", "Snowflake", "Google Analytics",
-    "Teradata", "SAP HANA", "SAP BW", "Redshift",
-    "Databricks", "Spark", "Spark SQL", "Salesforce",
-    "Vertica", "Impala", "Hadoop Hive", "Presto",
+    "BigQuery", "Oracle", "Snowflake", "Teradata",
+    "SAP HANA", "Redshift", "Databricks", "Spark",
+    "Salesforce", "Google Analytics",
+    "bigquery", "oracle", "snowflake", "teradata",
+    "saphana", "redshift", "databricks", "spark",
+    "salesforce",
 })
 
 _UNSUPPORTED_CONNECTORS = frozenset({
-    "Splunk", "Marketo", "ServiceNow",
+    "QVX", "REST (custom)", "Qlik DataMarket",
 })
 
-# ── Unsupported source functions (no DAX / PBI equivalent) ─────────
+# ── Qlik functions with no direct DAX equivalent ───────────────────
 
-_UNSUPPORTED_FUNCTIONS = re.compile(
+_NO_DAX_EQUIVALENT = re.compile(
     r'\b('
-    r'SCRIPT_BOOL|SCRIPT_INT|SCRIPT_REAL|SCRIPT_STR'
-    r'|COLLECT'
-    r'|BUFFER|AREA|INTERSECTION|MAKELINE|MAKEPOINT'
-    r'|HEXBINX|HEXBINY'
+    r'Hash128|Hash160|Hash256'
+    r'|Evaluate'
+    r'|FieldIndex|FieldName|FieldNumber'
+    r'|NoOfFields|NoOfTables|NoOfRows'
+    r'|GetExtendedProperty'
+    r'|QlikViewVersion|QlikTechVersion'
     r'|USERDOMAIN'
     r')\s*\(',
     re.IGNORECASE,
 )
 
-_PARTIAL_FUNCTIONS = re.compile(
+_MANUAL_REVIEW_FUNCTIONS = re.compile(
     r'\b('
-    r'REGEXP_EXTRACT|REGEXP_EXTRACT_NTH|REGEXP_MATCH|REGEXP_REPLACE'
-    r'|RAWSQL_BOOL|RAWSQL_INT|RAWSQL_REAL|RAWSQL_STR|RAWSQL_DATE|RAWSQL_DATETIME|RAWSQL_SPATIAL'
-    r'|PREVIOUS_VALUE|LOOKUP'
-    r'|RANK\b|RANK_UNIQUE|RANK_DENSE|RANK_MODIFIED|RANK_PERCENTILE'
+    r'Aggr'
+    r'|SubField|MapSubstring|KeepChar'
+    r'|ApplyMap|ApplyCodeMap'
+    r'|Peek|Previous|FieldValue'
+    r'|Correl|Skew|BitCount'
+    r'|NetWorkDays|Interval'
     r')\s*\(',
     re.IGNORECASE,
 )
 
-_LOD_PATTERN = re.compile(
-    r'\{\s*(FIXED|INCLUDE|EXCLUDE)\s+', re.IGNORECASE,
+# ── Qlik-specific expression complexity patterns ───────────────────
+
+_SET_ANALYSIS_PATTERN = re.compile(
+    r'\{[^}]*<[^>]*>[^}]*\}',
 )
 
-_TABLE_CALC_PATTERN = re.compile(
-    r'\b(RUNNING_SUM|RUNNING_AVG|RUNNING_COUNT|RUNNING_MAX|RUNNING_MIN'
-    r'|WINDOW_SUM|WINDOW_AVG|WINDOW_MAX|WINDOW_MIN|WINDOW_COUNT'
-    r'|WINDOW_MEDIAN|WINDOW_STDEV|WINDOW_STDEVP|WINDOW_VAR|WINDOW_VARP'
-    r'|WINDOW_PERCENTILE)\s*\(',
+_NESTED_SET_ANALYSIS = re.compile(
+    r'\{[^}]*<[^>]*\{[^}]*\}[^>]*>[^}]*\}',
+)
+
+_AGGR_PATTERN = re.compile(
+    r'\bAggr\s*\(', re.IGNORECASE,
+)
+
+_DOLLAR_SIGN_PATTERN = re.compile(
+    r'\$\(=?[^)]+\)',
+)
+
+_TOTAL_QUALIFIER = re.compile(
+    r'\bTOTAL\s*(?:<[^>]*>)?\s*',
     re.IGNORECASE,
+)
+
+_SECTION_ACCESS_PATTERN = re.compile(
+    r'\bSECTION\s+ACCESS\b', re.IGNORECASE,
+)
+
+_STACKED_LOAD_PATTERN = re.compile(
+    r'LOAD\s+[^;]+\nLOAD\s+', re.IGNORECASE,
+)
+
+_PRECEDING_LOAD_PATTERN = re.compile(
+    r'LOAD\s+[^;]+\nLOAD\s+[^;]+\nFROM\b', re.IGNORECASE,
 )
 
 # ── Chart type mapping (from visual_generator.VISUAL_TYPE_MAP) ──────
@@ -175,7 +205,7 @@ class CategoryResult:
 @dataclass
 class AssessmentReport:
     """Complete pre-migration assessment report."""
-    workbook_name: str
+    app_name: str
     timestamp: str
     categories: List[CategoryResult] = field(default_factory=list)
     summary: Dict = field(default_factory=dict)
@@ -210,7 +240,7 @@ class AssessmentReport:
     def to_dict(self) -> dict:
         """Serialize to a JSON-friendly dictionary."""
         return {
-            "workbook_name": self.workbook_name,
+            "app_name": self.app_name,
             "timestamp": self.timestamp,
             "overall_score": self.overall_score,
             "summary": self.summary,
@@ -377,124 +407,161 @@ def _check_datasources(extracted: Dict) -> CategoryResult:
 
 
 def _check_calculations(extracted: Dict) -> CategoryResult:
-    """Category 2: Calculation Readiness."""
-    cat = CategoryResult(name="Calculation Readiness")
+    """Category 2: Calculation & Expression Readiness."""
+    cat = CategoryResult(name="Calculation & Expression Readiness")
     calculations = extracted.get("calculations", [])
 
     if not calculations:
         cat.checks.append(CheckItem(
             cat.name, "No calculations", PASS,
-            "No calculated fields detected.",
+            "No calculated fields or measures detected.",
         ))
         return cat
 
     cat.checks.append(CheckItem(
         cat.name, "Calculation count", INFO,
-        f"{len(calculations)} calculated field(s) detected.",
+        f"{len(calculations)} calculated field(s) / measure(s) detected.",
     ))
 
-    # Classify
-    unsupported = []
-    partial = []
-    lod_calcs = []
-    table_calcs = []
+    # Classify expressions
+    no_dax_equiv = []
+    manual_review = []
+    set_analysis_calcs = []
+    nested_set_calcs = []
+    aggr_calcs = []
+    dollar_sign_calcs = []
+    total_qualifier_calcs = []
 
     for calc in calculations:
         formula = calc.get("formula", "")
         name = calc.get("caption", calc.get("name", "?"))
 
-        if _UNSUPPORTED_FUNCTIONS.search(formula):
-            unsupported.append(name)
-        if _PARTIAL_FUNCTIONS.search(formula):
-            partial.append(name)
-        if _LOD_PATTERN.search(formula):
-            lod_calcs.append(name)
-        if _TABLE_CALC_PATTERN.search(formula):
-            table_calcs.append(name)
+        if _NO_DAX_EQUIVALENT.search(formula):
+            no_dax_equiv.append(name)
+        if _MANUAL_REVIEW_FUNCTIONS.search(formula):
+            manual_review.append(name)
+        if _SET_ANALYSIS_PATTERN.search(formula):
+            set_analysis_calcs.append(name)
+            if _NESTED_SET_ANALYSIS.search(formula):
+                nested_set_calcs.append(name)
+        if _AGGR_PATTERN.search(formula):
+            aggr_calcs.append(name)
+        if _DOLLAR_SIGN_PATTERN.search(formula):
+            dollar_sign_calcs.append(name)
+        if _TOTAL_QUALIFIER.search(formula):
+            total_qualifier_calcs.append(name)
 
-    # Results
-    if unsupported:
-        names_preview = ", ".join(unsupported[:5])
-        extra = f" (+{len(unsupported) - 5} more)" if len(unsupported) > 5 else ""
+    # No DAX equivalent
+    if no_dax_equiv:
+        names_preview = ", ".join(no_dax_equiv[:5])
+        extra = f" (+{len(no_dax_equiv) - 5} more)" if len(no_dax_equiv) > 5 else ""
         cat.checks.append(CheckItem(
-            cat.name, "Unsupported functions", FAIL,
-            f"{len(unsupported)} calculation(s) use functions with no DAX equivalent: "
+            cat.name, "No DAX equivalent", FAIL,
+            f"{len(no_dax_equiv)} expression(s) use Qlik functions with no DAX equivalent: "
             f"{names_preview}{extra}.",
-            "SCRIPT_* (R/Python), COLLECT (spatial aggregate), HEXBIN, "
-            "BUFFER/AREA/INTERSECTION (spatial ops) have no Power BI equivalent. "
-            "Manual rewrite or removal is required.",
+            "Hash128/256, Evaluate(), FieldIndex/Name/Number, NoOfFields/Tables/Rows "
+            "have no Power BI equivalent. Manual rewrite or removal is required.",
         ))
     else:
         cat.checks.append(CheckItem(
-            cat.name, "Unsupported functions", PASS,
-            "No calculations use unsupported functions.",
+            cat.name, "No DAX equivalent", PASS,
+            "No expressions use functions without a DAX equivalent.",
         ))
 
-    if partial:
-        names_preview = ", ".join(partial[:5])
-        extra = f" (+{len(partial) - 5} more)" if len(partial) > 5 else ""
+    # Manual review needed
+    if manual_review:
+        names_preview = ", ".join(manual_review[:5])
+        extra = f" (+{len(manual_review) - 5} more)" if len(manual_review) > 5 else ""
         cat.checks.append(CheckItem(
-            cat.name, "Partially-supported functions", WARN,
-            f"{len(partial)} calculation(s) use partially-supported functions: "
+            cat.name, "Manual review functions", WARN,
+            f"{len(manual_review)} expression(s) use functions requiring review: "
             f"{names_preview}{extra}.",
-            "REGEXP, RAWSQL, LOOKUP, PREVIOUS_VALUE, and statistical window "
-            "functions may require manual DAX conversion review.",
+            "Aggr, SubField, ApplyMap, Peek/Previous, Correl, Skew are auto-converted "
+            "but may need manual verification of the generated DAX.",
         ))
     else:
         cat.checks.append(CheckItem(
-            cat.name, "Partially-supported functions", PASS,
-            "No calculations use partially-supported functions.",
+            cat.name, "Manual review functions", PASS,
+            "No expressions use functions requiring manual review.",
         ))
 
-    if lod_calcs:
-        names_preview = ", ".join(lod_calcs[:5])
-        extra = f" (+{len(lod_calcs) - 5} more)" if len(lod_calcs) > 5 else ""
-        cat.checks.append(CheckItem(
-            cat.name, "LOD expressions", INFO,
-            f"{len(lod_calcs)} LOD expression(s) (FIXED/INCLUDE/EXCLUDE): "
+    # Set Analysis
+    if set_analysis_calcs:
+        names_preview = ", ".join(set_analysis_calcs[:5])
+        extra = f" (+{len(set_analysis_calcs) - 5} more)" if len(set_analysis_calcs) > 5 else ""
+        sev = INFO
+        detail = (
+            f"{len(set_analysis_calcs)} expression(s) use Set Analysis: "
             f"{names_preview}{extra}. "
-            "Auto-converted to DAX CALCULATE + ALLEXCEPT/REMOVEFILTERS.",
-            "Review generated DAX measures for correctness — "
-            "FIXED→ALLEXCEPT, INCLUDE→CALCULATE, EXCLUDE→REMOVEFILTERS.",
-        ))
+            "Auto-converted to DAX CALCULATE with filter arguments."
+        )
+        rec = "Review generated CALCULATE expressions for correctness."
+        if nested_set_calcs:
+            sev = WARN
+            detail += (
+                f" {len(nested_set_calcs)} of these have nested set analysis "
+                "(set within set) — higher risk of conversion errors."
+            )
+            rec = ("Nested set analysis is complex. Verify each CALCULATE expression "
+                   "against the original Qlik behavior.")
+        cat.checks.append(CheckItem(cat.name, "Set Analysis", sev, detail, rec))
     else:
         cat.checks.append(CheckItem(
-            cat.name, "LOD expressions", PASS,
-            "No LOD expressions detected.",
+            cat.name, "Set Analysis", PASS,
+            "No Set Analysis expressions detected.",
         ))
 
-    if table_calcs:
-        names_preview = ", ".join(table_calcs[:5])
-        extra = f" (+{len(table_calcs) - 5} more)" if len(table_calcs) > 5 else ""
+    # Aggr() expressions
+    if aggr_calcs:
+        names_preview = ", ".join(aggr_calcs[:5])
+        extra = f" (+{len(aggr_calcs) - 5} more)" if len(aggr_calcs) > 5 else ""
         cat.checks.append(CheckItem(
-            cat.name, "Table calculations", INFO,
-            f"{len(table_calcs)} table calculation(s) (RUNNING/WINDOW): "
-            f"{names_preview}{extra}. "
-            "Auto-converted to DAX CALCULATE / window functions.",
-            "Verify sort order and partitioning match source behavior.",
+            cat.name, "Aggr() expressions", INFO,
+            f"{len(aggr_calcs)} Aggr() expression(s): {names_preview}{extra}. "
+            "Auto-decomposed to DAX iterators (SUMX, COUNTX, AVERAGEX, etc.).",
+            "Verify iterator results match original Aggr() behavior, "
+            "especially for multi-dimension aggregations.",
         ))
-    else:
+
+    # Dollar-sign expressions
+    if dollar_sign_calcs:
+        names_preview = ", ".join(dollar_sign_calcs[:5])
+        extra = f" (+{len(dollar_sign_calcs) - 5} more)" if len(dollar_sign_calcs) > 5 else ""
         cat.checks.append(CheckItem(
-            cat.name, "Table calculations", PASS,
-            "No table calculations detected.",
+            cat.name, "Dollar-sign expressions", INFO,
+            f"{len(dollar_sign_calcs)} expression(s) use $(=...) or $(var): "
+            f"{names_preview}{extra}. "
+            "Auto-expanded with Qlik→DAX conversion of inner expressions.",
+            "Verify expanded expressions resolve correctly — dynamic "
+            "evaluation in Qlik has no exact DAX parallel.",
+        ))
+
+    # TOTAL qualifier
+    if total_qualifier_calcs:
+        cat.checks.append(CheckItem(
+            cat.name, "TOTAL qualifier", INFO,
+            f"{len(total_qualifier_calcs)} expression(s) use the TOTAL qualifier. "
+            "Auto-converted to ALL/ALLEXCEPT in DAX.",
+            "Check that the generated ALL/ALLEXCEPT covers the same "
+            "dimension scope as the original TOTAL qualifier.",
         ))
 
     return cat
 
 
 def _check_visuals(extracted: Dict) -> CategoryResult:
-    """Category 3: Visual & Dashboard Coverage."""
-    cat = CategoryResult(name="Visual & Dashboard Coverage")
+    """Category 3: Visual & Sheet Coverage."""
+    cat = CategoryResult(name="Visual & Sheet Coverage")
     worksheets = extracted.get("worksheets", [])
     dashboards = extracted.get("dashboards", [])
 
     cat.checks.append(CheckItem(
-        cat.name, "Worksheet count", INFO,
-        f"{len(worksheets)} worksheet(s) detected.",
+        cat.name, "Visualization count", INFO,
+        f"{len(worksheets)} visualization(s) detected.",
     ))
     cat.checks.append(CheckItem(
-        cat.name, "Dashboard count", INFO,
-        f"{len(dashboards)} dashboard(s) detected.",
+        cat.name, "Sheet count", INFO,
+        f"{len(dashboards)} sheet(s) detected.",
     ))
 
     # Chart type coverage
@@ -736,66 +803,54 @@ def _check_interactivity(extracted: Dict) -> CategoryResult:
     return cat
 
 
-def _check_extract_and_packaging(extracted: Dict) -> CategoryResult:
-    """Category 7: Data Extracts & Packaging."""
-    cat = CategoryResult(name="Data Extracts & Packaging")
+def _check_load_script(extracted: Dict) -> CategoryResult:
+    """Category 7: Load Script Complexity."""
+    cat = CategoryResult(name="Load Script Complexity")
 
-    hyper_files = extracted.get("hyper_files", [])
-    custom_shapes = extracted.get("custom_shapes", [])
-    embedded_fonts = extracted.get("embedded_fonts", [])
+    custom_sql = extracted.get("custom_sql", [])
+    # Check for both adapted format and raw Qlik format
+    _calcs = extracted.get("calculations", [])
 
-    # .hyper extracts
-    if hyper_files:
-        total_size_mb = sum(h.get("size_bytes", 0) for h in hyper_files) / (1024 * 1024)
+    # Custom SQL queries
+    if custom_sql:
         cat.checks.append(CheckItem(
-            cat.name, "Hyper extract files", INFO,
-            f"{len(hyper_files)} .hyper file(s) detected ({total_size_mb:.1f} MB total).",
-            "Hyper extracts indicate embedded data. Data will need to be "
-            "imported via Power Query or connected to a live data source.",
+            cat.name, "Custom SQL / Inline SQL", INFO,
+            f"{len(custom_sql)} SQL query/queries detected in the load script. "
+            "Auto-converted to native SQL passthrough in Power Query M.",
+            "Review the generated Power Query M for SQL compatibility "
+            "with the target database.",
         ))
     else:
         cat.checks.append(CheckItem(
-            cat.name, "Hyper extract files", PASS,
-            "No .hyper extract files (live connection or datasource files).",
+            cat.name, "Custom SQL", PASS,
+            "No custom SQL queries in the load script.",
         ))
 
-    # Custom shapes
-    if custom_shapes:
+    # Detect variable chain depth (formulas referencing other variables)
+    variable_refs = 0
+    for calc in _calcs:
+        formula = calc.get("formula", "")
+        if _DOLLAR_SIGN_PATTERN.search(formula):
+            variable_refs += 1
+
+    if variable_refs > 10:
         cat.checks.append(CheckItem(
-            cat.name, "Custom shapes", WARN,
-            f"{len(custom_shapes)} custom shape file(s) detected.",
-            "Custom shapes are not supported in Power BI. Consider using "
-            "conditional formatting with icons instead.",
+            cat.name, "Variable chain complexity", WARN,
+            f"{variable_refs} expressions reference variables via $(). "
+            "Deep variable chains may produce unexpected DAX when expanded.",
+            "Review expanded DAX for correctness — consider simplifying "
+            "deeply nested variable references.",
+        ))
+    elif variable_refs > 0:
+        cat.checks.append(CheckItem(
+            cat.name, "Variable references", INFO,
+            f"{variable_refs} expression(s) reference variables via $(). "
+            "Auto-expanded during DAX conversion.",
         ))
     else:
         cat.checks.append(CheckItem(
-            cat.name, "Custom shapes", PASS,
-            "No custom shapes.",
-        ))
-
-    # Embedded fonts
-    if embedded_fonts:
-        cat.checks.append(CheckItem(
-            cat.name, "Embedded fonts", WARN,
-            f"{len(embedded_fonts)} embedded font file(s) detected.",
-            "Custom fonts must be installed in the Power BI tenant or "
-            "replaced with standard fonts.",
-        ))
-    else:
-        cat.checks.append(CheckItem(
-            cat.name, "Embedded fonts", PASS,
-            "No embedded fonts.",
-        ))
-
-    # Custom geocoding
-    geocoding = extracted.get("custom_geocoding", [])
-    custom_geo_files = [g for g in geocoding if g.get("type") == "custom_file"]
-    if custom_geo_files:
-        cat.checks.append(CheckItem(
-            cat.name, "Custom geocoding", WARN,
-            f"{len(custom_geo_files)} custom geocoding file(s) detected.",
-            "Import custom geocoding CSVs into a lookup table and join "
-            "in Power Query or the Semantic Model.",
+            cat.name, "Variable references", PASS,
+            "No variable references detected in expressions.",
         ))
 
     return cat
@@ -821,7 +876,7 @@ def _check_migration_scope(extracted: Dict) -> CategoryResult:
     sort_orders = extracted.get("sort_orders", [])
     custom_sql = extracted.get("custom_sql", [])
 
-    # Complexity score (simple heuristic)
+    # Complexity score (heuristic based on Qlik-specific patterns)
     complexity = 0
     complexity += len(worksheets) * 1
     complexity += len(dashboards) * 2
@@ -838,17 +893,19 @@ def _check_migration_scope(extracted: Dict) -> CategoryResult:
     complexity += len(hierarchies) * 0.5
     complexity += len(custom_sql) * 3
 
-    # Count unsupported features for weighting
+    # Weight by expression complexity
     for calc in calculations:
         formula = calc.get("formula", "")
-        if _UNSUPPORTED_FUNCTIONS.search(formula):
+        if _NO_DAX_EQUIVALENT.search(formula):
             complexity += 5
-        elif _PARTIAL_FUNCTIONS.search(formula):
+        elif _MANUAL_REVIEW_FUNCTIONS.search(formula):
             complexity += 2
-        elif _LOD_PATTERN.search(formula):
+        if _SET_ANALYSIS_PATTERN.search(formula):
             complexity += 1
-        elif _TABLE_CALC_PATTERN.search(formula):
-            complexity += 1
+        if _NESTED_SET_ANALYSIS.search(formula):
+            complexity += 3
+        if _AGGR_PATTERN.search(formula):
+            complexity += 2
 
     if complexity <= 20:
         level = "Low"
@@ -876,14 +933,14 @@ def _check_migration_scope(extracted: Dict) -> CategoryResult:
     inventory_lines = []
     obj_counts = [
         ("Datasources", len(datasources)),
-        ("Worksheets", len(worksheets)),
-        ("Dashboards", len(dashboards)),
-        ("Calculations", len(calculations)),
-        ("Parameters", len(parameters)),
+        ("Visualizations", len(worksheets)),
+        ("Sheets", len(dashboards)),
+        ("Calculations/Measures", len(calculations)),
+        ("Variables/Parameters", len(parameters)),
         ("Filters", len(filters)),
-        ("User Filters / RLS", len(user_filters)),
+        ("User Filters / Section Access", len(user_filters)),
         ("Actions", len(actions)),
-        ("Stories", len(stories)),
+        ("Bookmarks", len(stories)),
         ("Sets", len(sets)),
         ("Groups", len(groups)),
         ("Bins", len(bins)),
@@ -897,52 +954,8 @@ def _check_migration_scope(extracted: Dict) -> CategoryResult:
 
     cat.checks.append(CheckItem(
         cat.name, "Object inventory", INFO,
-        "Objects: " + " | ".join(inventory_lines) if inventory_lines else "Empty workbook.",
+        "Objects: " + " | ".join(inventory_lines) if inventory_lines else "Empty Qlik app.",
     ))
-
-    # ── Modern / 2024.3+ feature detection ──
-    _modern_features = []
-
-    # Dynamic zone visibility (worksheets with visibility rules)
-    for ws in worksheets:
-        if ws.get('dynamic_visibility') or ws.get('zone_visibility'):
-            _modern_features.append('Dynamic Zone Visibility')
-            break
-
-    # Dynamic parameters with DB queries
-    for param in parameters:
-        if param.get('query') or param.get('domain_type') == 'database':
-            _modern_features.append('Dynamic Parameters (DB query)')
-            break
-
-    # Dynamic axis formatting / combined axis
-    for ws in worksheets:
-        axes = ws.get('axes', {})
-        if isinstance(axes, dict):
-            for ax in axes.values():
-                if isinstance(ax, dict) and (ax.get('combined_axis') or ax.get('synchronized')):
-                    _modern_features.append('Combined/Synchronized Axes')
-                    break
-
-    # Data-driven alert calculations
-    for calc in calculations:
-        formula = calc.get('formula', '')
-        if 'RAWSQL_' in formula.upper():
-            _modern_features.append('RAWSQL Functions')
-            break
-
-    if _modern_features:
-        cat.checks.append(CheckItem(
-            cat.name, "Modern source features", WARN,
-            f"Detected modern (2024.3+) features: {', '.join(_modern_features)}. "
-            "These require manual review after migration.",
-            recommendation="Review each modern feature and map to Power BI equivalents manually.",
-        ))
-    else:
-        cat.checks.append(CheckItem(
-            cat.name, "Modern source features", PASS,
-            "No modern (2024.3+) specific features detected.",
-        ))
 
     return cat
 
@@ -954,19 +967,19 @@ def _check_migration_scope(extracted: Dict) -> CategoryResult:
 def run_assessment(
     extracted: Dict,
     *,
-    workbook_name: str = "Workbook",
+    app_name: str = "QlikApp",
 ) -> AssessmentReport:
-    """Run the full pre-migration assessment against extracted data.
+    """Run the full pre-migration assessment against extracted Qlik data.
 
     Args:
-        extracted: dict from ``PowerBIImporter._load_converted_objects()``
-        workbook_name: display name for the report header
+        extracted: dict from ``adapt_qlik_for_generation()`` or raw Qlik extraction
+        app_name: display name for the report header
 
     Returns:
         ``AssessmentReport`` with all category results.
     """
     report = AssessmentReport(
-        workbook_name=workbook_name,
+        app_name=app_name,
         timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     )
 
@@ -978,13 +991,13 @@ def run_assessment(
         _check_filters(extracted),
         _check_data_model(extracted),
         _check_interactivity(extracted),
-        _check_extract_and_packaging(extracted),
+        _check_load_script(extracted),
         _check_migration_scope(extracted),
     ]
 
     # Build summary
     report.summary = {
-        "workbook": workbook_name,
+        "app": app_name,
         "overall_score": report.overall_score,
         "total_checks": report.total_checks,
         "passed": report.total_pass,
@@ -994,7 +1007,7 @@ def run_assessment(
 
     logger.info(
         "Assessment complete: %s — %s (pass=%d warn=%d fail=%d)",
-        workbook_name, report.overall_score,
+        app_name, report.overall_score,
         report.total_pass, report.total_warn, report.total_fail,
     )
 
@@ -1026,7 +1039,7 @@ def print_assessment_report(report: AssessmentReport) -> None:
     print("┌" + "─" * w + "┐")
     print("│" + " PRE-MIGRATION ASSESSMENT REPORT".center(w) + "│")
     print("├" + "─" * w + "┤")
-    print(f"│  Workbook:  {report.workbook_name:<{w - 14}}│")
+    print(f"│  Qlik App:  {report.app_name:<{w - 14}}│")
     print(f"│  Date:      {report.timestamp:<{w - 14}}│")
     score_label = _SCORE_COLORS.get(report.overall_score, report.overall_score)
     print(f"│  Readiness: {score_label:<{w - 14}}│")
@@ -1081,7 +1094,7 @@ def save_assessment_report(
         Path to the saved report file.
     """
     os.makedirs(output_dir, exist_ok=True)
-    safe_name = re.sub(r'[<>:"/\\|?*]', '_', report.workbook_name)
+    safe_name = re.sub(r'[<>:"/\\|?*]', '_', report.app_name)
     filename = f"assessment_{safe_name}_{report.timestamp[:10]}.json"
     filepath = os.path.join(output_dir, filename)
 

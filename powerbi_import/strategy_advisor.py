@@ -2,7 +2,7 @@
 Migration Strategy Advisor for Qlik → Power BI.
 
 Automatically recommends the optimal data-loading approach — **Import Mode**
-(Power Query M), **DirectQuery**, or **Composite** — based on workbook
+(Power Query M), **DirectQuery**, or **Composite** — based on Qlik app
 characteristics extracted from the source file.
 
 Decision signals
@@ -33,7 +33,7 @@ The strategy with the higher score wins.  When scores are close
 
 Usage (CLI)::
 
-    python migrate.py my_workbook.twbx --assess
+    python migrate.py my_app.qvf --assess
 
 Usage (programmatic)::
 
