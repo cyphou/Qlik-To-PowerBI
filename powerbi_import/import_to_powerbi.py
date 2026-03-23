@@ -30,7 +30,8 @@ class PowerBIImporter:
 
     def import_all(self, generate_pbip=True, report_name=None, output_dir=None,
                    calendar_start=None, calendar_end=None, culture=None,
-                   model_mode='import', output_format='pbip'):
+                   model_mode='import', output_format='pbip', paginated=False,
+                   validate=True):
         """Import all extracted objects and generate Power BI project.
 
         Args:
@@ -40,6 +41,8 @@ class PowerBIImporter:
             calendar_start: Start year for Calendar table (default: 2020)
             calendar_end: End year for Calendar table (default: 2030)
             culture: Override culture/locale for semantic model
+            paginated: If True, generate paginated report layout
+            validate: If True, run post-generation artifact validation
         """
 
         print("=" * 80)
@@ -70,10 +73,15 @@ class PowerBIImporter:
 
         # Generate Power BI Project (.pbip) directly from converted objects
         if generate_pbip:
-            self.generate_powerbi_project(report_name, converted_objects, output_dir=output_dir,
-                                          calendar_start=calendar_start, calendar_end=calendar_end,
-                                          culture=culture, model_mode=model_mode,
-                                          output_format=output_format)
+            project_path = self.generate_powerbi_project(
+                report_name, converted_objects, output_dir=output_dir,
+                calendar_start=calendar_start, calendar_end=calendar_end,
+                culture=culture, model_mode=model_mode,
+                output_format=output_format, paginated=paginated)
+
+            # Post-generation validation
+            if validate and project_path:
+                self._run_validation(project_path)
 
         print()
         print("=" * 80)
@@ -209,9 +217,37 @@ class PowerBIImporter:
                                                        output_format=output_format,
                                                        paginated=paginated)
             print(f"  [OK] Power BI Project created: {project_path}")
+            return project_path
             
         except Exception as e:
             print(f"  [WARN] Error generating Power BI Project: {str(e)}")
+            return None
+
+    def _run_validation(self, project_path):
+        """Run post-generation artifact validation."""
+        try:
+            from powerbi_import.validator import ArtifactValidator
+            result = ArtifactValidator.validate_project(project_path)
+            if isinstance(result, dict):
+                errors = result.get('errors', [])
+                warnings = result.get('warnings', [])
+                files_checked = result.get('files_checked', 0)
+                if errors:
+                    print(f"  [WARN] Validation: {len(errors)} errors, {len(warnings)} warnings")
+                    for err in errors[:5]:
+                        print(f"    - {err}")
+                else:
+                    print(f"  [OK] Validation passed ({files_checked} files, {len(warnings)} warnings)")
+            else:
+                # Legacy list-of-dicts format
+                errors = [r for r in result if isinstance(r, dict) and r.get('level') == 'error']
+                warnings = [r for r in result if isinstance(r, dict) and r.get('level') == 'warning']
+                if errors:
+                    print(f"  [WARN] Validation: {len(errors)} errors, {len(warnings)} warnings")
+                else:
+                    print(f"  [OK] Validation passed ({len(warnings)} warnings)")
+        except Exception as e:
+            print(f"  [INFO] Validation skipped: {e}")
 
 
 def main():

@@ -90,15 +90,15 @@ class TestDAXTotalQualifier:
 class TestDAXInterRecord:
     def test_previous(self):
         result = _convert_inter_record("Previous(Amount)")
-        assert "EARLIER" in result
+        assert "OFFSET(-1" in result
 
     def test_peek(self):
         result = _convert_inter_record("Peek(Sales, 0)")
-        assert "EARLIER" in result
+        assert "OFFSET(0" in result
 
     def test_above(self):
         result = _convert_inter_record("Above(Total, 1)")
-        assert "EARLIER" in result
+        assert "OFFSET(-1" in result
 
     def test_fieldvaluecount(self):
         result = _convert_inter_record("FieldValueCount(Region)")

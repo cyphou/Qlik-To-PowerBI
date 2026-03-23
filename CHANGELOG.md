@@ -1,5 +1,111 @@
 # Changelog
 
+## v7.0.0 — DAX Deep Accuracy & Full Test Coverage
+
+### Phase 1 — DAX Accuracy Deepening (38 tests)
+
+- **Aggr() decomposition**: `Aggr(Sum(X), Dim)` → `SUMX(VALUES('T'[Dim]), X)` using iterator pattern (SUMX, COUNTX, AVERAGEX, MINX, MAXX); multi-dim or unrecognized inner function falls back to ADDCOLUMNS/SUMMARIZE
+- **Inter-record OFFSET**: `Previous(X)` → `OFFSET(-1, ALLSELECTED(...))`, `Above(X, n)` / `Below(X, n)` → `OFFSET(±n, ...)`, `Peek(X, offset)` → `OFFSET(offset, ...)`
+- **RangeSum running total**: `RangeSum(Above(X, 0, RowNo()))` → `CALCULATE(SUM(...), WINDOW(-INF, 0, ALLSELECTED(...)))`
+- **P()/E() set analysis**: `P({1} Field)` → `ALL('T'[Field])`, `E({1} Field)` → `EXCEPT(ALL('T'[Field]), VALUES('T'[Field]))`
+- **Dollar-sign expressions**: `$(=Year(Today())-1)` → `YEAR(TODAY()) - 1` with Qlik→DAX function conversion
+
+### Phase 2 — Critical Test Coverage (+133 tests)
+
+- **`test_pbip_generator.py`** (28 tests): Project structure, TMDL output, report generation, edge cases for `PowerBIProjectGenerator`
+- **`test_visual_generator.py`** (74 tests): 60+ visual type mappings, custom visuals, config templates, containers, batch generation, sparklines, small multiples, proportional layout
+- **`test_tmdl_canonical.py`** (31 tests): `generate_tmdl()` entry point, `_build_semantic_model`, relationships, hierarchies, RLS roles, calendar tables, edge cases
+
+### Phase 3 — Pipeline Wiring
+
+- **Paginated passthrough**: `import_all(paginated=True)` flows through to `generate_powerbi_project()`
+- **Post-generation validation**: `import_all(validate=True)` runs `ArtifactValidator.validate_project()` after project creation
+- **Return path**: `generate_powerbi_project()` now returns the project output path
+
+### Phase 4 — Section Access Enhancements (22 tests)
+
+- **Wildcard `*` → TRUE()**: Section Access `USERID = *` now generates `RLS_AllUsers` role with `TRUE()` filter (previously skipped)
+- **OMIT column parsing**: `OMIT` header in SECTION ACCESS LOAD INLINE → `omit_fields` list per role; annotated as Object-Level Security (OLS) migration note
+- **REDUCTION column parsing**: `REDUCTION` header → `reduce_values` list per role
+- **Pre-built filter passthrough**: `_create_rls_roles()` accepts `filter_expression` directly from `_parse_section_access()` for streamlined pipeline
+
+### Phase 5 — Legacy Deprecation
+
+- **TMDLGenerator class**: Added runtime `DeprecationWarning` on instantiation (points to `powerbi_import.tmdl_generator` + `powerbi_import.pbip_generator`)
+- **`create_pbi_project_from_migration()`**: Added runtime `DeprecationWarning` (points to `powerbi_import.import_to_powerbi.import_all()`)
+
+### Phase 6 — CI/CD & Housekeeping
+
+- **GitHub Actions CI**: `.github/workflows/ci.yml` — pytest + lint on push/PR
+- **Version bump**: All `__version__` strings updated to `7.0.0`
+- **CHANGELOG update**: This entry
+
+### Stats
+
+- Tests: 756 → 949 (+193)
+- New test files: `test_v7_phase1.py` (38), `test_pbip_generator.py` (28), `test_visual_generator.py` (74), `test_tmdl_canonical.py` (31), `test_v7_phase4.py` (22)
+- Key files modified: `dax_converter.py`, `format_adapter.py`, `tmdl_generator.py`, `import_to_powerbi.py`, `src/fabric_api/tmdl_generator.py`, `src/fabric_api/__init__.py`
+
+---
+
+## v6.0.0 — Make It Actually Work End-to-End
+
+### Phase 1 — Pipeline Blockers (29 tests)
+
+- Removed 20-visual-per-page cap in `visual_generator.py`
+- Removed 10-field cap for table/matrix projections in `pbip_generator.py`
+- Wired `qlik_script_converter.py` into extraction pipeline with load script → datasource enrichment
+- Fixed table name extraction for labeled LOAD statements
+- Created `docs/DEV_PLAN_v6.md` — 6-phase plan
+
+### Phase 2 — DAX Accuracy (44 tests)
+
+- **Variable expansion**: `$(=expression)` with bracket matching via `_expand_dollar_expr()`
+- **Sum(If) pattern**: `Sum(If(cond, val))` → `CALCULATE(SUM(...), filter)` / `SUMX(FILTER(...))`
+- **Concat()**: `Concat(field, sep)` → `CONCATENATEX(VALUES(...), ..., sep)`
+- **Aggr() rewrite**: Proper bracket matching for nested expressions via `_split_top_level_args()`
+- **Set Analysis extended**: Bracket matching for `{<Year={2024}>}`, `{1<...>}` ALL, `{$<...>}` current, subtraction/union operators
+
+### Phase 3 — Integrate Standalone Tools (13 tests)
+
+- **Theme injection**: Qlik theme colors from `app_metadata` → `theme_colors` in dashboards
+- **Variable promotion**: Variables containing aggregation expressions promoted from parameters to calculations
+- **Section Access → RLS**: `_parse_section_access()` parses SECTION ACCESS blocks into RLS `user_filters`
+- **DAX converter consolidation**: `qlik_migrator.py` and `qlik_model_converter.py` now delegate to canonical `dax_converter.py`
+
+### Phase 4 — Visual Report Fidelity (21 tests)
+
+- **Visual filters**: Explicit filters + topN from dimension `qOtherLimit`
+- **Sort orders**: Explicit `sort` property + inferred from `qSortCriterias`
+- **Slicer config**: Dropdown/list mode, single select, search, date range detection
+- **Bookmark state**: Selections/filters from `bm.selections` + `captured_sheet`
+
+### Phase 5 — Load Script Deep Conversion (22 tests)
+
+- **JOIN → Table.NestedJoin**: `LEFT/INNER/RIGHT/OUTER JOIN(Table)` mapped to `Table.NestedJoin()` with correct JoinKind
+- **CONCATENATE → Table.Combine**: `CONCATENATE(Table)` produces `Table.Combine()` annotations
+- **Stacked LOAD detection**: Two-LOAD-before-FROM pattern recognized and annotated
+- **parse_qlik_load prefix stripping**: CONCATENATE/JOIN prefixes stripped before LOAD parsing
+- **Split regex updated**: Statement splitting handles JOIN/CONCATENATE directives correctly
+
+### Phase 6 — Housekeeping
+
+- **TMDLGenerator consolidation** (6.1): Deployment helpers (`generate_deployment_config`, `generate_sensitivity_label`, `generate_refresh_schedule`, `generate_incremental_refresh_policy`) moved to `powerbi_import/deploy/pipeline_helpers.py`; `src/fabric_api/tmdl_generator.py` methods now delegate
+- **Dead code cleanup** (6.2): `src/fabric_api/visual_generator.py` kept as compatibility layer (unique API); shim modules preserved for backward compatibility
+- **Version sync** (6.3): All `__version__` strings updated to `6.0.0` (`pyproject.toml`, `qlik_export`, `powerbi_import`, `src/fabric_api`)
+- **Documentation refresh** (6.4): README project structure updated to show canonical `qlik_export/` + `powerbi_import/`; programmatic usage examples updated; visual coverage table: 9 → 60+
+- **CLI progress indicators** (6.5): Extraction and generation steps now show elapsed time; final summary shows total duration with output path
+- **Tableau naming cleanup** (6.6): `wizard.py` `tableau_file` → `source_file`; deprecated `map_tableau_to_powerbi_type` and `convert_tableau_formula_to_dax` with deprecation warnings; `MigrationConfig.tableau_file` property now warns; comments/docstrings updated
+
+### Stats
+
+- Tests: 627 → 756 (+129)
+- New test files: `test_v6_phase1.py` (29), `test_v6_phase2.py` (44), `test_v6_phase3.py` (13), `test_v6_phase4.py` (21), `test_v6_phase5.py` (22)
+- Key files modified: `dax_converter.py`, `format_adapter.py`, `qlik_migrator.py`, `qlik_model_converter.py`, `qlik_script_converter.py`, `migrate.py`, `README.md`
+- New files: `powerbi_import/deploy/pipeline_helpers.py`
+
+---
+
 ## v5.0.0 — Pipeline Hardening & Test Coverage Release
 
 ### New Test Suites (Phase 1)

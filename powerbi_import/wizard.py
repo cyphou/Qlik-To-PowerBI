@@ -177,7 +177,7 @@ def wizard_to_args(config):
     """
     import argparse
     args = argparse.Namespace(
-        tableau_file=config['source_file'],
+        source_file=config['source_file'],
         prep=config.get('prep'),
         output_dir=config.get('output_dir'),
         output_format=config.get('output_format', 'pbip'),

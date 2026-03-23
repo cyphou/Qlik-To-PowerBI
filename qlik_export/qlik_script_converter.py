@@ -38,6 +38,22 @@ class QlikLoadStatement:
     table_name: Optional[str] = None
 
 
+def _detect_stacked_load(stmt: str) -> bool:
+    """Return True if *stmt* contains a stacked/preceding LOAD pattern.
+
+    A stacked LOAD is when two LOADs appear before the data source, e.g.::
+
+        LOAD Year(Date) as Year, *;
+        LOAD *
+        FROM data.qvd;
+
+    The first LOAD transforms the second's output.
+    """
+    # Count top-level LOAD keywords (not inside strings)
+    loads = re.findall(r'\bLOAD\b', stmt, re.IGNORECASE)
+    return len(loads) >= 2
+
+
 class QlikScriptToPowerQueryConverter:
     """Convertit les scripts Qlik en scripts Power Query M."""
 
@@ -141,6 +157,12 @@ class QlikScriptToPowerQueryConverter:
         """
         # Nettoyer le script
         script = ' '.join(qlik_script.split())
+
+        # Strip CONCATENATE(...) and JOIN(...) prefixes before LOAD
+        script = re.sub(
+            r'^.*?(?:CONCATENATE\s*\([^)]*\)\s*)?(?:(?:LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\([^)]*\)\s*)?(?=LOAD\b)',
+            '', script, count=1, flags=re.IGNORECASE,
+        )
         
         # Extraire les champs (entre LOAD et FROM/RESIDENT/INLINE)
         load_match = re.search(
@@ -423,9 +445,51 @@ class QlikScriptToPowerQueryConverter:
             r'CONCATENATE\s*\(\s*(\w+)\s*\)\s*\n?\s*LOAD',
             re.IGNORECASE
         )
+
+        # ── Handle JOIN directives ────────────────────────────
+        join_pattern = re.compile(
+            r'(LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\(\s*(\w+)\s*\)\s*\n?\s*LOAD',
+            re.IGNORECASE,
+        )
         
         # ── Standard LOAD statements ──────────────────────────
-        load_statements = re.split(r'\n(?=(?:\w+:\s*\n?\s*)?LOAD\s)', processed, flags=re.IGNORECASE)
+        # Split on lines that start a new label+LOAD block or a bare LOAD.
+        # Pattern: split before ``TableName:\nLOAD`` or before a bare ``LOAD``
+        # that is NOT preceded by a label on the previous line.
+        load_statements = re.split(
+            r'\n(?=\w+:\s*\n\s*(?:CONCATENATE\s*\([^)]*\)\s*)?(?:(?:LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\([^)]*\)\s*)?LOAD\b)',
+            processed, flags=re.IGNORECASE,
+        )
+        # Secondary split: within each fragment, split on bare LOAD lines
+        # that are NOT preceded by a label (``Name:``) on the line above.
+        # Also split before JOIN / CONCATENATE directives so they stay
+        # attached to their LOAD.
+        expanded: List[str] = []
+        for fragment in load_statements:
+            # Split before LOAD or before JOIN/CONCATENATE directives
+            sub = re.split(
+                r'\n(?=(?:(?:LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\([^)]*\)\s*\n?\s*LOAD\b'
+                r'|CONCATENATE\s*\([^)]*\)\s*\n?\s*LOAD\b'
+                r'|LOAD\b))',
+                fragment, flags=re.IGNORECASE,
+            )
+            if len(sub) <= 1:
+                expanded.append(fragment)
+            else:
+                # Recombine: if a sub-part is just a label (``TableX:``)
+                # or contains no LOAD keyword, merge it with the next part.
+                i = 0
+                while i < len(sub):
+                    part = sub[i]
+                    has_load = bool(re.search(r'\bLOAD\b', part, re.IGNORECASE))
+                    # If this part has no LOAD, it's a label or preamble — merge forward
+                    if not has_load and i + 1 < len(sub):
+                        expanded.append(part + '\n' + sub[i + 1])
+                        i += 2
+                    else:
+                        expanded.append(part)
+                        i += 1
+        load_statements = expanded
         
         for i, load_stmt_str in enumerate(load_statements):
             if not load_stmt_str.strip():
@@ -448,24 +512,68 @@ class QlikScriptToPowerQueryConverter:
                 if is_concat:
                     cm = concat_pattern.search(load_stmt_str)
                     concat_target = cm.group(1) if cm else None
-                
-                # Extract table name prefix
-                table_name_match = re.match(r'^(\w+):\s*\n?\s*(?:CONCATENATE\s*\(\w+\)\s*)?LOAD', load_stmt_str, re.IGNORECASE)
+
+                # Check for JOIN prefix
+                is_join = bool(join_pattern.search(load_stmt_str))
+                join_type = None
+                join_target = None
+                if is_join:
+                    jm = join_pattern.search(load_stmt_str)
+                    join_type = jm.group(1).upper() if jm else None
+                    join_target = jm.group(2) if jm else None
+
+                # Detect stacked/preceding LOAD (two LOADs separated by ;)
+                stacked = _detect_stacked_load(load_stmt_str)
+
+                # Extract table name prefix (supports label on same line or preceding line)
+                stripped_stmt = load_stmt_str.strip()
+                table_name_match = re.match(
+                    r'^(\w+):\s*(?:\n\s*)?(?:CONCATENATE\s*\([^)]*\)\s*)?(?:(?:LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\([^)]*\)\s*)?LOAD',
+                    stripped_stmt, re.IGNORECASE,
+                )
                 table_label = table_name_match.group(1) if table_name_match else f'Table{i+1}'
-                
+
                 # Parser l'instruction
                 load_stmt = QlikScriptToPowerQueryConverter.parse_qlik_load(load_stmt_str)
                 load_stmt.table_name = table_label
-                
+
                 # Convertir en Power Query
                 pq_script = QlikScriptToPowerQueryConverter.convert_load_to_powerquery(load_stmt)
-                
+
                 if is_concat and concat_target:
                     pq_scripts.append(f'// CONCATENATE({concat_target}) → Table.Combine')
-                    pq_scripts.append(f'// Append this result to {concat_target} using Table.Combine')
-                
-                pq_scripts.append(f'// Query: {table_label}')
-                pq_scripts.append(pq_script)
+                    pq_scripts.append(f'// Query: {table_label}')
+                    # Wrap in Table.Combine with target
+                    pq_scripts.append(pq_script)
+                    pq_scripts.append(f'// To combine: Table.Combine({{{concat_target}, {table_label}}})')
+                elif is_join and join_target:
+                    # Map Qlik join type to Power Query JoinKind
+                    jk_map = {
+                        'LEFT': 'JoinKind.LeftOuter',
+                        'INNER': 'JoinKind.Inner',
+                        'RIGHT': 'JoinKind.RightOuter',
+                        'OUTER': 'JoinKind.FullOuter',
+                    }
+                    jk = jk_map.get(join_type, 'JoinKind.LeftOuter')
+                    # Infer join key from first field
+                    join_key = load_stmt.fields[0] if load_stmt.fields and load_stmt.fields[0] != '*' else 'Key'
+                    pq_scripts.append(f'// {join_type} JOIN({join_target}) → Table.NestedJoin')
+                    pq_scripts.append(f'// Query: {table_label}')
+                    pq_scripts.append(pq_script)
+                    pq_scripts.append(
+                        f'// Join: Table.NestedJoin({join_target}, '
+                        f'{{"{join_key}"}}, {table_label}, '
+                        f'{{"{join_key}"}}, "{table_label}_Expanded", {jk})'
+                    )
+                elif stacked:
+                    pq_scripts.append(f'// Stacked/Preceding LOAD')
+                    pq_scripts.append(f'// Query: {table_label}')
+                    pq_scripts.append(pq_script)
+                    pq_scripts.append(f'// Note: Stacked LOAD transforms applied sequentially in M steps')
+                else:
+                    pq_scripts.append(f'// Query: {table_label}')
+                    pq_scripts.append(pq_script)
+
                 pq_scripts.append('')
                 
             except Exception as e:

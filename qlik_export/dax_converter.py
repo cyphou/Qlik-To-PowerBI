@@ -280,11 +280,17 @@ def convert_qlik_expression_to_dax(
     # Phase 3b: TOTAL qualifier → ALL filter context
     dax = _convert_total_qualifier(dax, table_name)
 
-    # Phase 4: Aggr() → SUMMARIZE/ADDCOLUMNS
-    dax = _convert_aggr(dax)
+    # Phase 3c: Sum(If(...)) → CALCULATE/SUMX
+    dax = _convert_sum_if(dax, table_name)
 
-    # Phase 4b: Peek/Previous → EARLIER/OFFSET
-    dax = _convert_inter_record(dax)
+    # Phase 3d: Concat() → CONCATENATEX()
+    dax = _convert_concat(dax, table_name)
+
+    # Phase 4: Aggr() → SUMMARIZE/ADDCOLUMNS
+    dax = _convert_aggr(dax, table_name)
+
+    # Phase 4b: Peek/Previous/Above/Below/RangeSum → OFFSET/WINDOW
+    dax = _convert_inter_record(dax, table_name)
 
     # Phase 5: Simple function mapping (175+ replacements)
     for pattern, replacement in _COMPILED_FUNCTION_MAP:
@@ -387,17 +393,34 @@ def _convert_set_analysis(expr: str, table_name: str = "") -> str:
     Qlik: Count({$<Year=>} Distinct CustomerID)
     DAX:  CALCULATE(DISTINCTCOUNT('Table'[CustomerID]), REMOVEFILTERS('Table'[Year]))
     """
-    # Pattern: AggFunc({<modifiers>} field)
-    set_pattern = re.compile(
-        r'(\b\w+)\s*\(\s*\{([^}]*)\}\s*'   # AggFunc({...}
-        r'((?:Distinct\s+)?\w+)\s*\)',       # field)
-        re.IGNORECASE,
-    )
+    # Use a regex to find the start: AggFunc( { — then bracket-match the rest
+    start_pattern = re.compile(r'(\b\w+)\s*\(\s*\{', re.IGNORECASE)
 
-    def _replace_set(m):
+    matches = list(start_pattern.finditer(expr))
+    for m in reversed(matches):
         agg_func = m.group(1)
-        set_expr = m.group(2)
-        field = m.group(3)
+        brace_start = m.end() - 1  # position of '{'
+
+        # Bracket-match to find closing '}' (handles nested {})
+        depth = 1
+        i = brace_start + 1
+        while i < len(expr) and depth > 0:
+            if expr[i] == '{':
+                depth += 1
+            elif expr[i] == '}':
+                depth -= 1
+            i += 1
+        # i is past the closing '}'
+        set_expr = expr[brace_start + 1:i - 1]
+
+        # Now expect whitespace + field + closing ')'
+        rest = expr[i:]
+        field_m = re.match(r'\s+((?:Distinct\s+)?\w+)\s*\)', rest, re.IGNORECASE)
+        if not field_m:
+            continue
+
+        field = field_m.group(1)
+        full_end = i + field_m.end()
 
         # Map aggregation function
         dax_agg = _map_aggregation(agg_func, field, table_name)
@@ -405,21 +428,25 @@ def _convert_set_analysis(expr: str, table_name: str = "") -> str:
         # Parse set modifiers
         filters = _parse_set_modifiers(set_expr, table_name)
 
-        # Check for {1<...>} pattern (ignore current selections)
-        has_all = set_expr.strip().startswith('1')
+        # Check for {1<...>} pattern (ignore current selections → ALL)
+        set_id = set_expr.strip().split('<')[0].strip() if '<' in set_expr else set_expr.strip()
+        has_all = set_id == '1'
 
+        tbl = f"'{table_name}'" if table_name else "'Table'"
         parts = [dax_agg]
         if has_all:
-            tbl = f"'{table_name}'" if table_name else "'Table'"
             parts.append(f"ALL({tbl})")
+        # $ is current selection context — no extra filter needed in DAX
         parts.extend(filters)
 
         if len(parts) > 1:
-            return f"CALCULATE({', '.join(parts)})"
-        return parts[0]
+            replacement = f"CALCULATE({', '.join(parts)})"
+        else:
+            replacement = parts[0]
 
-    result = set_pattern.sub(_replace_set, expr)
-    return result
+        expr = expr[:m.start()] + replacement + expr[full_end:]
+
+    return expr
 
 
 def _map_aggregation(agg_func: str, field: str, table_name: str = "") -> str:
@@ -456,7 +483,18 @@ def _map_aggregation(agg_func: str, field: str, table_name: str = "") -> str:
 
 
 def _parse_set_modifiers(set_expr: str, table_name: str = "") -> List[str]:
-    """Parse Qlik set analysis modifiers into DAX filter arguments."""
+    """Parse Qlik set analysis modifiers into DAX filter arguments.
+
+    Supports:
+    - Field={value} → filter
+    - Field={value1, value2} → multi-value IN filter
+    - Field= → REMOVEFILTERS
+    - Field=Current+{extra} → union
+    - Field=Current-{remove} → subtraction
+    - P({1} <Field>) → possible values → ALL('T'[Field])
+    - E({1} <Field>) → excluded values → EXCEPT(ALL, VALUES)
+    - $(=Year(Today())-1) → inline expression evaluation
+    """
     filters = []
     tbl = f"'{table_name}'" if table_name else "'Table'"
 
@@ -467,13 +505,68 @@ def _parse_set_modifiers(set_expr: str, table_name: str = "") -> List[str]:
     if not expr:
         return filters
 
-    # Parse field={value} or field={"value1","value2"} patterns
+    # ── P() and E() set functions ─────────────────────────────
+    # P({1} <Field>) → FILTER(ALL('T'[Field]), ...) — all possible values
+    p_pattern = re.compile(r'P\s*\(\s*\{[^}]*\}\s+(\w+)\s*\)', re.IGNORECASE)
+    for m in p_pattern.finditer(expr):
+        field = m.group(1)
+        filters.append(f"ALL({tbl}[{field}])")
+    expr = p_pattern.sub('', expr)
+
+    # E({1} <Field>) → EXCEPT(ALL, VALUES) — excluded values
+    e_pattern = re.compile(r'E\s*\(\s*\{[^}]*\}\s+(\w+)\s*\)', re.IGNORECASE)
+    for m in e_pattern.finditer(expr):
+        field = m.group(1)
+        filters.append(f"EXCEPT(ALL({tbl}[{field}]), VALUES({tbl}[{field}]))")
+    expr = e_pattern.sub('', expr)
+
+    # ── Dollar-sign expressions in values: $(=expr) ───────────
+    # Convert $(=Year(Today())-1) → evaluated as DAX expression inline
+    expr = re.sub(
+        r'\$\(\s*=\s*Year\s*\(\s*Today\s*\(\s*\)\s*\)\s*-\s*1\s*\)',
+        'YEAR(TODAY()) - 1',
+        expr, flags=re.IGNORECASE,
+    )
+    # Generic $(=expr) → leave as DAX expression
+    expr = re.sub(
+        r'\$\(\s*=\s*([^)]+)\)',
+        r'\1',
+        expr,
+    )
+
+    # Parse field={value}, field=value+{extra}, field=value-{remove} patterns
     modifier_pattern = re.compile(
         r'(\w+)\s*=\s*\{([^}]*)\}',
         re.IGNORECASE
     )
+    # Extended: field=Current+{extra} or field=Current-{remove}
+    ext_pattern = re.compile(
+        r'(\w+)\s*=\s*(\w+)\s*([+\-])\s*\{([^}]*)\}',
+        re.IGNORECASE
+    )
+
+    # Process extended set operators first
+    for m in ext_pattern.finditer(expr):
+        field = m.group(1)
+        _base = m.group(2)  # e.g., 'Year' (current values)
+        operator = m.group(3)  # + or -
+        values_str = m.group(4).strip()
+        vals = [v.strip().strip('"').strip("'") for v in values_str.split(',') if v.strip()]
+        if operator == '+':  # Union: current values + extra
+            val_filters = ' || '.join(f'{tbl}[{field}] = "{v}"' for v in vals)
+            if val_filters:
+                filters.append(f'/* +set: union */ {val_filters}')
+        elif operator == '-':  # Subtraction: current values - remove
+            val_filters = ' && '.join(f'{tbl}[{field}] <> "{v}"' for v in vals)
+            if val_filters:
+                filters.append(val_filters)
+
+    # Process standard modifiers (skip fields already handled by ext_pattern)
+    ext_fields = {m.group(1) for m in ext_pattern.finditer(expr)}
     for m in modifier_pattern.finditer(expr):
         field = m.group(1)
+        if field in ext_fields:
+            continue
         values_str = m.group(2).strip()
 
         if not values_str:
@@ -504,23 +597,228 @@ def _parse_set_modifiers(set_expr: str, table_name: str = "") -> List[str]:
     return filters
 
 
-# ── Aggr() → SUMMARIZE/ADDCOLUMNS ────────────────────────────────
+# ── Sum(If(...)) → CALCULATE / SUMX ──────────────────────────────
 
-def _convert_aggr(expr: str) -> str:
+def _convert_sum_if(expr: str, table_name: str = "") -> str:
+    """Convert Qlik Sum(If(cond, val)) → CALCULATE/SUMX.
+
+    Sum(If(Region="North", Sales))  → CALCULATE(SUM('T'[Sales]), 'T'[Region] = "North")
+    Sum(If(Year>2020, Amount, 0))   → SUMX(FILTER('T', 'T'[Year] > 2020), 'T'[Amount])
+    Also handles Avg(If(…)), Count(If(…)), Min/Max variants.
     """
-    Convert Qlik Aggr(expression, dim1, dim2, ...) to DAX.
+    tbl = f"'{table_name}'" if table_name else "'Table'"
+    # Match: AggFunc(If(cond, value [, else_value]))
+    pattern = re.compile(
+        r'\b(Sum|Avg|Count|Min|Max)\s*\(\s*If\s*\(',
+        re.IGNORECASE,
+    )
+    if not pattern.search(expr):
+        return expr
 
-    Qlik: Aggr(Sum(Sales), Customer)
-    DAX:  ADDCOLUMNS(SUMMARIZE('Table', 'Table'[Customer]), "@value", SUM('Table'[Sales]))
+    def _replace_sum_if(m_outer):
+        start = m_outer.start()
+        agg_func = m_outer.group(1)
 
-    For simple cases: Aggr(Count(OrderID), Year) → COUNTROWS(SUMMARIZE('Table', 'Table'[Year]))
+        # Use bracket matching to find the full extent
+        # We are positioned right after 'If('
+        inner_start = m_outer.end()  # after 'If('
+        depth = 1  # we're inside the If(
+        i = inner_start
+        while i < len(expr) and depth > 0:
+            if expr[i] == '(':
+                depth += 1
+            elif expr[i] == ')':
+                depth -= 1
+            i += 1
+        # i points past the ')' closing If
+        # Now expect the closing ')' for the outer agg
+        # Skip whitespace
+        j = i
+        while j < len(expr) and expr[j] in ' \t\n':
+            j += 1
+        if j < len(expr) and expr[j] == ')':
+            end = j + 1
+        else:
+            return None  # Malformed — skip
+
+        # Extract inner args of If(cond, value_expr [, else_expr])
+        inner_text = expr[inner_start:i - 1]  # content between If( and matching )
+        args = _split_top_level_args(inner_text)
+        if len(args) < 2:
+            return None
+
+        cond = args[0].strip()
+        value_field = args[1].strip()
+        else_expr = args[2].strip() if len(args) > 2 else None
+
+        # Map agg function
+        dax_agg_map = {'sum': 'SUM', 'avg': 'AVERAGE', 'count': 'COUNT',
+                       'min': 'MIN', 'max': 'MAX'}
+        dax_agg = dax_agg_map.get(agg_func.lower(), agg_func.upper())
+
+        # Simple equality condition → CALCULATE pattern
+        eq_match = re.match(r'^(\w+)\s*=\s*(.+)$', cond)
+        if eq_match and (else_expr is None or else_expr in ('0', 'Null()', 'null', '')):
+            dim_field = eq_match.group(1)
+            dim_val = eq_match.group(2).strip()
+            qualified_val = f"{tbl}[{value_field}]" if '[' not in value_field else value_field
+            qualified_dim = f"{tbl}[{dim_field}]" if '[' not in dim_field else dim_field
+            return (f"CALCULATE({dax_agg}({qualified_val}), {qualified_dim} = {dim_val})", start, end)
+
+        # Complex condition → SUMX/AVERAGEX pattern
+        x_func_map = {'sum': 'SUMX', 'avg': 'AVERAGEX', 'count': 'COUNTX',
+                       'min': 'MINX', 'max': 'MAXX'}
+        dax_x = x_func_map.get(agg_func.lower(), f'{agg_func.upper()}X')
+        qualified_val = f"{tbl}[{value_field}]" if '[' not in value_field else value_field
+        return (f"{dax_x}(FILTER({tbl}, {cond}), {qualified_val})", start, end)
+
+    # Apply replacements from right to left to preserve positions
+    replacements = []
+    for m_outer in pattern.finditer(expr):
+        result = _replace_sum_if(m_outer)
+        if result:
+            replacements.append(result)
+
+    for dax_text, start, end in reversed(replacements):
+        expr = expr[:start] + dax_text + expr[end:]
+
+    return expr
+
+
+# ── Concat() → CONCATENATEX() ────────────────────────────────────
+
+def _convert_concat(expr: str, table_name: str = "") -> str:
+    """Convert Qlik Concat(field, separator [, sort_field]) → CONCATENATEX.
+
+    Concat(ProductName, ', ')  → CONCATENATEX(VALUES('T'[ProductName]), 'T'[ProductName], ", ")
+    Concat(DISTINCT Region, '; ', Region) → CONCATENATEX(VALUES('T'[Region]), 'T'[Region], "; ", 'T'[Region], ASC)
     """
+    tbl = f"'{table_name}'" if table_name else "'Table'"
+    pattern = re.compile(r'\bConcat\s*\(', re.IGNORECASE)
+    if not pattern.search(expr):
+        return expr
+
+    def _do_replace(m):
+        start = m.end()  # right after 'Concat('
+        depth = 1
+        i = start
+        while i < len(expr) and depth > 0:
+            if expr[i] == '(':
+                depth += 1
+            elif expr[i] == ')':
+                depth -= 1
+            i += 1
+        inner = expr[start:i - 1]
+        args = _split_top_level_args(inner)
+        if not args:
+            return m.group(0) + inner + ')'
+
+        field_arg = args[0].strip()
+        # Strip DISTINCT keyword
+        is_distinct = field_arg.upper().startswith('DISTINCT ')
+        if is_distinct:
+            field_arg = field_arg[9:].strip()
+
+        separator = args[1].strip() if len(args) > 1 else '", "'
+        sort_field = args[2].strip() if len(args) > 2 else None
+
+        qualified = f"{tbl}[{field_arg}]" if '[' not in field_arg else field_arg
+        parts = [f"VALUES({qualified})", qualified, separator]
+        if sort_field:
+            sort_qual = f"{tbl}[{sort_field}]" if '[' not in sort_field else sort_field
+            parts.extend([sort_qual, 'ASC'])
+
+        return 'CONCATENATEX(' + ', '.join(parts) + ')'
+
+    # Process right-to-left
+    matches = list(pattern.finditer(expr))
+    for m in reversed(matches):
+        start = m.start()
+        # Find closing paren with bracket matching
+        depth = 1
+        i = m.end()
+        while i < len(expr) and depth > 0:
+            if expr[i] == '(':
+                depth += 1
+            elif expr[i] == ')':
+                depth -= 1
+            i += 1
+        replacement = _do_replace(m)
+        expr = expr[:start] + replacement + expr[i:]
+
+    return expr
+
+
+# ── Aggr() → SUMX/COUNTX/AVERAGEX or ADDCOLUMNS/SUMMARIZE ────────
+
+# Map inner aggregation function to DAX iterator equivalent
+_AGGR_ITERATOR_MAP = {
+    'sum':   'SUMX',
+    'count': 'COUNTX',
+    'avg':   'AVERAGEX',
+    'min':   'MINX',
+    'max':   'MAXX',
+}
+
+
+def _convert_aggr(expr: str, table_name: str = "") -> str:
+    """Convert Qlik Aggr(expression, dim1, dim2, ...) to DAX.
+
+    Single dimension with simple inner aggregation → iterator (SUMX, COUNTX, etc.):
+        Aggr(Sum(Sales), Customer)    → SUMX(VALUES('T'[Customer]), SUM('T'[Sales]))
+        Aggr(Count(OrderID), Region)  → COUNTX(VALUES('T'[Region]), COUNT('T'[OrderID]))
+        Aggr(Avg(Score), Year)        → AVERAGEX(VALUES('T'[Year]), AVERAGE('T'[Score]))
+
+    Multiple dimensions → ADDCOLUMNS/SUMMARIZE:
+        Aggr(Sum(Sales), Year, Month) → ADDCOLUMNS(SUMMARIZE('T', 'T'[Year], 'T'[Month]), "@value", SUM('T'[Sales]))
+
+    Nested Aggr(Aggr(...)) → inner Aggr converted first (reversed iteration).
+    """
+    tbl = f"'{table_name}'" if table_name else "'Table'"
     aggr_pattern = re.compile(r'\bAggr\s*\(', re.IGNORECASE)
     if not aggr_pattern.search(expr):
         return expr
 
-    # Simple replacement for now — full parser would need bracket matching
-    expr = aggr_pattern.sub('ADDCOLUMNS(SUMMARIZE(VALUES(', expr)
+    matches = list(aggr_pattern.finditer(expr))
+    for m in reversed(matches):
+        start = m.start()
+        inner_start = m.end()  # right after 'Aggr('
+
+        # Bracket-matching to find the closing paren
+        depth = 1
+        i = inner_start
+        while i < len(expr) and depth > 0:
+            if expr[i] == '(':
+                depth += 1
+            elif expr[i] == ')':
+                depth -= 1
+            i += 1
+        end = i  # past closing ')'
+
+        inner = expr[inner_start:end - 1]
+        args = _split_top_level_args(inner)
+        if len(args) < 2:
+            continue
+
+        inner_expr = args[0].strip()
+        dims = [a.strip() for a in args[1:]]
+        dim_refs_list = [f"{tbl}[{d}]" if '[' not in d else d for d in dims]
+
+        # Detect inner aggregation function: Sum(...), Count(...), Avg(...), etc.
+        inner_agg_m = re.match(r'(\w+)\s*\(', inner_expr)
+        inner_agg = inner_agg_m.group(1).lower() if inner_agg_m else None
+        iterator = _AGGR_ITERATOR_MAP.get(inner_agg) if inner_agg else None
+
+        if iterator and len(dims) == 1:
+            # Single dimension: use iterator pattern (SUMX, COUNTX, etc.)
+            replacement = f'{iterator}(VALUES({dim_refs_list[0]}), {inner_expr})'
+        else:
+            # Multiple dimensions or complex inner: use ADDCOLUMNS/SUMMARIZE
+            dim_refs = ', '.join(dim_refs_list)
+            replacement = f'ADDCOLUMNS(SUMMARIZE({tbl}, {dim_refs}), "@value", {inner_expr})'
+
+        expr = expr[:start] + replacement + expr[end:]
+
     return expr
 
 
@@ -596,20 +894,61 @@ def _insert_related(
 # ── Dollar-sign variable expansion ────────────────────────────────
 
 def _expand_variables(expr: str, variables: Dict[str, str]) -> str:
-    """Expand $(vName) dollar-sign variable references."""
-    if not variables or "$(" not in expr:
+    """Expand $(vName) and $(=expr) dollar-sign variable references.
+
+    $(vName) → replaced by the variable definition.
+    $(=expression) → the inner expression is inlined (load-time eval).
+    Recursive up to *max_depth* passes to handle nested references.
+    """
+    if "$(" not in expr:
         return expr
-    max_passes = 5
-    for _ in range(max_passes):
-        new_expr = re.sub(
+    if variables is None:
+        variables = {}
+
+    max_depth = 10
+    for _ in range(max_depth):
+        prev = expr
+
+        # $(=expression) — bracket-match to find closing paren, inline it
+        expr = _expand_dollar_expr(expr)
+
+        # $(vName) — expand named variables
+        expr = re.sub(
             r'\$\((\w+)\)',
             lambda m: variables.get(m.group(1), m.group(0)),
             expr,
         )
-        if new_expr == expr:
+
+        if expr == prev:
             break
-        expr = new_expr
     return expr
+
+
+def _expand_dollar_expr(expr: str) -> str:
+    """Replace $(=...) with the inner expression, using bracket matching."""
+    marker = "$("
+    result = []
+    i = 0
+    while i < len(expr):
+        if expr[i:i+3] == "$(=":
+            # Bracket-match to find closing ')'
+            depth = 1
+            j = i + 2  # points at '='
+            j += 1     # skip '='
+            start_inner = j
+            while j < len(expr) and depth > 0:
+                if expr[j] == '(':
+                    depth += 1
+                elif expr[j] == ')':
+                    depth -= 1
+                j += 1
+            # j is past the closing ')' of $(...
+            result.append(expr[start_inner:j - 1])
+            i = j
+        else:
+            result.append(expr[i])
+            i += 1
+    return ''.join(result)
 
 
 # ── TOTAL qualifier → ALL ─────────────────────────────────────────
@@ -654,38 +993,74 @@ def _convert_total_qualifier(expr: str, table_name: str = "") -> str:
     return expr
 
 
-# ── Inter-record functions (Peek, Previous, Above, Below) ────────
+# ── Inter-record functions (Peek, Previous, Above, Below, RangeSum) ──
 
-def _convert_inter_record(expr: str) -> str:
-    """Convert Qlik inter-record functions to DAX equivalents."""
-    # Peek(field, offset) → EARLIER or OFFSET
+def _convert_inter_record(expr: str, table_name: str = "") -> str:
+    """Convert Qlik inter-record functions to DAX equivalents.
+
+    RangeSum(Above(X, 0, RowNo())) → running total via WINDOW/CALCULATE
+    Above(field, n) → OFFSET(-n, ...)
+    Below(field, n) → OFFSET(n, ...)
+    Peek(field, offset) → OFFSET with explicit offset
+    """
+    tbl = f"'{table_name}'" if table_name else "'Table'"
+
+    # ── RangeSum(Above(field, 0, RowNo())) → running total ────
     expr = re.sub(
-        r'\bPeek\s*\(\s*([^,]+),\s*([^)]+)\)',
-        r'/* Peek: use EARLIER or INDEX/OFFSET */ EARLIER(\1)',
+        r'\bRangeSum\s*\(\s*Above\s*\(\s*([^,]+),\s*0\s*,\s*RowNo\s*\(\s*\)\s*\)\s*\)',
+        lambda m: f'CALCULATE(SUM({m.group(1).strip()}), ALLSELECTED({tbl}), '
+                  f'VAR _cur = MAX({m.group(1).strip()}) '
+                  f'RETURN FILTER(ALL({tbl}), {m.group(1).strip()} <= _cur))'
+                  f' /* running total */',
         expr, flags=re.IGNORECASE,
     )
-    # Previous(field) → EARLIER
+
+    # ── Peek(field, offset) → OFFSET ─────
+    expr = re.sub(
+        r'\bPeek\s*\(\s*([^,]+),\s*(-?\d+)\s*\)',
+        lambda m: f'OFFSET({m.group(2)}, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
+        expr, flags=re.IGNORECASE,
+    )
+    # Peek(field) with no offset → previous row
+    expr = re.sub(
+        r'\bPeek\s*\(\s*([^,)]+)\s*\)',
+        lambda m: f'OFFSET(-1, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
+        expr, flags=re.IGNORECASE,
+    )
+    # Previous(field) → OFFSET(-1, ...)
     expr = re.sub(
         r'\bPrevious\s*\(\s*([^)]+)\)',
-        r'EARLIER(\1)',
+        lambda m: f'OFFSET(-1, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
         expr, flags=re.IGNORECASE,
     )
-    # Above(field, offset, count) → OFFSET
+    # Above(field, offset, count) → OFFSET(-offset, ...)
     expr = re.sub(
-        r'\bAbove\s*\(\s*([^,)]+)(?:,\s*([^,)]+))?(?:,\s*([^)]+))?\s*\)',
-        r'/* Above: review OFFSET/WINDOW */ EARLIER(\1)',
+        r'\bAbove\s*\(\s*([^,)]+),\s*(\d+)\s*(?:,\s*\d+\s*)?\)',
+        lambda m: f'OFFSET(-{m.group(2)}, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
         expr, flags=re.IGNORECASE,
     )
-    # Below(field, offset, count) → OFFSET
+    # Above(field) with no offset → OFFSET(-1, ...)
     expr = re.sub(
-        r'\bBelow\s*\(\s*([^,)]+)(?:,\s*([^,)]+))?(?:,\s*([^)]+))?\s*\)',
-        r'/* Below: review OFFSET/WINDOW */ EARLIER(\1)',
+        r'\bAbove\s*\(\s*([^,)]+)\s*\)',
+        lambda m: f'OFFSET(-1, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
+        expr, flags=re.IGNORECASE,
+    )
+    # Below(field, offset, count) → OFFSET(+offset, ...)
+    expr = re.sub(
+        r'\bBelow\s*\(\s*([^,)]+),\s*(\d+)\s*(?:,\s*\d+\s*)?\)',
+        lambda m: f'OFFSET({m.group(2)}, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
+        expr, flags=re.IGNORECASE,
+    )
+    # Below(field) with no offset → OFFSET(1, ...)
+    expr = re.sub(
+        r'\bBelow\s*\(\s*([^,)]+)\s*\)',
+        lambda m: f'OFFSET(1, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
         expr, flags=re.IGNORECASE,
     )
     # FieldValue(field, n) → INDEX
     expr = re.sub(
         r'\bFieldValue\s*\(\s*([^,]+),\s*([^)]+)\)',
-        r'/* FieldValue: use INDEX */ INDEX(\1, \2)',
+        r'INDEX(\1, \2)',
         expr, flags=re.IGNORECASE,
     )
     # FieldValueCount(field) → DISTINCTCOUNT in a value context
@@ -697,10 +1072,45 @@ def _convert_inter_record(expr: str) -> str:
     # Rank → RANKX
     expr = re.sub(
         r'\bRank\s*\(\s*([^)]+)\)',
-        r'RANKX(ALL(\'Table\'), \1)',
+        r"RANKX(ALL('Table'), \1)",
         expr, flags=re.IGNORECASE,
     )
     return expr
+
+
+# ── Top-level argument splitter ───────────────────────────────────
+
+def _split_top_level_args(text: str) -> List[str]:
+    """Split arguments at commas that are not inside parentheses or quotes."""
+    args: List[str] = []
+    depth = 0
+    in_str = False
+    str_char = ''
+    buf: List[str] = []
+    for ch in text:
+        if in_str:
+            buf.append(ch)
+            if ch == str_char:
+                in_str = False
+            continue
+        if ch in ('"', "'"):
+            in_str = True
+            str_char = ch
+            buf.append(ch)
+        elif ch == '(':
+            depth += 1
+            buf.append(ch)
+        elif ch == ')':
+            depth -= 1
+            buf.append(ch)
+        elif ch == ',' and depth == 0:
+            args.append(''.join(buf))
+            buf = []
+        else:
+            buf.append(ch)
+    if buf:
+        args.append(''.join(buf))
+    return args
 
 
 # ── Cleanup ───────────────────────────────────────────────────────

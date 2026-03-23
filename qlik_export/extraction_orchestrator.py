@@ -83,6 +83,9 @@ class ExtractionOrchestrator:
         else:
             raise ValueError(f"Unsupported file format: {ext}. Use .qvf or .json")
 
+        # Post-extraction: parse load script → enrich datasources with M queries
+        self._enrich_from_loadscript()
+
         logger.info(f"Extraction completed from {path.name}")
         return self._data
 
@@ -210,6 +213,21 @@ class ExtractionOrchestrator:
                     "source_file": str(json_path),
                     "extracted_at": datetime.now().isoformat(),
                 }
+            # Fallback: if no datasources but 'tables' key exists, use it
+            if not self._data.get("datasources") and "tables" in raw:
+                tables = raw["tables"]
+                # Filter out placeholder entries with no fields
+                useful = [t for t in tables
+                          if t.get("name", "Unknown") != "Unknown" or t.get("fields")]
+                if useful:
+                    self._data["datasources"] = useful
+            # Handle camelCase loadScript → loadscript dict
+            if not self._data.get("loadscript", {}).get("script") and "loadScript" in raw:
+                ls = raw["loadScript"]
+                if isinstance(ls, str):
+                    self._data["loadscript"] = {"script": ls}
+                elif isinstance(ls, dict):
+                    self._data["loadscript"] = ls
             # Auto-extract visualizations from sheet cells when not explicitly provided
             if not self._data.get("visualizations"):
                 self._data["visualizations"] = self._extract_visuals_from_sheets(
@@ -531,6 +549,137 @@ class ExtractionOrchestrator:
             "bookmarks": [],
             "master_items": [],
         }
+
+    # ─────────────────────────────────────────────────────────────
+    # Load script → datasource enrichment
+    # ─────────────────────────────────────────────────────────────
+
+    def _enrich_from_loadscript(self) -> None:
+        """Parse the Qlik load script and enrich datasources with M queries.
+
+        Uses ``QlikScriptToPowerQueryConverter`` to convert LOAD statements
+        into Power Query M, then attaches M queries to matching datasource
+        entries (by table name).  New tables discovered in the script that
+        don't already have a datasource entry are appended.
+        """
+        script = self._data.get("loadscript", {}).get("script", "")
+        if not script or not script.strip():
+            return
+
+        try:
+            from qlik_export.qlik_script_converter import (
+                QlikScriptToPowerQueryConverter,
+            )
+        except ImportError:
+            try:
+                from qlik_script_converter import QlikScriptToPowerQueryConverter
+            except ImportError:
+                logger.debug("qlik_script_converter not available — skipping load script enrichment")
+                return
+
+        try:
+            pq_output = QlikScriptToPowerQueryConverter.convert_qlik_script_to_powerquery(script)
+        except Exception as exc:
+            logger.warning("Load script conversion failed: %s", exc)
+            return
+
+        if not pq_output or not pq_output.strip():
+            return
+
+        # Parse the converter output into named query blocks.
+        # The output follows the pattern:
+        #   // Query: TableName
+        #   let ... in ... FinalStep
+        #
+        # We split on "// Query:" lines to extract per-table M queries.
+        query_blocks: Dict[str, str] = {}
+        current_name: Optional[str] = None
+        current_lines: List[str] = []
+
+        for line in pq_output.split("\n"):
+            if line.startswith("// Query: "):
+                # Flush previous block
+                if current_name and current_lines:
+                    query_blocks[current_name] = "\n".join(current_lines).strip()
+                current_name = line[len("// Query: "):].strip()
+                current_lines = []
+            elif line.startswith("// ") and not current_name:
+                # Skip comment lines before any query block
+                continue
+            else:
+                current_lines.append(line)
+
+        # Flush last block
+        if current_name and current_lines:
+            query_blocks[current_name] = "\n".join(current_lines).strip()
+
+        if not query_blocks:
+            logger.debug("No named query blocks extracted from load script")
+            return
+
+        # Build a lookup of existing datasources by table name
+        ds_list: List[Dict] = self._data.get("datasources", [])
+        ds_by_name: Dict[str, Dict] = {}
+        for ds in ds_list:
+            name = ds.get("tableName", ds.get("name", ""))
+            if name:
+                ds_by_name[name] = ds
+
+        enriched = 0
+        added = 0
+        for table_name, m_query in query_blocks.items():
+            if not m_query:
+                continue
+            if table_name in ds_by_name:
+                # Enrich existing datasource with M query
+                ds_by_name[table_name]["m_query"] = m_query
+                enriched += 1
+            else:
+                # New table discovered from load script — add minimal entry
+                # Try to extract column names from M query SelectColumns patterns
+                columns = self._extract_columns_from_m_query(m_query)
+                new_ds = {
+                    "tableName": table_name,
+                    "connectionType": "loadscript",
+                    "connection": {"type": "loadscript"},
+                    "columns": columns,
+                    "m_query": m_query,
+                }
+                ds_list.append(new_ds)
+                added += 1
+
+        if enriched or added:
+            logger.info(
+                "Load script enrichment: %d datasources enriched, %d new tables added",
+                enriched, added,
+            )
+
+    @staticmethod
+    def _extract_columns_from_m_query(m_query: str) -> List[Dict]:
+        """Extract column names from a Power Query M snippet.
+
+        Looks for Table.SelectColumns(..., {"Col1", "Col2"}) or
+        #table({"Col1", "Col2"}, ...) patterns.
+        """
+        import re as _re
+        columns: List[Dict] = []
+        seen: set = set()
+
+        # Match {"Col1", "Col2", ...} patterns
+        for m in _re.finditer(r'\{([^{}]+)\}', m_query):
+            inner = m.group(1)
+            # Only consider lists of quoted strings
+            names = _re.findall(r'"([^"]+)"', inner)
+            if len(names) >= 2:
+                for name in names:
+                    if name not in seen:
+                        seen.add(name)
+                        columns.append({
+                            "name": name,
+                            "dataType": "string",
+                        })
+                break  # Use the first matching set (usually SelectColumns)
+        return columns
 
     def get_extraction_summary(self) -> Dict[str, Any]:
         """Return a summary of what was extracted."""

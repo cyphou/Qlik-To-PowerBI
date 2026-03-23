@@ -2184,12 +2184,46 @@ def _create_rls_roles(model, user_filters, main_table_name, column_table_map):
             filter_name = uf.get('name', 'UserFilter')
             column = uf.get('column', '')
             user_mappings = uf.get('user_mappings', [])
+            filter_expression = uf.get('filter_expression', '')
+            omit_fields = uf.get('omit_fields', [])
+            reduce_values = uf.get('reduce_values', [])
 
             table_name = column_table_map.get(column, main_table_name)
 
             col_clean = column
             if ':' in col_clean:
                 col_clean = col_clean.split(':')[-1]
+
+            # If filter_expression is already provided (from _parse_section_access)
+            if filter_expression and not user_mappings and not column:
+                role_name = _unique_role_name(filter_name, role_names)
+                role_names.add(role_name)
+
+                role_entry = {
+                    "name": role_name,
+                    "modelPermission": "read",
+                    "tablePermissions": [
+                        {
+                            "name": main_table_name,
+                            "filterExpression": filter_expression
+                        }
+                    ]
+                }
+
+                # Add OMIT fields as migration note (Power BI OLS)
+                if omit_fields:
+                    role_entry["_omit_fields"] = omit_fields
+                    role_entry["_migration_note"] = (
+                        f"OMIT fields from Section Access: {', '.join(omit_fields)}. "
+                        f"Implement as Object-Level Security (OLS) in Power BI."
+                    )
+
+                # Add reduce values as additional filter
+                if reduce_values:
+                    role_entry["_reduce_values"] = reduce_values
+
+                roles.append(role_entry)
+                continue
 
             if user_mappings:
                 user_values = {}
@@ -2218,7 +2252,7 @@ def _create_rls_roles(model, user_filters, main_table_name, column_table_map):
                 role_name = _unique_role_name(filter_name, role_names)
                 role_names.add(role_name)
 
-                roles.append({
+                role_entry = {
                     "name": role_name,
                     "modelPermission": "read",
                     "tablePermissions": [
@@ -2233,7 +2267,12 @@ def _create_rls_roles(model, user_filters, main_table_name, column_table_map):
                         f"Consider creating a security table for dynamic RLS."
                     ),
                     "_user_mappings": user_mappings
-                })
+                }
+
+                if omit_fields:
+                    role_entry["_omit_fields"] = omit_fields
+
+                roles.append(role_entry)
 
             elif column:
                 filter_dax = f"[{col_clean}] = USERPRINCIPALNAME()"

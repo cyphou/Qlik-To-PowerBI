@@ -62,7 +62,16 @@ def map_to_powerbi_type(datatype):
 
 # Backward-compatible aliases
 map_qlik_to_powerbi_type = map_to_powerbi_type
-map_tableau_to_powerbi_type = map_to_powerbi_type
+
+
+def map_tableau_to_powerbi_type(*args, **kwargs):
+    """Deprecated — use ``map_to_powerbi_type`` instead."""
+    import warnings
+    warnings.warn(
+        "map_tableau_to_powerbi_type is deprecated; use map_to_powerbi_type.",
+        DeprecationWarning, stacklevel=2,
+    )
+    return map_to_powerbi_type(*args, **kwargs)
 
 
 # ── DAX conversion ──────────────────────────────────────────────
@@ -104,8 +113,17 @@ def convert_formula_to_dax(
 
 
 # Backward-compatible aliases
-convert_tableau_formula_to_dax = convert_formula_to_dax
 convert_qlik_expression_to_dax = convert_formula_to_dax
+
+
+def convert_tableau_formula_to_dax(*args, **kwargs):
+    """Deprecated — use ``convert_formula_to_dax`` instead."""
+    import warnings
+    warnings.warn(
+        "convert_tableau_formula_to_dax is deprecated; use convert_formula_to_dax.",
+        DeprecationWarning, stacklevel=2,
+    )
+    return convert_formula_to_dax(*args, **kwargs)
 
 
 # ── M query generation ──────────────────────────────────────────

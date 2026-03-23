@@ -423,22 +423,42 @@ class QlikToPowerBIModelConverter:
         qlik_expr: str,
         col_table_map: Dict[str, str],
     ) -> str:
-        """Convert a simple Qlik expression to DAX.
+        """Convert a Qlik expression to DAX using the canonical converter.
 
-        Supports: Sum(Column), Count(Column), Avg(Column), etc.
-        Falls back to wrapping with SUM if the pattern is unrecognised.
+        Infers ``table_name`` from the first column reference found in the
+        expression so that simple aggregations get qualified correctly.
+        After conversion, qualifies bare column names inside aggregate
+        functions with the table name for BIM compatibility.
         """
+        from qlik_export.dax_converter import convert_qlik_expression_to_dax as _convert
         import re as _re
-        m = _re.match(r'(\w+)\(([^)]+)\)', qlik_expr.strip())
-        if m:
-            func, col = m.group(1).lower(), m.group(2).strip()
-            dax_func = self._QLIK_TO_DAX_FUNC.get(func, "SUM")
-            table = col_table_map.get(col, "")
-            if table:
-                return f"{dax_func}('{table}'[{col}])"
-            return f"{dax_func}([{col}])"
-        # Not a recognised aggregate – return as-is with a comment
-        return f"/* TODO: review */ {qlik_expr}"
+
+        # Infer table_name from col_table_map by finding the first column
+        # referenced in the expression.
+        table_name = ""
+        if col_table_map:
+            m = _re.search(r'\(([^)]+)\)', qlik_expr.strip())
+            if m:
+                col_ref = m.group(1).strip()
+                table_name = col_table_map.get(col_ref, "")
+
+        dax = _convert(qlik_expr, table_name=table_name, col_table_map=col_table_map)
+
+        # Post-qualify bare column names inside aggregate functions.
+        # e.g. SUM(Amount) → SUM('Orders'[Amount]) when Amount→Orders in map
+        if col_table_map:
+            def _qualify(m_inner):
+                func = m_inner.group(1)
+                col = m_inner.group(2).strip()
+                tbl = col_table_map.get(col, "")
+                if tbl and '[' not in col and "'" not in col:
+                    return f"{func}('{tbl}'[{col}])"
+                return m_inner.group(0)
+            dax = _re.sub(
+                r'(SUM|AVERAGE|COUNT|MIN|MAX|DISTINCTCOUNT|MEDIAN|STDEV\.S|FIRSTNONBLANK)\((\w+)\)',
+                _qualify, dax,
+            )
+        return dax
 
     def generate_model_bim(
         self,

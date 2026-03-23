@@ -1311,7 +1311,7 @@ class PowerBIProjectGenerator:
             all_fields = dim_fields + mea_fields
             if all_fields:
                 query_state["Values"] = {
-                    "projections": [self._make_projection_entry(f) for f in all_fields[:10]]
+                    "projections": [self._make_projection_entry(f) for f in all_fields]
                 }
         elif visual_type == 'scatterChart':
             # Scatter chart: dims → Category (Details), measures → X/Y (aggregated)

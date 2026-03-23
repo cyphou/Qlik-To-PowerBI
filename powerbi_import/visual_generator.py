@@ -893,7 +893,7 @@ def generate_visual_containers(converted_worksheets, report_name="Report",
     ctm = col_table_map or {}
     ml = measure_lookup or {}
 
-    worksheets = converted_worksheets[:20]
+    worksheets = converted_worksheets
     positions = _calculate_proportional_layout(
         worksheets, page_width, page_height, source_positions,
     )

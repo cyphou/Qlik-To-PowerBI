@@ -1,12 +1,12 @@
 """
-Format adapter: Qlik extraction → Tableau-compatible converted_objects.
+Format adapter: Qlik extraction → generation-layer converted_objects.
 
 Transforms the 11 Qlik intermediate JSON files into the dict structure
 expected by the shared ``powerbi_import/`` generation layer (TMDL + PBIP).
 
 Mapping overview
 ================
-Qlik intermediate file      →  Tableau ``converted_objects`` key
+Qlik intermediate file      →  ``converted_objects`` key
 ─────────────────────────   ────────────────────────────────────
 datasources.json             →  datasources (restructured)
 visualizations.json          →  worksheets
@@ -126,7 +126,38 @@ def adapt_qlik_for_generation(qlik_data: Dict[str, Any]) -> Dict[str, Any]:
     parameters    = _adapt_parameters(qlik_variables)
     stories       = _adapt_stories(qlik_bookmarks)
     custom_sql    = _adapt_custom_sql(qlik_loadscript)
+    # 3.1 — Inject theme colors from app_metadata into the first dashboard
+    theme_colors = qlik_app_meta.get('theme', {}).get('colors', [])
+    if not theme_colors:
+        theme_colors = qlik_app_meta.get('colors', [])
+    if theme_colors and dashboards:
+        dashboards[0].setdefault('theme', {})['colors'] = theme_colors
 
+    # 3.2 — Promote variables that contain aggregation expressions to measures
+    _AGG_PATTERN = re.compile(
+        r'\b(Sum|Avg|Count|Min|Max|Median|Stdev|Only|CountDistinct)\s*\(',
+        re.IGNORECASE,
+    )
+    promoted: list[Dict] = []
+    remaining_params: list[Dict] = []
+    for p in parameters:
+        val = p.get('value', '')
+        if val and _AGG_PATTERN.search(val):
+            promoted.append({
+                'name': p['name'],
+                'caption': p.get('caption', p['name']),
+                'formula': val,
+                'role': 'measure',
+                'datatype': 'double',
+                'original_type': 'qlik_variable_measure',
+            })
+        else:
+            remaining_params.append(p)
+    calculations.extend(promoted)
+    parameters = remaining_params
+
+    # 3.3 — Parse Section Access from load script → user_filters (RLS)
+    user_filters = _parse_section_access(qlik_loadscript)
     # Inject calculations into datasources (Tableau format nests them)
     _inject_calculations_into_datasources(datasources, calculations)
 
@@ -146,7 +177,7 @@ def adapt_qlik_for_generation(qlik_data: Dict[str, Any]) -> Dict[str, Any]:
         'sort_orders':  [],
         'aliases':      {},
         'custom_sql':   custom_sql,
-        'user_filters': [],
+        'user_filters': user_filters,
     }
 
     logger.info(
@@ -465,10 +496,14 @@ def _adapt_worksheets(qlik_visuals: List[Dict]) -> List[Dict]:
             'dimensions': dimensions,
             'measures': measures,
             'dataFields': [],
-            'filters': [],
-            'sort_orders': [],
+            'filters': _extract_visual_filters(viz),
+            'sort_orders': _extract_sort_orders(viz),
             'subtitle': viz.get('subtitle', ''),
         }
+
+        # Slicer-specific configuration from Qlik filter panes
+        if qlik_type in ('filterpane', 'listbox'):
+            worksheet['slicer_config'] = _extract_slicer_config(viz)
 
         # Carry layout info (used by dashboard objects)
         if bounds:
@@ -481,6 +516,129 @@ def _adapt_worksheets(qlik_visuals: List[Dict]) -> List[Dict]:
         worksheets.append(worksheet)
 
     return worksheets
+
+
+# ── Per-visual filters ────────────────────────────────────────────────
+
+def _extract_visual_filters(viz: Dict) -> List[Dict]:
+    """Extract visual-level dimension limits / filters from a Qlik visualization.
+
+    Qlik visuals may have:
+      - ``qHyperCubeDef.qDimensions[].qOtherLimit`` (limit values shown)
+      - ``qHyperCubeDef.qStateCounts`` (for limit enforcement)
+      - ``qFilters`` or ``filters`` nested lists
+    """
+    filters: List[Dict] = []
+
+    # Explicit filter definitions on the visual
+    for f in viz.get('filters', []):
+        field = f if isinstance(f, str) else f.get('field', f.get('name', ''))
+        values = [] if isinstance(f, str) else f.get('values', [])
+        exclude = False if isinstance(f, str) else f.get('exclude', False)
+        ftype = 'categorical' if isinstance(f, str) else f.get('type', 'categorical')
+        if field:
+            entry: Dict = {'field': field, 'type': ftype, 'exclude': exclude}
+            if values:
+                entry['values'] = values
+            if not isinstance(f, str):
+                if f.get('min') is not None:
+                    entry['min'] = f['min']
+                if f.get('max') is not None:
+                    entry['max'] = f['max']
+            filters.append(entry)
+
+    # Qlik dimension "other" limits → top-N filters
+    for dim in viz.get('dimensions', []):
+        if isinstance(dim, dict):
+            other_limit = dim.get('qOtherLimit', dim.get('otherLimit', {}))
+            if isinstance(other_limit, dict) and other_limit.get('qOtherMode', 0) != 0:
+                limit_n = other_limit.get('qOtherLimitNo', 10)
+                dim_field = dim.get('field', dim.get('name', ''))
+                if dim_field:
+                    filters.append({
+                        'field': dim_field,
+                        'type': 'topN',
+                        'topN': limit_n,
+                    })
+
+    return filters
+
+
+def _extract_sort_orders(viz: Dict) -> List[Dict]:
+    """Extract sort orders from a Qlik visualization definition.
+
+    Qlik sort criteria can appear as:
+      - ``qHyperCubeDef.qInterColumnSortOrder`` (column indices)
+      - ``qSortCriterias`` on individual dimensions
+      - ``sortOrder`` / ``sort`` explicit property
+    """
+    sort_orders: List[Dict] = []
+
+    # Direct sort specification
+    for s in viz.get('sort_orders', viz.get('sort', [])):
+        if isinstance(s, dict):
+            sort_orders.append({
+                'field': s.get('field', s.get('column', '')),
+                'direction': s.get('direction', s.get('order', 'ascending')),
+            })
+        elif isinstance(s, str):
+            sort_orders.append({'field': s, 'direction': 'ascending'})
+
+    # Fallback: infer from dimension sort criteria
+    if not sort_orders:
+        for dim in viz.get('dimensions', []):
+            if isinstance(dim, dict):
+                sort_crit = dim.get('qSortCriterias', dim.get('sortCriteria', []))
+                if sort_crit:
+                    direction = 'ascending'
+                    if isinstance(sort_crit, list) and sort_crit:
+                        first = sort_crit[0] if isinstance(sort_crit[0], dict) else {}
+                        if first.get('qSortByNumeric', 0) == -1 or first.get('qSortByLoadOrder', 0) == -1:
+                            direction = 'descending'
+                    dim_field = dim.get('field', dim.get('name', ''))
+                    if dim_field:
+                        sort_orders.append({'field': dim_field, 'direction': direction})
+
+    return sort_orders
+
+
+def _extract_slicer_config(viz: Dict) -> Dict:
+    """Extract slicer configuration from a Qlik filter pane / listbox.
+
+    Returns a dict with Power BI slicer properties:
+      - mode: 'Basic' or 'Dropdown'
+      - singleSelect: bool
+      - search_enabled: bool
+      - orientation: 'Vertical' or 'Horizontal'
+    """
+    props = viz.get('properties', viz.get('props', {}))
+    qlik_type = (viz.get('type', '') or '').lower()
+
+    # Detect dropdown vs list
+    show_mode = props.get('listLayout', props.get('showMode', ''))
+    is_dropdown = (show_mode == 'dropdown' or qlik_type == 'dropdown')
+
+    # Single select
+    single_select = props.get('singleSelect', props.get('qListObjectDef', {}).get('qSingleSelect', False))
+
+    # Search
+    search_enabled = props.get('searchEnabled', True)
+
+    # Date range detection
+    is_date_range = False
+    for dim in viz.get('dimensions', []):
+        if isinstance(dim, dict):
+            field_name = (dim.get('field', '') or '').lower()
+            if any(kw in field_name for kw in ('date', 'time', 'year', 'month')):
+                is_date_range = True
+                break
+
+    return {
+        'mode': 'Dropdown' if is_dropdown else 'Basic',
+        'singleSelect': bool(single_select),
+        'search_enabled': bool(search_enabled),
+        'is_date_range': is_date_range,
+    }
 
 
 # ── Dashboards (from Qlik sheets) ──────────────────────────────────
@@ -595,19 +753,36 @@ def _adapt_parameters(qlik_variables: List[Dict]) -> List[Dict]:
 # ── Stories (from Qlik bookmarks) ───────────────────────────────────
 
 def _adapt_stories(qlik_bookmarks: List[Dict]) -> List[Dict]:
-    """Convert Qlik bookmarks → Tableau story format."""
+    """Convert Qlik bookmarks → Tableau story format with selection state."""
     stories = []
     for bm in qlik_bookmarks:
         name = bm.get('name', bm.get('title', ''))
         if not name:
             continue
+
+        # Extract selection state from bookmark
+        selections = bm.get('selections', bm.get('qBookmark', {}).get('qStateData', []))
+        filters_state = []
+        for sel in (selections if isinstance(selections, list) else []):
+            field = sel.get('fieldName', sel.get('field', ''))
+            values = sel.get('selectedValues', sel.get('values', []))
+            if field:
+                filters_state.append({
+                    'field': field,
+                    'values': values,
+                })
+
+        story_point = {
+            'caption': name,
+            'worksheet': '',
+            'filters_state': filters_state if filters_state else None,
+            'captured_sheet': bm.get('sheetId', bm.get('sheet', '')),
+        }
+
         stories.append({
             'name': name,
             'caption': bm.get('description', name),
-            'story_points': [{
-                'caption': name,
-                'worksheet': '',
-            }],
+            'story_points': [story_point],
         })
     return stories
 
@@ -633,3 +808,116 @@ def _adapt_custom_sql(qlik_loadscript: Any) -> List[Dict]:
         'query': script_text,
         'tables': [],
     }]
+
+
+# ── Section Access → RLS user_filters ────────────────────────────────
+
+def _parse_section_access(qlik_loadscript: Any) -> List[Dict]:
+    """Parse Qlik SECTION ACCESS block into RLS user_filter dicts.
+
+    Returns a list of dicts, each with:
+      - name: role name
+      - filter_expression: DAX filter (e.g., USERPRINCIPALNAME() = "user@domain")
+      - tables: list of table names this role applies to (empty = all)
+      - type: 'user_filter' or 'calculated_security'
+      - omit_fields: list of fields hidden from this user (OMIT column)
+      - reduce_field: field name that restricts visible rows
+      - reduce_values: values for the reduce field
+    """
+    if not qlik_loadscript:
+        return []
+
+    script_text = ''
+    if isinstance(qlik_loadscript, dict):
+        script_text = qlik_loadscript.get('script', qlik_loadscript.get('content', ''))
+    elif isinstance(qlik_loadscript, str):
+        script_text = qlik_loadscript
+
+    if not script_text:
+        return []
+
+    # Find SECTION ACCESS block
+    sa_match = re.search(
+        r'SECTION\s+ACCESS\s*;(.*?)(?:SECTION\s+APPLICATION\s*;|\Z)',
+        script_text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if not sa_match:
+        return []
+
+    sa_block = sa_match.group(1)
+    roles: List[Dict] = []
+
+    # Parse LOAD ... INLINE [...] inside section access
+    inline_match = re.search(
+        r'LOAD\s+.*?INLINE\s*\[(.*?)\]',
+        sa_block,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if not inline_match:
+        return []
+
+    lines = inline_match.group(1).strip().split('\n')
+    if len(lines) < 2:
+        return []
+
+    # First line is header
+    headers = [h.strip().upper() for h in lines[0].split(',')]
+    userid_idx = None
+    ntname_idx = None
+    omit_idx = None
+    reduce_idx = None
+    for i, h in enumerate(headers):
+        if h in ('USERID', 'USER'):
+            userid_idx = i
+        elif h in ('NTNAME',):
+            ntname_idx = i
+        elif h == 'OMIT':
+            omit_idx = i
+        elif h == 'REDUCTION':
+            reduce_idx = i
+
+    user_col_idx = userid_idx if userid_idx is not None else ntname_idx
+    if user_col_idx is None:
+        return []
+
+    for line in lines[1:]:
+        parts = [p.strip() for p in line.split(',')]
+        if len(parts) <= user_col_idx:
+            continue
+        user_val = parts[user_col_idx].strip().strip('"').strip("'")
+        if not user_val:
+            continue
+
+        # Wildcard * means "all users" → TRUE() filter
+        if user_val == '*':
+            filter_expr = 'TRUE()'
+            role_name = 'RLS_AllUsers'
+        else:
+            filter_expr = f'USERPRINCIPALNAME() = "{user_val}"'
+            role_name = f'RLS_{user_val.split("@")[0]}'
+
+        role = {
+            'name': role_name,
+            'filter_expression': filter_expr,
+            'tables': [],
+            'type': 'user_filter',
+        }
+
+        # Parse OMIT field — columns to hide from this user
+        if omit_idx is not None and len(parts) > omit_idx:
+            omit_val = parts[omit_idx].strip().strip('"').strip("'")
+            if omit_val:
+                role['omit_fields'] = [f.strip() for f in omit_val.split(';') if f.strip()]
+
+        # Parse REDUCTION field — rows to restrict
+        if reduce_idx is not None and len(parts) > reduce_idx:
+            reduce_val = parts[reduce_idx].strip().strip('"').strip("'")
+            if reduce_val:
+                role['reduce_values'] = [v.strip() for v in reduce_val.split(';') if v.strip()]
+
+        roles.append(role)
+
+    if roles:
+        logger.info("Parsed %d RLS roles from Section Access", len(roles))
+    return roles

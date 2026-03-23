@@ -230,6 +230,11 @@ class MigrationConfig:
     # Backward-compatible alias (deprecated)
     @property
     def tableau_file(self):
+        import warnings
+        warnings.warn(
+            "MigrationConfig.tableau_file is deprecated; use .source_file.",
+            DeprecationWarning, stacklevel=2,
+        )
         return self._config['source']['source_file']
 
     @property

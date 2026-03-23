@@ -14,7 +14,7 @@ import os
 import sys
 import warnings
 
-__version__ = "5.0.0"
+__version__ = "7.0.0"
 
 # Ensure project root is on sys.path so canonical packages are importable
 _project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

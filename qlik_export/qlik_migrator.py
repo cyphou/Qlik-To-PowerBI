@@ -92,8 +92,7 @@ class QlikToPowerBIConverter:
 
     @staticmethod
     def convert_qlik_expression_to_dax(qlik_expr: str) -> str:
-        """
-        Convert Qlik expression to DAX.
+        """Convert Qlik expression to DAX using the canonical converter.
 
         Args:
             qlik_expr: Qlik expression (e.g., "Sum(Sales)")
@@ -101,29 +100,8 @@ class QlikToPowerBIConverter:
         Returns:
             DAX expression
         """
-        # Simple conversion - enhance this based on your needs
-        dax = qlik_expr
-
-        # Replace Qlik functions with DAX equivalents
-        replacements = {
-            'Sum(': 'SUM(',
-            'Avg(': 'AVERAGE(',
-            'Count(': 'COUNT(',
-            'Min(': 'MIN(',
-            'Max(': 'MAX(',
-            'Only(': 'FIRSTNONBLANK(',
-            'If(': 'IF(',
-            'Date(': 'DATE(',
-            'Year(': 'YEAR(',
-            'Month(': 'MONTH(',
-            'Day(': 'DAY(',
-        }
-
-        for qlik_func, dax_func in replacements.items():
-            dax = dax.replace(qlik_func, dax_func)
-
-        logger.debug(f'Converted Qlik expression: {qlik_expr} -> {dax}')
-        return dax
+        from qlik_export.dax_converter import convert_qlik_expression_to_dax as _convert
+        return _convert(qlik_expr)
 
     @staticmethod
     def convert_dimension(qlik_dim: QlikDimension) -> Dict[str, Any]:

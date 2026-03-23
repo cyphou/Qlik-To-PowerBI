@@ -1,5 +1,18 @@
 """
+DEPRECATED — import from ``powerbi_import`` instead.
+
 Générateur de projets Power BI (PBI Project / TMDL) – format 4.0
+
+This module is kept for backward compatibility. The ``TMDLGenerator`` class
+and ``create_pbi_project_from_migration`` convenience function remain here
+until they are fully ported to ``powerbi_import/``.
+
+Portable helpers have already been moved:
+- ``generate_deployment_config``  → ``powerbi_import.deploy.pipeline_helpers``
+- ``generate_sensitivity_label``  → ``powerbi_import.deploy.pipeline_helpers``
+- ``generate_refresh_schedule``   → ``powerbi_import.deploy.pipeline_helpers``
+- ``generate_incremental_refresh_policy`` → ``powerbi_import.deploy.pipeline_helpers``
+- ``generate_theme_json``         → ``powerbi_import.tmdl_generator``
 
 Produit une structure de dossiers .pbip entièrement compatible avec
 Power BI Desktop (Developer Mode), Fabric Git Integration et CI/CD.
@@ -39,6 +52,7 @@ import logging
 import re
 import uuid
 import hashlib
+import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
@@ -258,6 +272,12 @@ class TMDLGenerator:
 
     def __init__(self):
         """Initialiser le générateur TMDL."""
+        warnings.warn(
+            "TMDLGenerator is deprecated. Use powerbi_import.tmdl_generator "
+            "and powerbi_import.pbip_generator instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.report_logical_id = _new_guid()
         self.semantic_model_logical_id = _new_guid()
 
@@ -1448,16 +1468,8 @@ class TMDLGenerator:
         archive_days: int = 365,
     ) -> Dict[str, Any]:
         """Generate incremental refresh policy metadata for a table."""
-        return {
-            "refreshPolicy": {
-                "policyType": "basic",
-                "rollingWindowGranularity": "day",
-                "rollingWindowPeriods": archive_days,
-                "incrementalGranularity": "day",
-                "incrementalPeriods": incremental_days,
-                "pollingExpression": f"let MaxDate = List.Max(Source[{date_column}]) in MaxDate",
-            },
-        }
+        from powerbi_import.deploy.pipeline_helpers import generate_incremental_refresh_policy as _impl
+        return _impl(table_name, date_column, incremental_days, archive_days)
 
     # ==================================================================
     # Sensitivity label helper
@@ -1468,12 +1480,8 @@ class TMDLGenerator:
         label_name: str = "General",
     ) -> Dict[str, Any]:
         """Generate sensitivity label metadata for the .pbip project."""
-        return {
-            "sensitivityLabel": {
-                "labelId": label_id or _new_guid(),
-                "displayName": label_name,
-            },
-        }
+        from powerbi_import.deploy.pipeline_helpers import generate_sensitivity_label as _impl
+        return _impl(label_id, label_name)
 
     # ==================================================================
     # Deployment pipeline config generator
@@ -1485,19 +1493,8 @@ class TMDLGenerator:
         workspace_prod: str = "",
     ) -> Dict[str, Any]:
         """Generate deployment pipeline configuration."""
-        return {
-            "deploymentPipeline": {
-                "stages": [
-                    {"name": "Development", "workspaceId": workspace_dev or _new_guid()},
-                    {"name": "Test", "workspaceId": workspace_test or _new_guid()},
-                    {"name": "Production", "workspaceId": workspace_prod or _new_guid()},
-                ],
-                "rules": {
-                    "parameterRules": [],
-                    "datasourceRules": [],
-                },
-            },
-        }
+        from powerbi_import.deploy.pipeline_helpers import generate_deployment_config as _impl
+        return _impl(workspace_dev, workspace_test, workspace_prod)
 
     # ==================================================================
     # Scheduled refresh config
@@ -1509,15 +1506,8 @@ class TMDLGenerator:
         timezone: str = "UTC",
     ) -> Dict[str, Any]:
         """Generate scheduled refresh configuration."""
-        return {
-            "refreshSchedule": {
-                "frequency": frequency,
-                "times": times or ["07:00", "19:00"],
-                "timeZone": timezone,
-                "enabled": True,
-                "notifyOption": "MailOnFailure",
-            },
-        }
+        from powerbi_import.deploy.pipeline_helpers import generate_refresh_schedule as _impl
+        return _impl(frequency, times, timezone)
 
 
 # ==================================================================
@@ -1552,6 +1542,9 @@ def create_pbi_project_from_migration(
     """
     Créer un projet PBI (.pbip / TMDL) à partir des fichiers de migration.
 
+    .. deprecated::
+        Use ``powerbi_import.import_to_powerbi.import_all()`` instead.
+
     Args:
         migration_output_dir: Dossier contenant les fichiers de migration
         project_output_dir: Dossier où créer le projet PBI
@@ -1560,6 +1553,12 @@ def create_pbi_project_from_migration(
     Returns:
         Chemin du fichier .pbip créé
     """
+    warnings.warn(
+        "create_pbi_project_from_migration is deprecated. "
+        "Use powerbi_import.import_to_powerbi.import_all() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     logger.info(f"Création du projet PBI depuis: {migration_output_dir}")
 
     # Charger le modèle BIM si disponible

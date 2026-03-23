@@ -381,7 +381,7 @@ class TestDAXComplexExpressions:
 
     def test_previous_value(self):
         dax = convert_qlik_expression_to_dax("Previous(Amount)")
-        assert "EARLIER" in dax
+        assert "OFFSET(-1" in dax
 
     def test_fieldvaluecount(self):
         dax = convert_qlik_expression_to_dax("FieldValueCount(Region)")

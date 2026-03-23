@@ -21,6 +21,7 @@ import glob
 import json
 import logging
 import argparse
+import time
 from datetime import datetime
 from enum import IntEnum
 
@@ -151,6 +152,7 @@ def run_extraction(qlik_file):
     """
     global _stats
     print_step(1, 2, "QLIK OBJECTS EXTRACTION")
+    t0 = time.monotonic()
 
     if not os.path.exists(qlik_file):
         logger.error(f"Qlik file not found: {qlik_file}")
@@ -194,7 +196,7 @@ def run_extraction(qlik_file):
         print(f"  Master Items:   {_stats.master_items}")
         print(f"  Load Script:    {'Yes' if _stats.has_loadscript else 'No'}")
 
-        print(f"\n✓ Extraction completed — intermediate JSON in {json_dir}")
+        print(f"\n✓ Extraction completed in {time.monotonic() - t0:.1f}s — intermediate JSON in {json_dir}")
         return True
 
     except Exception as e:
@@ -211,7 +213,7 @@ def run_generation(report_name=None, output_dir=None, calendar_start=None,
     """Generate Power BI project (.pbip) from extracted Qlik data.
 
     Loads the intermediate JSON from ``qlik_export/``, transforms to
-    Tableau-compatible format via the adapter, then generates .pbip.
+    generation-layer format via the adapter, then generates .pbip.
 
     Args:
         report_name: Override report name (defaults to app name or 'Report')
@@ -223,6 +225,7 @@ def run_generation(report_name=None, output_dir=None, calendar_start=None,
     """
     global _stats
     print_step(2, 2, "POWER BI PROJECT GENERATION")
+    t0 = time.monotonic()
 
     try:
         from powerbi_import.import_to_powerbi import PowerBIImporter
@@ -236,6 +239,9 @@ def run_generation(report_name=None, output_dir=None, calendar_start=None,
         # Collect generation stats from the output
         base_dir = output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
         project_dir = os.path.join(base_dir, report_name or 'Report')
+        if not os.path.exists(project_dir):
+            print(f"\n✗ No project generated (no datasources or data model)")
+            return False
         if os.path.exists(project_dir):
             _stats.pbip_path = project_dir
             # Count TMDL tables, pages, visuals
@@ -264,7 +270,16 @@ def run_generation(report_name=None, output_dir=None, calendar_start=None,
                 except Exception:
                     pass
 
-        print("\n✓ Power BI project generated successfully")
+        pages = _stats.pages_generated
+        visuals = _stats.visuals_generated
+        elapsed = time.monotonic() - t0
+        summary_parts = []
+        if pages:
+            summary_parts.append(f"{pages} pages")
+        if visuals:
+            summary_parts.append(f"{visuals} visuals")
+        detail = f" ({', '.join(summary_parts)})" if summary_parts else ""
+        print(f"\n✓ Power BI project generated in {elapsed:.1f}s{detail}")
         return True
 
     except Exception as e:
@@ -1143,14 +1158,15 @@ def main():
         for s in _stats.skipped[:5]:
             print(f"    → {s}")
 
-    print(f"\n  Duration: {duration}")
+    print(f"\n  Duration: {duration.total_seconds():.1f}s")
 
     all_success = all(v for v in results.values() if v is not None)
 
     if all_success:
-        print("\n✓ Migration completed successfully!")
         if _stats.pbip_path:
-            print(f"\n  Output: {_stats.pbip_path}")
+            print(f"\n✓ Migration complete in {duration.total_seconds():.1f}s → {_stats.pbip_path}")
+        else:
+            print(f"\n✓ Migration complete in {duration.total_seconds():.1f}s")
         print("\n  Next steps:")
         print("    1. Open the .pbip file in Power BI Desktop (Developer Mode)")
         print("    2. Configure data sources in Power Query Editor")

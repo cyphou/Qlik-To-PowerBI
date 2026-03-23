@@ -290,23 +290,29 @@ All files are plain text → **fully Git-trackable and CI/CD-friendly**.
 
 ```
 ├── migrate.py                          # Root CLI entry point
-├── src/fabric_api/                     # Core library
-│   ├── tmdl_generator.py              # PBI Project / TMDL output
+├── qlik_export/                        # Qlik-specific extraction (canonical)
 │   ├── dax_converter.py               # 175+ Qlik expression → DAX conversions
-│   ├── visual_generator.py            # 60+ visual types, 30+ config templates
-│   ├── m_query_generator.py           # 25 connector types → Power Query M
-│   ├── m_query_builder.py             # 40+ chainable M transforms + inject_m_steps
 │   ├── extraction_orchestrator.py     # QVF/JSON → 11 intermediate JSON files
+│   ├── format_adapter.py             # Qlik 11-key → generation-layer bridge
+│   ├── datasource_extractor.py       # API bridge (type/formula/M adapters)
+│   ├── m_query_generator.py          # 25 connector types → Power Query M
+│   ├── m_query_builder.py            # 40+ chainable M transforms + inject_m_steps
 │   ├── qlik_migrator.py              # QlikApp → Power BI converter
 │   ├── qlik_model_converter.py
 │   ├── qlik_script_converter.py      # Qlik script → Power Query M (30 functions)
-│   ├── qvf_extractor.py             # .qvf ZIP reader
-│   ├── config/                       # Settings (pydantic-settings)
-│   ├── auth.py                       # Azure auth (lazy-loaded)
-│   ├── client.py                     # Fabric REST client
-│   ├── deployer.py                   # Fabric deployment
+│   └── qvf_extractor.py              # .qvf ZIP reader
+├── powerbi_import/                     # Power BI generation layer (canonical)
+│   ├── tmdl_generator.py             # TMDL semantic model output
+│   ├── pbip_generator.py             # Full .pbip project output
+│   ├── visual_generator.py           # 60+ visual types, 30+ config templates
+│   ├── import_to_powerbi.py          # Import orchestrator
 │   ├── validator.py                  # Artifact validation
-│   └── utils.py                      # Reports & caching
+│   ├── config/                       # Migration config (pydantic-settings)
+│   └── deploy/                       # Azure deployment (auth, client, deployer)
+├── src/fabric_api/                     # Deprecated — backward-compat shims
+│   ├── tmdl_generator.py             # Unique TMDLGenerator class (not yet migrated)
+│   ├── visual_generator.py           # Unique visual generator (legacy API)
+│   └── *.py                          # Re-export shims → qlik_export/powerbi_import
 ├── tools/migration/                   # 28 standalone migration scripts
 ├── tools/analysis/                    # Diagnostic tools
 ├── tools/testing/                     # Integration test suites
@@ -370,7 +376,7 @@ add index), Calculated columns (custom + conditional).
 |---|---|---|
 | Applications (.qvf) | Scripts ETL → Power Query M | `migrate_qvf.py` |
 | Data models | Tables / relationships / hierarchies → TMDL | `migrate_qvf.py` |
-| Visualizations (9 types) | PBI visuals (report.json) | `migrate_qvf.py` |
+| Visualizations (60+ types) | PBI visuals (report.json) | `migrate_qvf.py` |
 | Load scripts | 60+ functions → Power Query M | `migrate_qlik_scripts.py` |
 | Variables | What-If parameters | `migrate_qlik_variables.py` |
 | Section Access | Row Level Security (RLS) | `migrate_section_access.py` |
@@ -434,42 +440,41 @@ pytest --cov=fabric_api tests/
 ## Programmatic Usage
 
 ```python
-# Full pipeline (recommended)
-from fabric_api import ExtractionOrchestrator, TMDLGenerator
+# Full pipeline (recommended) — use canonical packages
+from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+from qlik_export.format_adapter import adapt_qlik_for_generation
+from powerbi_import.pbip_generator import PowerBIProjectGenerator
 
 # Step 1: Extract
 orch = ExtractionOrchestrator()
 json_dir = orch.extract_and_write("MonApp.qvf", "output/intermediate")
 
-# Step 2: Generate
+# Step 2: Adapt & Generate
 data = ExtractionOrchestrator.load_intermediate_json(json_dir)
-gen = TMDLGenerator()
-gen.create_pbi_project(
-    output_dir="output/my_project",
-    report_name="Sales Dashboard",
-    bim_model=data.get("datasources"),
-    visualizations=data.get("visualizations"),
-    dimensions=data.get("dimensions"),
-    measures=data.get("measures"),
-)
+converted = adapt_qlik_for_generation(data)
+gen = PowerBIProjectGenerator(output_dir="output")
+gen.generate_project("Sales_Dashboard", converted)
 ```
 
 ```python
 # DAX conversion
-from fabric_api import convert_qlik_expression_to_dax
+from qlik_export.dax_converter import convert_qlik_expression_to_dax
 dax = convert_qlik_expression_to_dax("Sum({<Year={2024}>} Sales)")
 # → "CALCULATE(SUM('Table'[Sales]), 'Table'[Year] = 2024)"
 ```
 
 ```python
 # Power Query M generation
-from fabric_api import generate_m_query
+from qlik_export.m_query_generator import generate_m_query
 m_query = generate_m_query({
     "connectionType": "postgresql",
     "connection": {"server": "db.example.com", "database": "sales"},
     "tableName": "orders",
 })
 ```
+
+> **Legacy imports** like `from fabric_api import ...` still work via
+> backward-compatibility shims but emit a `DeprecationWarning`.
 
 ---
 

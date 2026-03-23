@@ -123,7 +123,9 @@ class TestSetAnalysis:
 class TestAggrAltClass:
     def test_aggr_conversion(self):
         result = _convert_aggr("Aggr(Sum(Sales), Customer)")
-        assert "SUMMARIZE" in result
+        # Single dim with Sum → SUMX iterator
+        assert "SUMX" in result
+        assert "VALUES" in result
 
     def test_no_aggr_passthrough(self):
         assert _convert_aggr("Sum(Sales)") == "Sum(Sales)"
