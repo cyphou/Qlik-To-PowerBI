@@ -838,6 +838,21 @@ def main():
         help='Run post-generation TMDL/schema validation on the output .pbip project'
     )
 
+    parser.add_argument(
+        '--json',
+        action='store_true',
+        default=False,
+        help='Output machine-parseable JSON result to stdout (suppresses human-readable output)'
+    )
+
+    parser.add_argument(
+        '--plugins',
+        metavar='SPEC',
+        nargs='*',
+        default=None,
+        help='Plugin module paths to load (e.g., my_module.MyPlugin)'
+    )
+
     args = parser.parse_args()
 
     # Load configuration file if specified (CLI args take precedence)
@@ -878,8 +893,20 @@ def main():
         args = wizard_to_args(config)
 
     # Setup structured logging
+    json_mode = getattr(args, 'json', False)
     setup_logging(verbose=args.verbose, log_file=args.log_file,
-                  quiet=getattr(args, 'quiet', False))
+                  quiet=getattr(args, 'quiet', False) or json_mode)
+
+    # ── Plugin system initialization ──────────────────────────
+    from powerbi_import.plugins import get_plugin_manager, reset_plugin_manager
+    plugin_manager = reset_plugin_manager()
+    plugin_specs = getattr(args, 'plugins', None)
+    if plugin_specs:
+        plugin_manager.load_from_config(plugin_specs)
+        if not json_mode:
+            count = len(plugin_manager.plugins)
+            if count:
+                print(f"  Plugins loaded: {count}")
 
     # ── Batch-config migration mode ───────────────────────────
     if args.batch_config:
@@ -900,30 +927,36 @@ def main():
     if not args.qlik_file:
         parser.error('qlik_file is required (or use --batch DIR)')
 
-    print_header("QLIK TO POWER BI MIGRATION")
-    print(f"Source file: {args.qlik_file}")
-    if args.output_dir:
-        print(f"Output dir:  {args.output_dir}")
-    if args.dry_run:
-        print(f"Mode:        DRY RUN (no files will be written)")
-    if args.calendar_start or args.calendar_end:
-        cal_start = args.calendar_start or 2020
-        cal_end = args.calendar_end or 2030
-        print(f"Calendar:    {cal_start}-{cal_end}")
-    if args.culture:
-        print(f"Culture:     {args.culture}")
-    if args.mode and args.mode != 'import':
-        print(f"Mode:        {args.mode}")
-    if args.output_format and args.output_format != 'pbip':
-        print(f"Format:      {args.output_format}")
-    if args.rollback:
-        print(f"Rollback:    enabled")
-    if getattr(args, 'telemetry', False):
-        print(f"Telemetry:   enabled")
-    print()
+    if not json_mode:
+        print_header("QLIK TO POWER BI MIGRATION")
+        print(f"Source file: {args.qlik_file}")
+        if args.output_dir:
+            print(f"Output dir:  {args.output_dir}")
+        if args.dry_run:
+            print(f"Mode:        DRY RUN (no files will be written)")
+        if args.calendar_start or args.calendar_end:
+            cal_start = args.calendar_start or 2020
+            cal_end = args.calendar_end or 2030
+            print(f"Calendar:    {cal_start}-{cal_end}")
+        if args.culture:
+            print(f"Culture:     {args.culture}")
+        if args.mode and args.mode != 'import':
+            print(f"Mode:        {args.mode}")
+        if args.output_format and args.output_format != 'pbip':
+            print(f"Format:      {args.output_format}")
+        if args.rollback:
+            print(f"Rollback:    enabled")
+        if getattr(args, 'telemetry', False):
+            print(f"Telemetry:   enabled")
+        print()
 
     start_time = datetime.now()
     results = {}
+
+    # Initialize progress tracker
+    from powerbi_import.progress import MigrationProgress, NullProgress
+    step_count = 2 + (1 if getattr(args, 'validate', False) else 0)
+    progress = MigrationProgress(total_steps=step_count, show_bar=not json_mode) if not json_mode else NullProgress()
 
     # Initialize telemetry (opt-in)
     telemetry = None
@@ -935,15 +968,27 @@ def main():
         except Exception:
             pass
 
+    # Plugin hook: pre_extraction
+    plugin_manager.call_hook('pre_extraction', source_file=args.qlik_file)
+
     # Step 1: Extraction
     if not args.skip_extraction:
+        progress.start("Extracting Qlik objects")
         results['extraction'] = run_extraction(args.qlik_file)
         if not results['extraction']:
-            print("\nMigration aborted due to extraction failure")
+            progress.fail("Extraction failed")
+            if not json_mode:
+                print("\nMigration aborted due to extraction failure")
             return ExitCode.EXTRACTION_FAILED
+        progress.complete(f"{_stats.datasources} datasources, {_stats.visualizations} visuals")
     else:
-        print("\nExtraction skipped (using existing intermediate JSON)")
+        progress.skip("Extraction", "Using existing intermediate JSON")
+        if not json_mode:
+            print("\nExtraction skipped (using existing intermediate JSON)")
         results['extraction'] = True
+
+    # Plugin hook: post_extraction
+    plugin_manager.call_hook('post_extraction', extracted_data={})
 
     # Step 1b: Assessment (optional)
     if args.assess and results.get('extraction'):
@@ -996,12 +1041,17 @@ def main():
             print(f"  Rollback backup: {backup_dir}")
 
     if args.dry_run:
-        print("\n[DRY RUN] Skipping generation — would produce:")
-        print(f"  Report:  {source_basename}")
-        out_dir = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
-        print(f"  Output:  {os.path.join(out_dir, source_basename)}")
+        if not json_mode:
+            print("\n[DRY RUN] Skipping generation — would produce:")
+            print(f"  Report:  {source_basename}")
+            out_dir = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            print(f"  Output:  {os.path.join(out_dir, source_basename)}")
         results['generation'] = True
     else:
+        # Plugin hook: pre_generation
+        plugin_manager.call_hook('pre_generation', converted_objects={})
+
+        progress.start("Generating Power BI project")
         results['generation'] = run_generation(
             report_name=source_basename,
             output_dir=args.output_dir,
@@ -1012,6 +1062,12 @@ def main():
             output_format=args.output_format,
             paginated=getattr(args, 'paginated', False),
         )
+        if results['generation']:
+            progress.complete(f"{_stats.pages_generated} pages, {_stats.visuals_generated} visuals")
+            # Plugin hook: post_generation
+            plugin_manager.call_hook('post_generation', project_dir=_stats.pbip_path)
+        else:
+            progress.fail("Generation failed")
 
     # Step 3: Incremental merge (optional)
     if getattr(args, 'incremental', None) and results.get('generation'):
@@ -1086,13 +1142,52 @@ def main():
                 migration_report_path=None,
                 metadata_path=None,
             )
-            if html_dashboard_path:
+            if html_dashboard_path and not json_mode:
                 print(f"  Dashboard: {html_dashboard_path}")
         except Exception as exc:
             logger.warning("HTML dashboard generation failed: %s", exc)
 
     # ── Final summary ────────────────────────────────────────
     duration = datetime.now() - start_time
+    all_success = all(v for v in results.values() if v is not None)
+
+    # ── JSON output mode ──────────────────────────────────────
+    if json_mode:
+        json_result = {
+            "status": "success" if all_success else "error",
+            "input": args.qlik_file,
+            "output_dir": _stats.pbip_path or "",
+            "tables": _stats.tmdl_tables,
+            "measures": _stats.tmdl_measures,
+            "visuals": _stats.visuals_generated,
+            "pages": _stats.pages_generated,
+            "warnings": _stats.warnings,
+            "duration_seconds": round(duration.total_seconds(), 2),
+        }
+        if report_summary:
+            json_result["fidelity_score"] = report_summary.get('fidelity_score', 0)
+            json_result["exact"] = report_summary.get('exact', 0)
+            json_result["approximate"] = report_summary.get('approximate', 0)
+            json_result["unsupported"] = report_summary.get('unsupported', 0)
+        print(json.dumps(json_result, indent=2, ensure_ascii=False))
+
+        # Finalize telemetry
+        if telemetry:
+            try:
+                telemetry.record_stats(
+                    success=all_success,
+                    extraction=bool(results.get('extraction')),
+                    generation=bool(results.get('generation')),
+                )
+                telemetry.finish()
+                telemetry.save()
+                telemetry.send()
+            except Exception:
+                pass
+
+        return ExitCode.SUCCESS if all_success else ExitCode.GENERAL_ERROR
+
+    # ── Human-readable summary ────────────────────────────────
     print_header("MIGRATION SUMMARY")
 
     # Step results
