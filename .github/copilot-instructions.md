@@ -23,6 +23,10 @@ python migrate.py app.qvf                  # Full pipeline
 python migrate.py export.json              # From JSON export
 python migrate.py app.qvf --output-dir out # Custom output
 python migrate.py app.qvf --skip-extraction # Reuse existing JSON
+python migrate.py app.qvf --json           # Machine-readable JSON output
+python migrate.py app.qvf --plugins m.Cls  # Load custom plugins
+python migrate.py app.qvf --dry-run        # Preview without executing
+python migrate.py app.qvf --verbose        # Detailed logging
 ```
 
 ## Project Structure
@@ -45,6 +49,8 @@ python migrate.py app.qvf --skip-extraction # Reuse existing JSON
 │   ├── pbip_generator.py             # Full .pbip project output
 │   ├── visual_generator.py           # 60+ visual types, 30+ config templates
 │   ├── import_to_powerbi.py          # Import orchestrator
+│   ├── plugins.py                    # Plugin architecture (7 hooks)
+│   ├── progress.py                   # Step-level progress tracking
 │   ├── validator.py                  # Artifact validation
 │   ├── config/                       # Migration config (pydantic-settings)
 │   └── deploy/                       # Azure deployment (auth, client, deployer)
@@ -161,12 +167,22 @@ SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB
 
 ## Current Stats (v8.0.0)
 
-- **1610 tests** across 30 test files
+- **1626 tests** across 41 test files
 - **164 entries** in `_SIMPLE_FUNCTION_MAP`
 - **5/6 sample migrations** pass at 100% fidelity
 - **Plugin system** with 7 hook points (`--plugins` CLI flag)
 - **JSON output** for CI/CD (`--json` CLI flag)
 - **Progress callbacks** for pipeline visibility
+
+## v8 Visual & Reporting Features
+
+- Navigation actions from Qlik buttons/sheets → Power BI button actions
+- Viz-in-tooltip extraction and preservation
+- Alternate states (`qStateName`) extraction from Qlik objects
+- Icon set conditional formatting (4 presets: arrows, flags, stars, circles)
+- Background images on report pages from Qlik sheet backgrounds
+- Bookmarks with filter state wired into report.json
+- 4 English documentation guides + API reference
 
 ## Development Rules
 

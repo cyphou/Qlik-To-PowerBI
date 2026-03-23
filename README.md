@@ -8,7 +8,7 @@ into **PBI Projects** (`.pbip` / TMDL) — the modern, Git-friendly Power BI for
 ![DAX](https://img.shields.io/badge/DAX-175%2B%20functions-orange)
 ![Visuals](https://img.shields.io/badge/visuals-60%2B%20types-purple)
 ![Connectors](https://img.shields.io/badge/connectors-25%20types-blue)
-![Tests](https://img.shields.io/badge/tests-1610%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1626%20passing-brightgreen)
 ![Version](https://img.shields.io/badge/version-8.0.0-blue)
 
 ---
@@ -439,7 +439,7 @@ pip install -r requirements.txt
 ## Testing
 
 ```bash
-# All tests (1610 tests)
+# All tests (1626 tests)
 pytest tests/ -q --tb=short
 
 # Specific module
@@ -505,7 +505,6 @@ m_query = generate_m_query({
 | [GUIDE_POWER_BI_IMPORT.md](docs/guides/GUIDE_POWER_BI_IMPORT.md) | Detailed PBI Desktop import |
 | [QLIK_OBJECTS_COVERAGE.md](docs/technical/QLIK_OBJECTS_COVERAGE.md) | 72 Qlik objects — 100 % coverage |
 | [PLAN_DE_TEST.md](docs/technical/PLAN_DE_TEST.md) | Test strategy |
-
 | [DEV_PLAN_v8.md](docs/DEV_PLAN_v8.md) | v8 roadmap — polish, extensibility, production readiness |
 | [MAPPING_REFERENCE.md](docs/MAPPING_REFERENCE.md) | Visual, data type, connector mappings |
 | [QLIK_TO_DAX_REFERENCE.md](docs/QLIK_TO_DAX_REFERENCE.md) | Complete Qlik→DAX function reference |

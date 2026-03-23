@@ -122,7 +122,7 @@ class TestPhase5Documentation:
 
     def test_readme_updated_test_count(self, project_root_dir):
         content = (project_root_dir / "README.md").read_text("utf-8")
-        assert "1610" in content, "README should have updated test count (1610)"
+        assert "1626" in content, "README should have updated test count (1626)"
 
     def test_readme_updated_version(self, project_root_dir):
         content = (project_root_dir / "README.md").read_text("utf-8")
@@ -132,7 +132,7 @@ class TestPhase5Documentation:
         f = project_root_dir / ".github" / "copilot-instructions.md"
         assert f.exists()
         content = f.read_text("utf-8")
-        assert "1610" in content, "copilot-instructions should have updated test count"
+        assert "1626" in content, "copilot-instructions should have updated test count"
         assert "8.0.0" in content
 
     def test_faq_has_v8_entries(self, project_root_dir):
