@@ -79,3 +79,63 @@ class TestModuleDocumentation:
 
     def test_migration_tools_readme_exists(self, project_root_dir):
         assert (project_root_dir / "tools" / "migration" / "README.md").exists()
+
+
+class TestPhase5Documentation:
+    """Phase 5 — English docs, API reference, updated stats."""
+
+    def test_quick_start_english(self, project_root_dir):
+        f = project_root_dir / "docs" / "guides" / "QUICK_START.md"
+        assert f.exists(), "English QUICK_START.md should exist"
+        content = f.read_text("utf-8")
+        assert "migrate.py" in content
+        assert ".pbip" in content
+
+    def test_migration_guide_english(self, project_root_dir):
+        f = project_root_dir / "docs" / "guides" / "MIGRATION_GUIDE.md"
+        assert f.exists(), "English MIGRATION_GUIDE.md should exist"
+        content = f.read_text("utf-8")
+        assert "DAX" in content
+        assert "TMDL" in content
+        assert "--json" in content
+
+    def test_deployment_guide(self, project_root_dir):
+        f = project_root_dir / "docs" / "guides" / "DEPLOYMENT_GUIDE.md"
+        assert f.exists(), "DEPLOYMENT_GUIDE.md should exist"
+        content = f.read_text("utf-8")
+        assert "Fabric" in content or "Azure" in content
+
+    def test_plugin_development_guide(self, project_root_dir):
+        f = project_root_dir / "docs" / "guides" / "PLUGIN_DEVELOPMENT.md"
+        assert f.exists(), "PLUGIN_DEVELOPMENT.md should exist"
+        content = f.read_text("utf-8")
+        assert "PluginBase" in content or "plugin" in content.lower()
+        assert "transform_dax" in content
+
+    def test_api_reference(self, project_root_dir):
+        f = project_root_dir / "docs" / "API_REFERENCE.md"
+        assert f.exists(), "API_REFERENCE.md should exist"
+        content = f.read_text("utf-8")
+        assert "convert_qlik_expression_to_dax" in content
+        assert "PowerBIProjectGenerator" in content
+        assert "PluginManager" in content
+
+    def test_readme_updated_test_count(self, project_root_dir):
+        content = (project_root_dir / "README.md").read_text("utf-8")
+        assert "1610" in content, "README should have updated test count (1610)"
+
+    def test_readme_updated_version(self, project_root_dir):
+        content = (project_root_dir / "README.md").read_text("utf-8")
+        assert "8.0.0" in content, "README should reference v8.0.0"
+
+    def test_copilot_instructions_updated(self, project_root_dir):
+        f = project_root_dir / ".github" / "copilot-instructions.md"
+        assert f.exists()
+        content = f.read_text("utf-8")
+        assert "1610" in content, "copilot-instructions should have updated test count"
+        assert "8.0.0" in content
+
+    def test_faq_has_v8_entries(self, project_root_dir):
+        content = (project_root_dir / "docs" / "FAQ.md").read_text("utf-8")
+        assert "--json" in content, "FAQ should document --json"
+        assert "plugin" in content.lower(), "FAQ should document plugins"

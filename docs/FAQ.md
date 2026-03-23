@@ -145,3 +145,19 @@ Column names like "Country", "City", "PostalCode" get automatic
 - Verify that visual data bindings reference existing model columns
 - Check that table/column names match between TMDL and visual.json
 - Ensure measures are defined in the correct table
+
+---
+
+## Plugins & CI/CD (v8)
+
+### Q: How do I use the `--json` flag?
+Run `python migrate.py app.qvf --json` to get machine-readable JSON output. The JSON includes status, table/measure/visual counts, warnings, and duration. This is ideal for CI/CD pipelines.
+
+### Q: How do I create a custom plugin?
+Create a Python class with a `name` attribute and implement any of the 7 hook methods (`pre_extraction`, `post_extraction`, `pre_generation`, `post_generation`, `transform_dax`, `transform_m_query`, `custom_visual_mapping`). Load it via `--plugins module.ClassName`. See `docs/guides/PLUGIN_DEVELOPMENT.md` for details.
+
+### Q: Can plugins modify DAX expressions after conversion?
+Yes — implement `transform_dax(self, formula)` and return the modified formula. Multiple plugins are chained in registration order.
+
+### Q: What happens if a plugin raises an error?
+The error is logged and the pipeline continues. Plugins never crash the migration.

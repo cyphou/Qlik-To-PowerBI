@@ -159,12 +159,14 @@ SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB
 - P()/E() set analysis → ALL/EXCEPT
 - Dollar-sign expression expansion `$(=expr)` with Qlik→DAX conversion
 
-## Current Stats (v7.0.0)
+## Current Stats (v8.0.0)
 
-- **949 tests** across 27 test files
+- **1610 tests** across 30 test files
 - **164 entries** in `_SIMPLE_FUNCTION_MAP`
 - **5/6 sample migrations** pass at 100% fidelity
-- **v8 roadmap**: see `docs/DEV_PLAN_v8.md`
+- **Plugin system** with 7 hook points (`--plugins` CLI flag)
+- **JSON output** for CI/CD (`--json` CLI flag)
+- **Progress callbacks** for pipeline visibility
 
 ## Development Rules
 

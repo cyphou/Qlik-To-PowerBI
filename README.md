@@ -8,8 +8,8 @@ into **PBI Projects** (`.pbip` / TMDL) — the modern, Git-friendly Power BI for
 ![DAX](https://img.shields.io/badge/DAX-175%2B%20functions-orange)
 ![Visuals](https://img.shields.io/badge/visuals-60%2B%20types-purple)
 ![Connectors](https://img.shields.io/badge/connectors-25%20types-blue)
-![Tests](https://img.shields.io/badge/tests-949%20passing-brightgreen)
-![Version](https://img.shields.io/badge/version-7.0.0-blue)
+![Tests](https://img.shields.io/badge/tests-1610%20passing-brightgreen)
+![Version](https://img.shields.io/badge/version-8.0.0-blue)
 
 ---
 
@@ -31,7 +31,13 @@ python migrate.py "export.json" --output-dir output/my_project
 python migrate.py "MonApp.qvf" --output-dir output/step1
 python migrate.py "MonApp.qvf" --output-dir output/step1 --skip-extraction
 
-# 5. Open the generated .pbip in Power BI Desktop (Developer Mode)
+# 5. JSON output for CI/CD
+python migrate.py "MonApp.qvf" --json
+
+# 6. Load custom plugins
+python migrate.py "MonApp.qvf" --plugins my_module.MyPlugin
+
+# 7. Open the generated .pbip in Power BI Desktop (Developer Mode)
 ```
 
 > **Tip:** Enable *Developer Mode* in Power BI Desktop → Options → Preview features.
@@ -433,7 +439,7 @@ pip install -r requirements.txt
 ## Testing
 
 ```bash
-# All tests (949 tests)
+# All tests (1610 tests)
 pytest tests/ -q --tb=short
 
 # Specific module
@@ -490,7 +496,11 @@ m_query = generate_m_query({
 
 | Guide | Description |
 |---|---|
-| [PRET_A_LEMPLOI.md](docs/guides/PRET_A_LEMPLOI.md) | 3-command quick start |
+| [QUICK_START.md](docs/guides/QUICK_START.md) | Quick start (English) |
+| [MIGRATION_GUIDE.md](docs/guides/MIGRATION_GUIDE.md) | Full migration guide (English) |
+| [DEPLOYMENT_GUIDE.md](docs/guides/DEPLOYMENT_GUIDE.md) | Azure Fabric deployment |
+| [PLUGIN_DEVELOPMENT.md](docs/guides/PLUGIN_DEVELOPMENT.md) | Custom plugin development |
+| [PRET_A_LEMPLOI.md](docs/guides/PRET_A_LEMPLOI.md) | 3-command quick start (French) |
 | [QUICK_START_HYBRIDE.md](docs/guides/QUICK_START_HYBRIDE.md) | QVF migration walkthrough |
 | [GUIDE_POWER_BI_IMPORT.md](docs/guides/GUIDE_POWER_BI_IMPORT.md) | Detailed PBI Desktop import |
 | [QLIK_OBJECTS_COVERAGE.md](docs/technical/QLIK_OBJECTS_COVERAGE.md) | 72 Qlik objects — 100 % coverage |
@@ -499,6 +509,7 @@ m_query = generate_m_query({
 | [DEV_PLAN_v8.md](docs/DEV_PLAN_v8.md) | v8 roadmap — polish, extensibility, production readiness |
 | [MAPPING_REFERENCE.md](docs/MAPPING_REFERENCE.md) | Visual, data type, connector mappings |
 | [QLIK_TO_DAX_REFERENCE.md](docs/QLIK_TO_DAX_REFERENCE.md) | Complete Qlik→DAX function reference |
+| [API_REFERENCE.md](docs/API_REFERENCE.md) | Public API reference for key modules |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 
 Historical phase-completion notes are in `docs/DEV_PLAN_v*.md`.
