@@ -1,5 +1,60 @@
 # Changelog
 
+## v8.0.0 — Polish, Extensibility & Production Readiness
+
+### Phase 1 — Critical Fixes (+98 tests)
+
+- **DAX stub coverage**: Added 25+ DAX function stubs for previously unmapped Qlik functions
+- **Test cleanup**: Removed stale Tableau-related test references, standardized test fixtures
+
+### Phase 2 — Test Coverage Expansion (+430 tests)
+
+- **test_edge_cases.py**: Comprehensive edge case coverage — empty inputs, malformed data, boundary conditions
+- **test_pipeline_scenarios.py**: End-to-end pipeline scenarios with varied input combinations
+- **test_migration_validation.py**: Post-migration artifact validation tests
+- **test_medium_integration.py**: Medium-complexity integration tests bridging unit ↔ E2E
+
+### Phase 3 — Visual & Reporting Enhancements (+34 tests)
+
+- **Navigation actions**: Button/sheet-level actions extracted from Qlik → Power BI navigation
+- **Viz-in-tooltip**: Tooltip visualization references extracted and preserved
+- **Alternate states**: Qlik alternate selection states (`qStateName`) extraction
+- **Icon set conditional formatting**: 4 presets (arrows, flags, stars, circles) in visual config
+- **Background images**: Sheet background images extracted and applied to report pages
+- **Bookmarks**: Bookmark filter state wired into report.json generation
+
+### Phase 4 — Plugin System & Pipeline (+24 tests)
+
+- **PluginManager wiring**: 4 hook points in `migrate.py` — `pre_extraction`, `post_extraction`, `pre_generation`, `post_generation`
+- **`--json` flag**: Structured JSON output for CI/CD — status, tables, measures, visuals, pages, warnings, duration
+- **`--plugins` flag**: Runtime plugin loading from module paths (`module.ClassName`)
+- **Progress callbacks**: `MigrationProgress` wired into extraction + generation with CLI progress bar
+
+### Phase 5 — Documentation Overhaul (+9 tests)
+
+- **English guides**: `QUICK_START.md`, `MIGRATION_GUIDE.md`, `DEPLOYMENT_GUIDE.md`, `PLUGIN_DEVELOPMENT.md`
+- **API Reference**: `docs/API_REFERENCE.md` — public API for dax_converter, pbip_generator, import_to_powerbi, plugins, progress
+- **README update**: v8.0.0 version, 1610→1619 test count, `--json`/`--plugins` examples, new doc links
+- **copilot-instructions update**: v8.0.0 stats, plugin/JSON features
+- **FAQ update**: v8 plugin & CI/CD Q&A section
+
+### Phase 6 — Housekeeping & Release
+
+- **Dead code audit**: Documented `src/fabric_api/` shim status, added deprecation README
+- **CI/CD enhancements**: pytest-cov coverage reporting, ruff linter (replaces pylint), `--json` validation job, coverage artifact upload
+- **Version bump**: All `__version__` strings → `8.0.0`
+- **CHANGELOG update**: This entry
+
+### Stats
+
+- Tests: 949 → 1619+ (+670)
+- New test files: 6 (test_phase4_plugin_pipeline.py, plus expanded test_documentation.py, test_edge_cases.py, test_pipeline_scenarios.py, test_migration_validation.py, test_medium_integration.py)
+- 4 new English documentation guides + API reference
+- Plugin system with 7 hook points
+- CI/CD: coverage reporting, ruff linting, JSON output validation
+
+---
+
 ## v7.0.0 — DAX Deep Accuracy & Full Test Coverage
 
 ### Phase 1 — DAX Accuracy Deepening (38 tests)

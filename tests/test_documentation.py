@@ -139,3 +139,41 @@ class TestPhase5Documentation:
         content = (project_root_dir / "docs" / "FAQ.md").read_text("utf-8")
         assert "--json" in content, "FAQ should document --json"
         assert "plugin" in content.lower(), "FAQ should document plugins"
+
+
+class TestPhase6Housekeeping:
+    """Phase 6 — Version bump, CI, dead code docs."""
+
+    def test_version_8_in_qlik_export(self):
+        import qlik_export
+        assert qlik_export.__version__ == '8.0.0'
+
+    def test_version_8_in_powerbi_import(self):
+        import powerbi_import
+        assert powerbi_import.__version__ == '8.0.0'
+
+    def test_fabric_api_deprecation_readme(self, project_root_dir):
+        f = project_root_dir / "src" / "fabric_api" / "README.md"
+        assert f.exists(), "fabric_api should have deprecation README"
+        content = f.read_text("utf-8")
+        assert "DEPRECATED" in content
+
+    def test_ci_workflow_has_coverage(self, project_root_dir):
+        f = project_root_dir / ".github" / "workflows" / "ci.yml"
+        assert f.exists()
+        content = f.read_text("utf-8")
+        assert "coverage" in content.lower()
+
+    def test_ci_workflow_has_ruff(self, project_root_dir):
+        f = project_root_dir / ".github" / "workflows" / "ci.yml"
+        content = f.read_text("utf-8")
+        assert "ruff" in content
+
+    def test_changelog_has_v8(self, project_root_dir):
+        content = (project_root_dir / "CHANGELOG.md").read_text("utf-8")
+        assert "v8.0.0" in content
+        assert "Plugin" in content
+
+    def test_pyproject_version_8(self, project_root_dir):
+        content = (project_root_dir / "pyproject.toml").read_text("utf-8")
+        assert '8.0.0' in content
