@@ -802,6 +802,13 @@ class PowerBIProjectGenerator:
         # Source parameters are inlined as constant values in DAX
         # calculated measures/columns. No report filters are generated because
         # parameters do not correspond to filterable data columns.
+
+        # Wire bookmarks from stories into report.json
+        stories = converted_objects.get('stories', [])
+        if stories:
+            bookmarks = self._create_bookmarks(stories)
+            if bookmarks:
+                report_json["bookmarks"] = bookmarks
         
         _write_json(os.path.join(def_dir, 'report.json'), report_json)
         
@@ -857,6 +864,17 @@ class PowerBIProjectGenerator:
                     page_filters = self._create_visual_filters(db_filters)
                     if page_filters:
                         page_json["filterConfig"] = {"filters": page_filters}
+
+                # Add background image from dashboard metadata
+                bg_img = db.get('backgroundImage', {})
+                if bg_img and isinstance(bg_img, dict) and bg_img.get('url'):
+                    page_json["background"] = {
+                        "image": {
+                            "url": bg_img['url'],
+                            "name": "BackgroundImage",
+                        },
+                        "transparency": bg_img.get('transparency', 0),
+                    }
                 
                 _write_json(os.path.join(page_dir, 'page.json'), page_json)
                 
@@ -1479,7 +1497,10 @@ class PowerBIProjectGenerator:
         }
     
     def _create_bookmarks(self, stories):
-        """Converts source stories to Power BI bookmarks"""
+        """Converts source stories/bookmarks to Power BI bookmarks.
+
+        Generates bookmark entries with filter state from Qlik selections.
+        """
         bookmarks = []
         for story in stories:
             story_name = story.get('name', 'Story')
@@ -1495,6 +1516,37 @@ class PowerBIProjectGenerator:
                 # Add captured filters if available
                 if sp.get('filters_state'):
                     bookmark["explorationState"]["activeSection"] = sp.get('captured_sheet', '')
+                    # Build filter expressions from selection state
+                    filters = []
+                    for fs in sp['filters_state']:
+                        field = fs.get('field', '')
+                        values = fs.get('values', [])
+                        if field and values:
+                            entity, prop = self._resolve_field_entity(field)
+                            filter_entry = {
+                                "type": "Categorical",
+                                "field": {
+                                    "Column": {
+                                        "Expression": {"SourceRef": {"Entity": entity}},
+                                        "Property": prop
+                                    }
+                                },
+                                "filter": {
+                                    "Version": 2,
+                                    "From": [{"Name": "b", "Entity": entity, "Type": 0}],
+                                    "Where": [{
+                                        "Condition": {
+                                            "In": {
+                                                "Expressions": [{"Column": {"Expression": {"SourceRef": {"Source": "b"}}, "Property": prop}}],
+                                                "Values": [[{"Literal": {"Value": f"'{v}'"}}] for v in values]
+                                            }
+                                        }
+                                    }]
+                                }
+                            }
+                            filters.append(filter_entry)
+                    if filters:
+                        bookmark["explorationState"]["filters"] = filters
                 bookmarks.append(bookmark)
         return bookmarks
     

@@ -839,6 +839,107 @@ def _build_dynamic_reference_line(ref_type, field_name=None, table_name=None,
     return ref_config
 
 
+# ── Icon Set Conditional Formatting ──────────────────────────────────
+
+# Predefined icon set definitions matching Power BI's built-in sets
+ICON_SET_PRESETS = {
+    'traffic_light': {
+        'icons': [
+            {'color': '#FF0000', 'shape': 'Circle'},  # Red
+            {'color': '#FFC000', 'shape': 'Circle'},  # Yellow
+            {'color': '#00B050', 'shape': 'Circle'},  # Green
+        ],
+        'thresholds': [33, 67],
+    },
+    'arrows': {
+        'icons': [
+            {'color': '#FF0000', 'shape': 'ArrowDown'},
+            {'color': '#FFC000', 'shape': 'ArrowRight'},
+            {'color': '#00B050', 'shape': 'ArrowUp'},
+        ],
+        'thresholds': [33, 67],
+    },
+    'flags': {
+        'icons': [
+            {'color': '#FF0000', 'shape': 'Flag'},
+            {'color': '#FFC000', 'shape': 'Flag'},
+            {'color': '#00B050', 'shape': 'Flag'},
+        ],
+        'thresholds': [33, 67],
+    },
+    'shapes': {
+        'icons': [
+            {'color': '#FF0000', 'shape': 'Diamond'},
+            {'color': '#FFC000', 'shape': 'Triangle'},
+            {'color': '#00B050', 'shape': 'Circle'},
+        ],
+        'thresholds': [33, 67],
+    },
+}
+
+
+def build_icon_set_config(column_name, table_name, icon_set='traffic_light',
+                          thresholds=None, reverse=False):
+    """Build icon set conditional formatting rule for table/matrix columns.
+
+    Args:
+        column_name: Column to apply icon formatting to
+        table_name: Table containing the column
+        icon_set: Preset name ('traffic_light', 'arrows', 'flags', 'shapes')
+                  or custom dict with 'icons' and 'thresholds' keys
+        thresholds: Optional override for threshold percentages (list of 2 values)
+        reverse: If True, reverse the icon order (green=low, red=high)
+
+    Returns:
+        dict: Icon set rule for conditional formatting
+    """
+    if isinstance(icon_set, dict):
+        preset = icon_set
+    else:
+        preset = ICON_SET_PRESETS.get(icon_set, ICON_SET_PRESETS['traffic_light'])
+
+    icons = list(preset['icons'])
+    thresh = thresholds or preset.get('thresholds', [33, 67])
+
+    if reverse:
+        icons = list(reversed(icons))
+
+    rules = []
+    # Build rules: below first threshold → icon[0], between → icon[1], above → icon[2]
+    for i, icon in enumerate(icons):
+        rule = {
+            "iconIndex": i,
+            "color": icon.get('color', '#808080'),
+            "shape": icon.get('shape', 'Circle'),
+        }
+        if i == 0:
+            rule["value"] = None
+            rule["comparison"] = "lessThan"
+            rule["threshold"] = thresh[0] if len(thresh) > 0 else 33
+        elif i < len(icons) - 1:
+            rule["value"] = thresh[i - 1] if i - 1 < len(thresh) else 50
+            rule["comparison"] = "lessThan"
+            rule["threshold"] = thresh[i] if i < len(thresh) else 67
+        else:
+            rule["value"] = thresh[-1] if thresh else 67
+            rule["comparison"] = "greaterThanOrEqual"
+        rules.append(rule)
+
+    return {
+        "id": f"iconSet_{column_name}",
+        "field": {
+            "Column": {
+                "Expression": {"SourceRef": {"Entity": table_name}},
+                "Property": column_name,
+            },
+        },
+        "iconSetType": icon_set if isinstance(icon_set, str) else "custom",
+        "rules": rules,
+        "showIconOnly": False,
+        "reverseIconOrder": reverse,
+    }
+
+
 def _build_data_bar_config(column_name, table_name, min_color='#FFFFFF',
                             max_color='#4472C4', show_bar_only=False):
     """Build data bar conditional formatting for table/matrix columns.

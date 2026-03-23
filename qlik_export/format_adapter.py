@@ -161,6 +161,9 @@ def adapt_qlik_for_generation(qlik_data: Dict[str, Any]) -> Dict[str, Any]:
     # Inject calculations into datasources (Tableau format nests them)
     _inject_calculations_into_datasources(datasources, calculations)
 
+    # 3.4 — Extract navigation actions (drillTo, goToSheet) from visuals
+    actions = _extract_navigation_actions(qlik_visuals)
+
     result = {
         'datasources':  datasources,
         'worksheets':   worksheets,
@@ -169,7 +172,7 @@ def adapt_qlik_for_generation(qlik_data: Dict[str, Any]) -> Dict[str, Any]:
         'parameters':   parameters,
         'filters':      [],
         'stories':      stories,
-        'actions':      [],
+        'actions':      actions,
         'sets':         [],
         'groups':       [],
         'bins':         [],
@@ -505,6 +508,28 @@ def _adapt_worksheets(qlik_visuals: List[Dict]) -> List[Dict]:
         if qlik_type in ('filterpane', 'listbox'):
             worksheet['slicer_config'] = _extract_slicer_config(viz)
 
+        # 3a — Tooltip page references (viz-in-tooltip)
+        tooltip_viz = viz.get('tooltip', {})
+        if isinstance(tooltip_viz, dict) and tooltip_viz.get('type') == 'visualization':
+            worksheet.setdefault('tooltips', []).append({
+                'type': 'viz_in_tooltip',
+                'worksheet': tooltip_viz.get('visualization', tooltip_viz.get('id', '')),
+            })
+
+        # 3b — Alternate state (qStateName)
+        state_name = viz.get('qStateName', viz.get('stateName', ''))
+        if state_name and state_name != '$':
+            worksheet['alternate_state'] = state_name
+
+        # 3c — Conditional formatting icon rules
+        cond_fmt = viz.get('conditionalFormatting', viz.get('conditional_formatting', []))
+        icon_rules = []
+        for rule in (cond_fmt if isinstance(cond_fmt, list) else []):
+            if isinstance(rule, dict) and rule.get('type') in ('icon', 'iconSet', 'icon_set'):
+                icon_rules.append(rule)
+        if icon_rules:
+            worksheet['icon_rules'] = icon_rules
+
         # Carry layout info (used by dashboard objects)
         if bounds:
             worksheet['_bounds'] = bounds
@@ -714,13 +739,89 @@ def _adapt_dashboards(
                 'position': {'x': x, 'y': y, 'w': w, 'h': h},
             })
 
-        dashboards.append({
+        # 3d — Background image from sheet metadata
+        bg_image = sheet.get('backgroundImage', sheet.get('background_image', {}))
+        if not bg_image:
+            bg_image = sheet.get('properties', {}).get('backgroundImage', {})
+
+        db_entry = {
             'name': sheet_name,
             'size': {'width': width, 'height': height},
             'objects': objects,
-        })
+        }
+        if bg_image and isinstance(bg_image, dict) and bg_image.get('url'):
+            db_entry['backgroundImage'] = {
+                'url': bg_image['url'],
+                'transparency': bg_image.get('transparency', 0),
+            }
+
+        dashboards.append(db_entry)
 
     return dashboards
+
+
+# ── Navigation actions (drillTo, goToSheet, URL) ───────────────────
+
+def _extract_navigation_actions(qlik_visuals: List[Dict]) -> List[Dict]:
+    """Extract navigation actions from Qlik visualizations.
+
+    Qlik buttons and visuals can have navigation actions:
+      - ``navigation.action = "goToSheet"`` → sheet-navigate
+      - ``navigation.action = "goToSheetById"`` → sheet-navigate
+      - ``navigation.action = "goToURL"`` → url
+      - ``actions`` list with ``actionType: "drillTo"`` or ``"nextSheet"``
+    """
+    actions: List[Dict] = []
+
+    for viz in qlik_visuals:
+        viz_name = viz.get('title', viz.get('name', viz.get('id', '')))
+
+        # 1. Qlik navigation property (buttons, containers)
+        nav = viz.get('navigation', {})
+        if isinstance(nav, dict) and nav.get('action'):
+            nav_action = nav['action']
+            if nav_action in ('goToSheet', 'goToSheetById'):
+                target_sheet = nav.get('sheet', nav.get('sheetId', ''))
+                if target_sheet:
+                    actions.append({
+                        'type': 'sheet-navigate',
+                        'target_worksheet': target_sheet,
+                        'source_worksheet': viz_name,
+                    })
+            elif nav_action == 'goToURL':
+                url = nav.get('url', '')
+                if url:
+                    actions.append({
+                        'type': 'url',
+                        'url': url,
+                        'source_worksheet': viz_name,
+                    })
+
+        # 2. Qlik actions list (newer format)
+        for act in viz.get('actions', []):
+            if not isinstance(act, dict):
+                continue
+            act_type = act.get('actionType', act.get('type', ''))
+            if act_type == 'drillTo':
+                target = act.get('sheet', act.get('target', ''))
+                field = act.get('field', act.get('bookmark', ''))
+                if target:
+                    actions.append({
+                        'type': 'filter',
+                        'target_worksheet': target,
+                        'field': field,
+                        'source_worksheet': viz_name,
+                    })
+            elif act_type in ('nextSheet', 'prevSheet', 'goToSheet'):
+                target = act.get('sheet', act.get('target', ''))
+                if target:
+                    actions.append({
+                        'type': 'sheet-navigate',
+                        'target_worksheet': target,
+                        'source_worksheet': viz_name,
+                    })
+
+    return actions
 
 
 # ── Parameters (from Qlik variables) ───────────────────────────────
