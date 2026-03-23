@@ -1074,6 +1074,23 @@ def main():
             output_dir=args.output_dir,
         )
 
+    # Step 6: HTML Dashboard
+    html_dashboard_path = None
+    if results.get('generation') and not args.dry_run:
+        try:
+            from generate_report import generate_dashboard
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            html_dashboard_path = generate_dashboard(
+                report_name=source_basename,
+                output_dir=out_base,
+                migration_report_path=None,
+                metadata_path=None,
+            )
+            if html_dashboard_path:
+                print(f"  Dashboard: {html_dashboard_path}")
+        except Exception as exc:
+            logger.warning("HTML dashboard generation failed: %s", exc)
+
     # ── Final summary ────────────────────────────────────────
     duration = datetime.now() - start_time
     print_header("MIGRATION SUMMARY")
@@ -1168,6 +1185,8 @@ def main():
             print(f"\n✓ Migration complete in {duration.total_seconds():.1f}s → {_stats.pbip_path}")
         else:
             print(f"\n✓ Migration complete in {duration.total_seconds():.1f}s")
+        if html_dashboard_path:
+            print(f"\n  HTML Dashboard: {html_dashboard_path}")
         print("\n  Next steps:")
         print("    1. Open the .pbip file in Power BI Desktop (Developer Mode)")
         print("    2. Configure data sources in Power Query Editor")
