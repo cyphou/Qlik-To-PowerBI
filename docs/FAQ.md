@@ -68,11 +68,26 @@ Yes. `{<Year={2024}>}` → `CALCULATE(..., 'Table'[Year] = 2024)`.
 Multi-field and complex modifiers are supported.
 
 ### Q: How are inter-record functions handled?
-Functions like `Above()`, `Below()`, `RangeSum()`, and `Rank()` are
-converted to DAX equivalents (`EARLIER`, window functions, `RANKX`).
+Functions like `Above(field, n)`, `Below(field, n)`, `Previous(field)`,
+and `Peek(field, offset)` are converted to DAX `OFFSET` expressions.
+`RangeSum(Above(X, 0, RowNo()))` generates a running total via
+`CALCULATE(SUM(...), WINDOW(-INF, 0, ALLSELECTED(...)))`.
 
 ### Q: What about Aggr() expressions?
-`Aggr()` → `SUMMARIZE()` with appropriate grouping columns.
+`Aggr()` is decomposed into DAX iterators:
+- `Aggr(Sum(X), Dim)` → `SUMX(VALUES('T'[Dim]), X)`
+- `Aggr(Count(X), Dim)` → `COUNTX(VALUES('T'[Dim]), 1)`
+- `Aggr(Avg(X), Dim)` → `AVERAGEX(VALUES('T'[Dim]), X)`
+- Multi-dim or unrecognized inner functions fall back to ADDCOLUMNS/SUMMARIZE.
+
+### Q: Are P() and E() set analysis functions supported?
+Yes (v7). `P({1} Field)` → `ALL('T'[Field])` (possible values)
+and `E({1} Field)` → `EXCEPT(ALL('T'[Field]), VALUES('T'[Field]))` (excluded values).
+
+### Q: What about dollar-sign expressions?
+`$(=Year(Today())-1)` is expanded inline: the inner Qlik expression
+is converted to DAX (`YEAR(TODAY()) - 1`). Variable references like
+`$(vMyVar)` are resolved against the variables dictionary.
 
 ---
 
@@ -97,6 +112,9 @@ Yes. Use `inject_m_steps()` or `build_m_query_with_transforms()` from
 ### Q: Is RLS (Row-Level Security) migrated?
 Yes. Qlik Section Access is converted to TMDL roles with
 `filterExpression` using `USERPRINCIPALNAME()`.
+- Wildcard `*` entries generate an `RLS_AllUsers` role with `TRUE()` filter
+- `OMIT` columns are annotated as OLS (Object-Level Security) migration notes
+- `REDUCTION` columns are parsed into per-role reduce values
 
 ### Q: Are hierarchies preserved?
 Yes. Qlik drill-group dimensions become TMDL hierarchies with levels.

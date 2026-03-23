@@ -86,12 +86,12 @@ python migrate.py app.qvf --skip-extraction # Reuse existing JSON
 | Aggregation | 15 | Sum→SUM, Avg→AVERAGE, Count→COUNT, CountDistinct→DISTINCTCOUNT |
 | Set Analysis | 10 | `{<Year={2024}>}` → `CALCULATE(..., 'Table'[Year] = 2024)` |
 | Conditional | 12 | If→IF, Match→SWITCH, Pick→SWITCH, Alt→COALESCE |
-| Inter-record | 8 | Above→EARLIER, RangeSum→window, Rank→RANKX |
+| Inter-record | 8 | Above/Below→OFFSET, RangeSum→WINDOW, Rank→RANKX |
 | Type conversion | 8 | Num→VALUE, Text→FORMAT, Date→DATEVALUE |
 | Null handling | 6 | IsNull→ISBLANK, Null→BLANK, NullCount→COUNTBLANK |
-| Logical | 8 | AND→&&, OR→||, NOT→NOT, =→= |
+| Logical | 8 | AND→&&, OR→\|\|, NOT→NOT, =→= |
 | Security | 3 | OSUser→USERPRINCIPALNAME |
-| Advanced | 38 | Aggr→SUMMARIZE, Dual→VALUE, Class→INT/DIVIDE |
+| Advanced | 38 | Aggr→SUMMARIZE/SUMX, Dual→VALUE, Class→INT/DIVIDE |
 
 ## Power Query M — 25 Connector Types
 
@@ -152,6 +152,19 @@ SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB
 - Auto-generated Calendar table with time intelligence
 - Expressions (shared Power Query M)
 - Sets/Groups/Bins → calculated columns
+- Section Access → RLS with wildcard `*`, OMIT (OLS annotation), REDUCTION parsing
+- Aggr() decomposition → SUMX/COUNTX/AVERAGEX/MINX/MAXX iterators
+- Inter-record OFFSET for Previous/Above/Below/Peek
+- RangeSum running total via CALCULATE/WINDOW
+- P()/E() set analysis → ALL/EXCEPT
+- Dollar-sign expression expansion `$(=expr)` with Qlik→DAX conversion
+
+## Current Stats (v7.0.0)
+
+- **949 tests** across 27 test files
+- **164 entries** in `_SIMPLE_FUNCTION_MAP`
+- **5/6 sample migrations** pass at 100% fidelity
+- **v8 roadmap**: see `docs/DEV_PLAN_v8.md`
 
 ## Development Rules
 
@@ -166,3 +179,4 @@ SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB
 9. **Visual data bindings** — projections must reference existing model columns
 10. **formatString** — preserve Qlik number formats (convert to DAX format strings)
 11. **Test coverage** — every new feature must have corresponding test cases
+12. **Run tests** — `pytest tests/ -q --tb=short` (must all pass before commit)

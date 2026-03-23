@@ -151,3 +151,49 @@ Complete mapping tables for all conversion categories.
 | hh:mm:ss | hh:mm:ss |
 
 Most Qlik number formats translate directly to DAX format strings.
+
+---
+
+## v7 DAX Enhancements
+
+### Aggr() → Iterator Decomposition
+
+| Qlik Pattern | DAX Output |
+|-------------|-----------|
+| `Aggr(Sum(Sales), Region)` | `SUMX(VALUES('T'[Region]), [Sales])` |
+| `Aggr(Count(OrderID), Region)` | `COUNTX(VALUES('T'[Region]), 1)` |
+| `Aggr(Avg(Price), Category)` | `AVERAGEX(VALUES('T'[Category]), [Price])` |
+| `Aggr(Min(Date), Customer)` | `MINX(VALUES('T'[Customer]), [Date])` |
+| `Aggr(Max(Amount), Product)` | `MAXX(VALUES('T'[Product]), [Amount])` |
+
+### Inter-record → OFFSET / WINDOW
+
+| Qlik Pattern | DAX Output |
+|-------------|-----------|
+| `Previous(field)` | `OFFSET(-1, ALLSELECTED('T'))` |
+| `Above(field, n)` | `OFFSET(-n, ALLSELECTED('T'))` |
+| `Below(field, n)` | `OFFSET(n, ALLSELECTED('T'))` |
+| `Peek(field, offset)` | `OFFSET(offset, ALLSELECTED('T'))` |
+| `RangeSum(Above(X, 0, RowNo()))` | `CALCULATE(SUM(...), WINDOW(-INF, 0, ALLSELECTED(...)))` |
+
+### Set Analysis P()/E() Functions
+
+| Qlik Pattern | DAX Output |
+|-------------|-----------|
+| `P({1} Field)` | `ALL('T'[Field])` |
+| `E({1} Field)` | `EXCEPT(ALL('T'[Field]), VALUES('T'[Field]))` |
+
+### Section Access → RLS Enhancements
+
+| Qlik Pattern | Power BI / TMDL |
+|-------------|-----------------|
+| `USERID = *` | RLS role with `TRUE()` filter (all users) |
+| `OMIT` column | Documented as OLS migration note |
+| `REDUCTION` column | Mapped to reduce_values per role |
+
+### Dollar-Sign Expression Expansion
+
+| Qlik Pattern | DAX Output |
+|-------------|-----------|
+| `$(=Year(Today())-1)` | `YEAR(TODAY()) - 1` |
+| `$(vMyVar)` | Resolved variable value with Qlik→DAX conversion |

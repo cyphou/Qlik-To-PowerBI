@@ -1,6 +1,6 @@
 # 📋 Couverture Complète des Objets Qlik - Analyse de Migration
 
-**Date :** 13 février 2026  
+**Date :** 13 février 2026 (mis à jour v7.0.0)  
 **Objectif :** Identifier tous les objets Qlik et leur statut de migration vers Power BI
 
 ---
@@ -92,8 +92,9 @@
 ### 9. Sécurité et Gouvernance
 | Objet Qlik | Équivalent Power BI | Statut | Effort Estimé |
 |------------|-------------------|--------|---------------|
-| **Section Access** | RLS (Row Level Security) | ❌ 0% | 2-3 jours |
-| **Data Reduction** | Filtres RLS | ❌ 0% | 2-3 jours |
+| **Section Access** | RLS (Row Level Security) | ✅ **85%** 🆕 | Automatisé (v6+v7) |
+| **Data Reduction** | Filtres RLS | ✅ **70%** 🆕 | Automatisé (v7: REDUCTION) |
+| **OMIT (OLS)** | Object-Level Security | ⚠️ 30% | Annoté (v7: OLS note) |
 | **User Permissions** | Workspace permissions | ❌ 0% | Manuel |
 | **NTFS Security** | Azure AD | ❌ 0% | Configuration |
 
@@ -108,10 +109,10 @@
 ### 11. Fonctions Avancées
 | Objet Qlik | Équivalent Power BI | Statut | Effort Estimé |
 |------------|-------------------|--------|---------------|
-| **Set Analysis complexe** | DAX avancé | ⚠️ 40% | 3-5 jours |
-| **Advanced Aggregations** | CALCULATE, FILTER | ⚠️ 60% | 2-3 jours |
-| **Nested If/Match** | SWITCH, IF | ⚠️ 70% | 1-2 jours |
-| **Inter-Record Functions** | LAG, OFFSET | ❌ 0% | 2-3 jours |
+| **Set Analysis complexe** | DAX avancé | ✅ **85%** 🆕 | Automatisé (v6+v7: P()/E()) |
+| **Advanced Aggregations** | CALCULATE, FILTER | ✅ **90%** 🆕 | Automatisé (v7: Aggr→iterators) |
+| **Nested If/Match** | SWITCH, IF | ✅ **90%** | Automatisé |
+| **Inter-Record Functions** | OFFSET, WINDOW | ✅ **80%** 🆕 | Automatisé (v7: OFFSET) |
 
 ### 12. Connexions de Données
 | Objet Qlik | Équivalent Power BI | Statut | Module Migration |

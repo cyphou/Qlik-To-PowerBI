@@ -197,3 +197,50 @@ Complete reference for Qlik expression → DAX conversion.
 | MaxString/MinString | MAXX/MINX | |
 | Autonumber | ROWNUMBER() | |
 | Hash128/256 | -- | No native hash in DAX |
+
+---
+
+## v7 Additions — Iterator & Window Functions
+
+### Aggr() Decomposition (v7.0.0)
+
+| Qlik Pattern | DAX Output | Iterator Used |
+|-------------|-----------|---------------|
+| `Aggr(Sum(X), Dim)` | `SUMX(VALUES('T'[Dim]), X)` | SUMX |
+| `Aggr(Count(X), Dim)` | `COUNTX(VALUES('T'[Dim]), 1)` | COUNTX |
+| `Aggr(Avg(X), Dim)` | `AVERAGEX(VALUES('T'[Dim]), X)` | AVERAGEX |
+| `Aggr(Min(X), Dim)` | `MINX(VALUES('T'[Dim]), X)` | MINX |
+| `Aggr(Max(X), Dim)` | `MAXX(VALUES('T'[Dim]), X)` | MAXX |
+| `Aggr(Aggr(...))` | nested SUMMARIZE/iterators | Recursive |
+
+### Inter-record OFFSET (v7.0.0)
+
+| Qlik Pattern | DAX Output |
+|-------------|-----------|
+| `Previous(field)` | `OFFSET(-1, ALLSELECTED('T'))` |
+| `Above(field, n)` | `OFFSET(-n, ALLSELECTED('T'))` |
+| `Below(field, n)` | `OFFSET(n, ALLSELECTED('T'))` |
+| `Peek(field, offset)` | `OFFSET(offset, ALLSELECTED('T'))` |
+| `RangeSum(Above(X, 0, RowNo()))` | `CALCULATE(SUM(...), WINDOW(-INF, 0, ALLSELECTED(...)))` |
+
+### Set Analysis P()/E() (v7.0.0)
+
+| Qlik Pattern | DAX Output | Description |
+|-------------|-----------|-------------|
+| `P({1} Field)` | `ALL('T'[Field])` | Possible values (full domain) |
+| `E({1} Field)` | `EXCEPT(ALL('T'[Field]), VALUES('T'[Field]))` | Excluded values |
+
+### Dollar-Sign Expression Expansion (v7.0.0)
+
+| Qlik Pattern | DAX Output | Description |
+|-------------|-----------|-------------|
+| `$(=Year(Today())-1)` | `YEAR(TODAY()) - 1` | Dynamic expression resolved to DAX |
+| `$(vMyVar)` | resolved value | Variable substitution with Qlik→DAX conversion |
+
+### Section Access → RLS (v7.0.0)
+
+| Qlik Pattern | TMDL Output | Description |
+|-------------|-------------|-------------|
+| `USERID = *` | `TRUE()` filter | Wildcard → all users |
+| `OMIT` column | OLS annotation comment | Object-Level Security note |
+| `REDUCTION` column | `reduce_values` list | Row reduction per role |

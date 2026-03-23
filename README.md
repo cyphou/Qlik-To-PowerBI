@@ -8,6 +8,8 @@ into **PBI Projects** (`.pbip` / TMDL) — the modern, Git-friendly Power BI for
 ![DAX](https://img.shields.io/badge/DAX-175%2B%20functions-orange)
 ![Visuals](https://img.shields.io/badge/visuals-60%2B%20types-purple)
 ![Connectors](https://img.shields.io/badge/connectors-25%20types-blue)
+![Tests](https://img.shields.io/badge/tests-949%20passing-brightgreen)
+![Version](https://img.shields.io/badge/version-7.0.0-blue)
 
 ---
 
@@ -337,6 +339,8 @@ All files are plain text → **fully Git-trackable and CI/CD-friendly**.
 | Conditional | 12 | If→IF, Match→SWITCH, Alt→COALESCE |
 | Inter-record | 8 | Above→EARLIER, RangeSum→window, Rank→RANKX |
 | Advanced | 38+ | Aggr→SUMMARIZE, Dual→VALUE, Class→INT/DIVIDE |
+| Inter-record | 8 | Above/Below→OFFSET, RangeSum→WINDOW, Peek→OFFSET |
+| Set Analysis | 10+ | `{<Year={2024}>}`→CALCULATE, P()→ALL, E()→EXCEPT |
 
 ### Visual Types — 60+
 
@@ -369,6 +373,10 @@ add index), Calculated columns (custom + conditional).
 - Auto-generated Calendar table with time intelligence
 - Geographic dataCategory inference
 - Shared Power Query M expressions
+- Section Access → RLS with wildcard `*`, OMIT (OLS), REDUCTION support
+- Aggr() decomposition → SUMX/COUNTX/AVERAGEX iterators
+- Inter-record functions → OFFSET with WINDOW running totals
+- Dollar-sign expression expansion `$(=expr)` with Qlik→DAX conversion
 
 ### Migration Coverage
 
@@ -425,14 +433,14 @@ pip install -r requirements.txt
 ## Testing
 
 ```bash
-# All tests
-pytest
+# All tests (949 tests)
+pytest tests/ -q --tb=short
 
-# TMDL generator tests only
+# Specific module
 pytest tests/test_tmdl_generator.py -v
 
 # With coverage
-pytest --cov=fabric_api tests/
+pytest --cov=qlik_export --cov=powerbi_import tests/
 ```
 
 ---
@@ -488,7 +496,12 @@ m_query = generate_m_query({
 | [QLIK_OBJECTS_COVERAGE.md](docs/technical/QLIK_OBJECTS_COVERAGE.md) | 72 Qlik objects — 100 % coverage |
 | [PLAN_DE_TEST.md](docs/technical/PLAN_DE_TEST.md) | Test strategy |
 
-Historical phase-completion notes are in `docs/archive/`.
+| [DEV_PLAN_v8.md](docs/DEV_PLAN_v8.md) | v8 roadmap — polish, extensibility, production readiness |
+| [MAPPING_REFERENCE.md](docs/MAPPING_REFERENCE.md) | Visual, data type, connector mappings |
+| [QLIK_TO_DAX_REFERENCE.md](docs/QLIK_TO_DAX_REFERENCE.md) | Complete Qlik→DAX function reference |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+
+Historical phase-completion notes are in `docs/DEV_PLAN_v*.md`.
 
 ---
 
