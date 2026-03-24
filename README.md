@@ -1,52 +1,100 @@
-# Migration Qlik → Power BI
+<div align="center">
 
-Automated migration toolkit that converts Qlik Sense applications (.qvf, JSON exports)
-into **PBI Projects** (`.pbip` / TMDL) — the modern, Git-friendly Power BI format.
+![Qlik Sense](https://img.shields.io/badge/Qlik_Sense-009848?style=for-the-badge&logo=qlik&logoColor=white)
+![arrow](https://img.shields.io/badge/→-grey?style=for-the-badge)
+![Power BI](https://img.shields.io/badge/Power_BI-F2C811?style=for-the-badge&logo=powerbi&logoColor=black)
 
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![Format](https://img.shields.io/badge/output-PBI%20Project%20%2F%20TMDL-brightgreen)
-![DAX](https://img.shields.io/badge/DAX-175%2B%20functions-orange)
-![Visuals](https://img.shields.io/badge/visuals-60%2B%20types-purple)
-![Connectors](https://img.shields.io/badge/connectors-25%20types-blue)
-![Tests](https://img.shields.io/badge/tests-1626%20passing-brightgreen)
-![Version](https://img.shields.io/badge/version-8.0.0-blue)
+# Qlik to Power BI Migration
 
----
+Migrate your Qlik Sense applications to Power BI in seconds — fully automated, zero
+manual rework.
 
-## Quick Start
+![Tests](https://img.shields.io/badge/tests-1%2C626%20passed-brightgreen?style=flat-square)
+![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen?style=flat-square)
+![Version](https://img.shields.io/badge/version-8.0.0-blue?style=flat-square)
+![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)
+
+[Quick Start](#-quick-start) • [Features](#-key-features) • [How It Works](#-how-it-works) • [DAX Mappings](#-dax-conversions-175-functions) • [Deployment](#-deployment) • [Docs](#-documentation)
+
+</div>
+
+## ⚡ Quick Start
 
 ```bash
-# 1. Install
+# That's it. One command.
+python migrate.py your_app.qvf
+```
+
+> **Tip:** The output is a `.pbip` project — just double-click to open in Power BI Desktop (Developer Mode).
+
+<details>
+<summary>📦 <b>Installation</b></summary>
+
+```bash
 python -m venv venv && venv\Scripts\activate
 pip install -e ".[dev]"          # core + test deps
 # pip install -e ".[all]"       # adds azure-identity for Fabric deployment
+```
 
-# 2. Migrate a QVF file → PBI Project (single command)
-python migrate.py "MonApp.qvf"
+Or from `requirements.txt`:
 
-# 3. Or from a JSON export
+```bash
+pip install -r requirements.txt
+```
+
+</details>
+
+### More ways to migrate
+
+```bash
+# 📄 From a JSON export
 python migrate.py "export.json" --output-dir output/my_project
 
-# 4. Two-step (reuse extracted JSON)
+# 🔄 Two-step workflow (reuse extracted JSON)
 python migrate.py "MonApp.qvf" --output-dir output/step1
 python migrate.py "MonApp.qvf" --output-dir output/step1 --skip-extraction
 
-# 5. JSON output for CI/CD
+# 🔍 Pre-migration readiness check
+python migrate.py "MonApp.qvf" --assess
+
+# 🚀 Migrate + deploy to Power BI Service in one shot
+python migrate.py "MonApp.qvf" --deploy WORKSPACE_ID
+
+# 🧙 Interactive wizard (guided step-by-step)
+python migrate.py "MonApp.qvf" --wizard
+
+# 📊 JSON output for CI/CD pipelines
 python migrate.py "MonApp.qvf" --json
 
-# 6. Load custom plugins
+# 🔌 Load custom plugins
 python migrate.py "MonApp.qvf" --plugins my_module.MyPlugin
 
-# 7. Open the generated .pbip in Power BI Desktop (Developer Mode)
+# 🏃 Dry run — preview without writing files
+python migrate.py "MonApp.qvf" --dry-run
 ```
-
-> **Tip:** Enable *Developer Mode* in Power BI Desktop → Options → Preview features.
 
 ---
 
-## Architecture
+## 🎯 Key Features
 
-### End-to-End Pipeline
+| 🔄 **175+ DAX Conversions** | 📊 **60+ Visual Types** |
+| :--- | :--- |
+| Translates Qlik expressions to DAX: Set Analysis → CALCULATE, Aggr → SUMMARIZE/SUMX iterators, If/Match → IF/SWITCH, inter-record functions → OFFSET/WINDOW/RANKX, dollar-sign expansion `$(=expr)`, cross-table RELATED/LOOKUPVALUE, RLS security | Maps every Qlik visual to Power BI: bar, line, pie, scatter, map, treemap, waterfall, KPI, gauge, table, pivot-table, boxplot, histogram, combo, mekko, bullet, wordcloud, filterpane, container, and 40+ more |
+
+| 🔌 **25 Data Connectors** | 🧠 **Smart Semantic Model** |
+| :--- | :--- |
+| Generates Power Query M for: SQL Server, PostgreSQL, BigQuery, Snowflake, Oracle, MySQL, Databricks, SAP HANA, Excel, CSV, SharePoint, Salesforce, Web, Azure SQL, Azure Synapse, Redshift, Teradata, Spark, Google Sheets, JSON, XML, PDF, QVD, ODBC, OLE DB | Auto-generates Calendar table, date hierarchies, calculation groups, field parameters, RLS roles from Section Access, display folders, geographic dataCategory, number formats, perspectives, multi-language cultures |
+
+| 🛡️ **Security & Governance** | 🚀 **Deploy Anywhere** |
+| :--- | :--- |
+| Section Access → RLS roles with USERPRINCIPALNAME. Wildcard `*` support, OMIT → OLS annotations, REDUCTION parsing. Bookmark filter state preservation. Theme and styling migration. | One-command deploy to Power BI Service or Microsoft Fabric with Azure AD auth (Service Principal / Managed Identity). Gateway config generation included. Plugin system with 7 hook points for extensibility. |
+
+> **Note:** Zero external dependencies for core migration. The entire engine runs on Python's standard library.
+
+---
+
+## 🔧 How It Works
 
 ```mermaid
 flowchart LR
@@ -55,7 +103,7 @@ flowchart LR
         JSON[".json export"]
     end
 
-    subgraph EXTRACT["⚙️ Step 1 — Extraction"]
+    subgraph EXTRACT["⚙️ Step 1 — Extract"]
         EO["extraction_orchestrator.py"]
         QVE["qvf_extractor.py<br/>(ZIP reader)"]
     end
@@ -75,16 +123,11 @@ flowchart LR
         MI["master_items"]
     end
 
-    subgraph CONVERT["⚙️ Step 2 — Conversion"]
+    subgraph GENERATE["⚙️ Step 2 — Generate"]
         direction TB
         DAX["dax_converter.py<br/>175+ functions"]
         MQ["m_query_generator.py<br/>25 connectors"]
         SC["qlik_script_converter.py<br/>LOAD → M"]
-        MB["m_query_builder.py<br/>40+ transforms"]
-    end
-
-    subgraph GENERATE["⚙️ Step 3 — Generation"]
-        direction TB
         TMDL["tmdl_generator.py<br/>Semantic Model"]
         VG["visual_generator.py<br/>60+ visual types"]
     end
@@ -97,12 +140,46 @@ flowchart LR
     JSON --> EO
     EO --> INTERMEDIATE
     INTERMEDIATE --> DAX & MQ & SC
-    SC --> MB
-    DAX & MQ & MB --> TMDL & VG
+    DAX & MQ & SC --> TMDL & VG
     TMDL & VG --> PBIP
 ```
 
-### Module Dependency Map
+**Step 1 — Extract:** Parses Qlik `.qvf` (ZIP) or JSON export into 11 structured intermediate JSON files (datasources, dimensions, measures, visualizations, etc.)
+
+**Step 2 — Generate:** Converts JSON into a complete `.pbip` project with PBIR report and TMDL semantic model
+
+**Step 3 — Deploy** *(optional):* Packages and uploads to Power BI Service or Microsoft Fabric
+
+### 📂 Generated Output
+
+```
+YourApp/
+├── YourApp.pbip                        ← Double-click to open in PBI Desktop
+├── YourApp.SemanticModel/
+│   └── definition/
+│       ├── model.tmdl                  ← Tables, measures, relationships
+│       ├── database.tmdl               ← Database metadata
+│       ├── expressions.tmdl            ← Power Query M queries
+│       ├── roles.tmdl                  ← Row-Level Security
+│       ├── relationships.tmdl          ← Table relationships
+│       └── tables/
+│           ├── Sales.tmdl              ← Columns + DAX measures
+│           ├── Customers.tmdl          ← With RELATED() auto-insertion
+│           └── Calendar.tmdl           ← Auto-generated date table
+└── YourApp.Report/
+    └── definition/
+        ├── report.json                 ← Report config + theme
+        └── pages/
+            └── ReportSection/
+                ├── page.json           ← Layout + filters
+                └── visuals/
+                    └── [id]/visual.json ← Each visual
+```
+
+All files are plain text → **fully Git-trackable and CI/CD-friendly**.
+
+<details>
+<summary>🏗️ <b>Module dependency map</b></summary>
 
 ```mermaid
 graph TD
@@ -140,7 +217,92 @@ graph TD
     style AZURE fill:#f0f0f0,stroke:#999
 ```
 
-### DAX Conversion Pipeline
+</details>
+
+<details>
+<summary>📁 <b>Project structure</b></summary>
+
+```
+├── migrate.py                          # CLI entry point
+├── qlik_export/                        # Qlik extraction layer
+│   ├── dax_converter.py               #   175+ Qlik → DAX conversions
+│   ├── extraction_orchestrator.py     #   QVF/JSON → 11 intermediate JSON
+│   ├── format_adapter.py             #   Bridge to generation layer
+│   ├── datasource_extractor.py       #   Type/formula/M adapters
+│   ├── m_query_generator.py          #   25 connector types → Power Query M
+│   ├── m_query_builder.py            #   40+ chainable M transforms
+│   ├── qlik_migrator.py              #   QlikApp → Power BI converter
+│   ├── qlik_script_converter.py      #   Load script → Power Query M
+│   └── qvf_extractor.py              #   .qvf ZIP reader
+├── powerbi_import/                     # Power BI generation layer
+│   ├── tmdl_generator.py             #   TMDL semantic model output
+│   ├── pbip_generator.py             #   Full .pbip project output
+│   ├── visual_generator.py           #   60+ visual types + config templates
+│   ├── import_to_powerbi.py          #   Import orchestrator
+│   ├── plugins.py                    #   Plugin architecture (7 hooks)
+│   ├── validator.py                  #   Artifact validation
+│   ├── config/                       #   Migration config (pydantic-settings)
+│   └── deploy/                       #   Azure Fabric deployment
+├── tools/migration/                   # 28 standalone migration scripts
+├── tools/analysis/                    # Diagnostic tools
+├── tests/                            # 1626 pytest tests
+├── examples/                         # Usage examples & samples
+└── docs/                             # Guides, references, reports
+```
+
+</details>
+
+---
+
+## 🧮 DAX Conversions (175+ functions)
+
+> Full reference: [docs/QLIK_TO_DAX_REFERENCE.md](docs/QLIK_TO_DAX_REFERENCE.md)
+
+### Highlights
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Qlik Expression                →  Power BI DAX                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Sum({<Year={2024}>} Sales)                                             │
+│  → CALCULATE(SUM('T'[Sales]), 'T'[Year] = 2024)                        │
+│                                                                         │
+│  Sum({<Year={2024}>} TOTAL Sales)                                       │
+│  → CALCULATE(SUM('T'[Sales]), 'T'[Year] = 2024, ALL('T'))              │
+│                                                                         │
+│  Aggr(Sum(Sales), Customer)                                             │
+│  → SUMX(SUMMARIZE('T', 'T'[Customer]), SUM('T'[Sales]))                │
+│                                                                         │
+│  Above(Sum(Sales))                                                      │
+│  → OFFSET(-1, SUM('T'[Sales]))                                         │
+│                                                                         │
+│  RangeSum(Above(Sum(Sales), 0, RowNo()))                                │
+│  → CALCULATE(SUM('T'[Sales]), WINDOW(-INF, 0))                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+<details>
+<summary>📋 <b>Complete conversion table (click to expand)</b></summary>
+
+| Category | Count | Examples |
+|:---------|:-----:|:--------|
+| String | 25 | `Upper`→`UPPER`, `Lower`→`LOWER`, `Len`→`LEN`, `Mid`→`MID`, `Replace`→`SUBSTITUTE` |
+| Math | 20 | `Abs`→`ABS`, `Ceil`→`CEILING`, `Floor`→`FLOOR`, `Sqrt`→`SQRT`, `Mod`→`MOD` |
+| Date | 22 | `Year`→`YEAR`, `Month`→`MONTH`, `Today`→`TODAY`, `MonthStart`→`STARTOFMONTH` |
+| Aggregation | 15 | `Sum`→`SUM`, `Avg`→`AVERAGE`, `Count`→`COUNT`, `CountDistinct`→`DISTINCTCOUNT` |
+| Set Analysis | 10+ | `{<Year={2024}>}` → `CALCULATE(…, 'T'[Year] = 2024)`, `P()`→`ALL`, `E()`→`EXCEPT` |
+| Conditional | 12 | `If`→`IF`, `Match`→`SWITCH`, `Pick`→`SWITCH`, `Alt`→`COALESCE` |
+| Inter-record | 8 | `Above`/`Below`→`OFFSET`, `RangeSum`→`WINDOW`, `Rank`→`RANKX`, `Peek`→`OFFSET` |
+| Type conversion | 8 | `Num`→`VALUE`, `Text`→`FORMAT`, `Date`→`DATEVALUE` |
+| Null handling | 6 | `IsNull`→`ISBLANK`, `Null`→`BLANK`, `NullCount`→`COUNTBLANK` |
+| Logical | 8 | `AND`→`&&`, `OR`→`\|\|`, `NOT`→`NOT` |
+| Security | 3 | `OSUser`→`USERPRINCIPALNAME` |
+| Advanced | 38+ | `Aggr`→`SUMMARIZE`/`SUMX`, `Dual`→`VALUE`, `Class`→`INT/DIVIDE` |
+
+</details>
+
+<details>
+<summary>⚙️ <b>DAX Conversion Pipeline — 9 phases (click to expand)</b></summary>
 
 ```mermaid
 flowchart TB
@@ -167,7 +329,89 @@ flowchart TB
     style OUTPUT fill:#1AAB40,color:#fff
 ```
 
-### Data Model Mapping
+</details>
+
+---
+
+## 📊 Visual Type Mapping (60+)
+
+<details>
+<summary>🎨 <b>Full visual mapping table (click to expand)</b></summary>
+
+| Qlik Type | Power BI Visual |
+|:----------|:----------------|
+| barchart | clusteredBarChart |
+| linechart | lineChart |
+| piechart | pieChart |
+| combo | lineStackedColumnComboChart |
+| scatter | scatterChart |
+| treemap | treemap |
+| kpi | card / kpi |
+| gauge | gauge |
+| table | tableEx |
+| pivot-table | pivotTable |
+| map | map |
+| waterfall | waterfallChart |
+| boxplot | boxAndWhisker |
+| histogram | clusteredColumnChart |
+| distributionplot | scatterChart |
+| filterpane | slicer |
+| text-image | textbox |
+| container | actionButton/group |
+| mekko | stackedBarChart |
+| bullet | bulletChart |
+| wordcloud | wordCloud |
+| … | 40+ more mappings |
+
+</details>
+
+---
+
+## 📋 Migration Coverage
+
+| Qlik Component | Power BI Equivalent | Tool |
+|:---|:---|:---|
+| Applications (.qvf) | Power Query M (ETL) | `migrate_qvf.py` |
+| Data models | Tables / Relationships / Hierarchies → TMDL | `migrate_qvf.py` |
+| Visualizations (60+ types) | PBI visuals (`report.json`) | `migrate_qvf.py` |
+| Load scripts | 60+ functions → Power Query M | `migrate_qlik_scripts.py` |
+| Variables | What-If parameter tables | `migrate_qlik_variables.py` |
+| Section Access | Row Level Security (RLS) | `migrate_section_access.py` |
+| Set Analysis | DAX `CALCULATE` | `migrate_set_analysis.py` |
+| Bookmarks | Power BI bookmarks | `migrate_bookmarks.py` |
+| Master Items | DAX measures / dimensions | `migrate_master_items.py` |
+| Themes | JSON colour palette | `migrate_theme.py` |
+| Stories | PowerPoint presentations | `migrate_stories.py` |
+| GeoAnalytics | Azure Maps | `migrate_geoanalytics.py` |
+| NPrinting | Paginated Reports | `migrate_npprinting.py` |
+| …and 10 more | | see `tools/migration/` |
+
+<details>
+<summary>🔌 <b>Power Query M — 25 connectors + 40+ transforms (click to expand)</b></summary>
+
+**25 Connector Types:**
+Excel, CSV, SQL Server, PostgreSQL, BigQuery, Oracle, MySQL, Snowflake,
+Teradata, SAP HANA, Redshift, Databricks, Spark, Azure SQL, Azure Synapse,
+Google Sheets, SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB
+
+**40+ Transform Generators:**
+
+| Category | Transforms |
+|:---------|:-----------|
+| Column ops | rename, remove, select, duplicate, reorder, split, merge |
+| Value ops | replace, replace nulls, trim, clean, upper/lower/proper, fill down/up |
+| Filter ops | filter values, exclude, range, nulls, contains, distinct, top N |
+| Aggregate | group by (sum/avg/count/countd/min/max/median/stdev) |
+| Pivot | unpivot, unpivot other, pivot |
+| Join | inner/left/right/full/leftanti/rightanti with auto-expand |
+| Union | append tables, wildcard union |
+| Reshape | sort, transpose, add index, skip/remove rows, promote/demote headers |
+| Calculated | add custom column, conditional column |
+
+</details>
+
+<details>
+<summary>🗺️ <b>Data Model Mapping — Qlik → Power BI (click to expand)</b></summary>
 
 ```mermaid
 flowchart LR
@@ -211,250 +455,105 @@ flowchart LR
     style PBI fill:#E66C37,color:#fff
 ```
 
-### Generated Output Structure
-
-```mermaid
-graph TD
-    PBIP["MonApp.pbip"]
-
-    subgraph SM["MonApp.SemanticModel/"]
-        PBISM["definition.pbism"]
-        DB["database.tmdl"]
-        MODEL["model.tmdl"]
-        subgraph TABLES["tables/"]
-            T1["Sales.tmdl"]
-            T2["Customers.tmdl"]
-            T3["Calendar.tmdl"]
-        end
-        REL["relationships.tmdl"]
-        EXPR["expressions.tmdl"]
-        ROLES["roles.tmdl"]
-        PERSP["perspectives.tmdl"]
-        subgraph CULT["cultures/"]
-            FR["fr-FR.tmdl"]
-        end
-    end
-
-    subgraph RPT["MonApp.Report/"]
-        PBIR["definition.pbir"]
-        RJSON["report.json"]
-        subgraph PAGES["pages/"]
-            P1JSON["Page1/page.json"]
-            P1VIS["Page1/visuals/*/visual.json"]
-            P2JSON["Page2/page.json"]
-            P2VIS["Page2/visuals/*/visual.json"]
-        end
-        subgraph STATIC["StaticResources/"]
-            THEME["BaseThemes/theme.json"]
-        end
-    end
-
-    PBIP --> SM & RPT
-
-    style PBIP fill:#4A90D9,color:#fff
-    style SM fill:#6B007B,color:#fff
-    style RPT fill:#1AAB40,color:#fff
-```
-
-1. **Extraction** (`extraction_orchestrator.py`): parse QVF or JSON → 11 intermediate JSON files
-2. **Conversion** (`dax_converter.py` + `m_query_generator.py` + `qlik_script_converter.py`): transform expressions
-3. **Generation** (`tmdl_generator.py` + `visual_generator.py`): produce `.pbip` project
-
-## What Gets Generated
-
-```
-output/
-└── MonApp/
-    ├── MonApp.pbip                          # Open this in PBI Desktop
-    ├── MonApp.SemanticModel/
-    │   ├── definition.pbism
-    │   └── definition/
-    │       ├── database.tmdl
-    │       ├── model.tmdl
-    │       ├── tables/
-    │       │   ├── Sales.tmdl
-    │       │   ├── Customers.tmdl
-    │       │   └── Calendar.tmdl           # Auto time intelligence
-    │       ├── relationships.tmdl
-    │       ├── expressions.tmdl
-    │       └── roles.tmdl                  # RLS from Section Access
-    └── MonApp.Report/
-        ├── definition.pbir
-        └── definition/
-            ├── version.json
-            ├── report.json
-            └── pages/
-                └── ReportSection/
-                    ├── page.json
-                    └── visuals/
-                        └── <id>/visual.json
-```
-
-All files are plain text → **fully Git-trackable and CI/CD-friendly**.
+</details>
 
 ---
 
-## Project Structure
+## 📝 CLI Reference
 
-```
-├── migrate.py                          # Root CLI entry point
-├── qlik_export/                        # Qlik-specific extraction (canonical)
-│   ├── dax_converter.py               # 175+ Qlik expression → DAX conversions
-│   ├── extraction_orchestrator.py     # QVF/JSON → 11 intermediate JSON files
-│   ├── format_adapter.py             # Qlik 11-key → generation-layer bridge
-│   ├── datasource_extractor.py       # API bridge (type/formula/M adapters)
-│   ├── m_query_generator.py          # 25 connector types → Power Query M
-│   ├── m_query_builder.py            # 40+ chainable M transforms + inject_m_steps
-│   ├── qlik_migrator.py              # QlikApp → Power BI converter
-│   ├── qlik_model_converter.py
-│   ├── qlik_script_converter.py      # Qlik script → Power Query M (30 functions)
-│   └── qvf_extractor.py              # .qvf ZIP reader
-├── powerbi_import/                     # Power BI generation layer (canonical)
-│   ├── tmdl_generator.py             # TMDL semantic model output
-│   ├── pbip_generator.py             # Full .pbip project output
-│   ├── visual_generator.py           # 60+ visual types, 30+ config templates
-│   ├── import_to_powerbi.py          # Import orchestrator
-│   ├── validator.py                  # Artifact validation
-│   ├── config/                       # Migration config (pydantic-settings)
-│   └── deploy/                       # Azure deployment (auth, client, deployer)
-├── src/fabric_api/                     # Deprecated — backward-compat shims
-│   ├── tmdl_generator.py             # Unique TMDLGenerator class (not yet migrated)
-│   ├── visual_generator.py           # Unique visual generator (legacy API)
-│   └── *.py                          # Re-export shims → qlik_export/powerbi_import
-├── tools/migration/                   # 28 standalone migration scripts
-├── tools/analysis/                    # Diagnostic tools
-├── tools/testing/                     # Integration test suites
-├── tests/                            # pytest test suite
-├── examples/                         # Usage examples & samples
-└── docs/                             # Guides, references, reports
-```
+<details>
+<summary>🔧 <b>All CLI flags (click to expand)</b></summary>
+
+| Flag | Description |
+|:-----|:-----------|
+| `--output-dir DIR` | Custom output directory |
+| `--skip-extraction` | Reuse previously extracted intermediate JSON |
+| `--json` | Machine-readable JSON output for CI/CD |
+| `--plugins MODULE.CLASS` | Load custom migration plugins |
+| `--dry-run` | Preview without writing files |
+| `--verbose` | Detailed logging |
+| `--assess` | Pre-migration readiness check |
+| `--wizard` | Interactive guided migration |
+| `--deploy WORKSPACE_ID` | Deploy to Power BI Service |
+
+</details>
 
 ---
 
-## Features
+## 🚀 Deployment
 
-### DAX Conversion — 175+ Functions
-
-| Category | Count | Examples |
-|----------|-------|---------|
-| String | 25 | Upper→UPPER, Lower→LOWER, Len→LEN, Mid→MID |
-| Math | 20 | Abs→ABS, Ceil→CEILING, Sqrt→SQRT, Mod→MOD |
-| Date | 22 | Year→YEAR, MonthStart→STARTOFMONTH, Today→TODAY |
-| Aggregation | 15 | Sum→SUM, Avg→AVERAGE, CountDistinct→DISTINCTCOUNT |
-| Set Analysis | 10 | `{<Year={2024}>}` → `CALCULATE(..., 'T'[Year] = 2024)` |
-| Conditional | 12 | If→IF, Match→SWITCH, Alt→COALESCE |
-| Inter-record | 8 | Above→EARLIER, RangeSum→window, Rank→RANKX |
-| Advanced | 38+ | Aggr→SUMMARIZE, Dual→VALUE, Class→INT/DIVIDE |
-| Inter-record | 8 | Above/Below→OFFSET, RangeSum→WINDOW, Peek→OFFSET |
-| Set Analysis | 10+ | `{<Year={2024}>}`→CALCULATE, P()→ALL, E()→EXCEPT |
-
-### Visual Types — 60+
-
-barchart, linechart, piechart, combo, scatter, treemap, kpi, gauge, table,
-pivot-table, map, waterfall, boxplot, histogram, distributionplot, filterpane,
-text-image, container, mekko, bullet, wordcloud, and 40+ more mappings.
-
-### Power Query M — 25 Connector Types
-
-Excel, CSV, SQL Server, PostgreSQL, BigQuery, Oracle, MySQL, Snowflake,
-Teradata, SAP HANA, Redshift, Databricks, Spark, Azure SQL, Azure Synapse,
-Google Sheets, SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB
-
-### Power Query M — 40+ Transform Generators
-
-Column ops (rename, remove, split, merge), Value ops (replace, trim, upper/lower),
-Filter ops (filter, exclude, range, distinct, top N), Aggregate (group by 8 funcs),
-Pivot/Unpivot, Join (6 kinds + auto-expand), Union/Append, Reshape (sort, transpose,
-add index), Calculated columns (custom + conditional).
-
-### TMDL Features
-
-- Tables with columns (dataType, formatString, sourceColumn, isHidden, dataCategory)
-- Measures with DAX expressions
-- Calculated columns with DAX and RELATED() auto-insertion
-- Hierarchies from Qlik drill-group dimensions
-- Relationships with crossFilteringBehavior
-- RLS roles from Section Access (filterExpression + USERPRINCIPALNAME)
-- Parameter/What-If tables (GENERATESERIES, SELECTEDVALUE)
-- Auto-generated Calendar table with time intelligence
-- Geographic dataCategory inference
-- Shared Power Query M expressions
-- Section Access → RLS with wildcard `*`, OMIT (OLS), REDUCTION support
-- Aggr() decomposition → SUMX/COUNTX/AVERAGEX iterators
-- Inter-record functions → OFFSET with WINDOW running totals
-- Dollar-sign expression expansion `$(=expr)` with Qlik→DAX conversion
-
-### Migration Coverage
-
-| Qlik Component | Power BI Equivalent | Tool |
-|---|---|---|
-| Applications (.qvf) | Scripts ETL → Power Query M | `migrate_qvf.py` |
-| Data models | Tables / relationships / hierarchies → TMDL | `migrate_qvf.py` |
-| Visualizations (60+ types) | PBI visuals (report.json) | `migrate_qvf.py` |
-| Load scripts | 60+ functions → Power Query M | `migrate_qlik_scripts.py` |
-| Variables | What-If parameters | `migrate_qlik_variables.py` |
-| Section Access | Row Level Security (RLS) | `migrate_section_access.py` |
-| Set Analysis | DAX CALCULATE | `migrate_set_analysis.py` |
-| Bookmarks | Power BI bookmarks | `migrate_bookmarks.py` |
-| Master Items | DAX measures / dimensions | `migrate_master_items.py` |
-| Themes | JSON colour palette | `migrate_theme.py` |
-| Stories | PowerPoint presentations | `migrate_stories.py` |
-| GeoAnalytics | Azure Maps | `migrate_geoanalytics.py` |
-| NPrinting | Paginated Reports | `migrate_npprinting.py` |
-| …and 10 more modules | | see `tools/migration/` |
-
-### Analysis Tools
-
-| Tool | Usage |
-|---|---|
-| `diagnose_qvf.py` | `python tools/analysis/diagnose_qvf.py file.qvf` |
-| `generate_pq_from_sources.py` | `python tools/analysis/generate_pq_from_sources.py folder` |
-
----
-
-## Installation
-
-### Prerequisites
-
-- Python 3.10+
-- Power BI Desktop (Developer Mode enabled)
-
-### Install as editable package
+<details>
+<summary><b>Power BI Service</b></summary>
 
 ```bash
-python -m venv venv
-venv\Scripts\activate
-pip install -e ".[dev]"        # core + pytest
-# Optional: pip install -e ".[all]"   # + azure-identity
+python migrate.py "MonApp.qvf" --deploy WORKSPACE_ID
 ```
 
-Or from `requirements.txt`:
+Requires `azure-identity` (`pip install -e ".[all]"`). Supports Service Principal and Managed Identity authentication.
+
+</details>
+
+<details>
+<summary><b>Microsoft Fabric</b></summary>
 
 ```bash
-pip install -r requirements.txt
+python migrate.py "MonApp.qvf" --deploy WORKSPACE_ID --deploy-refresh
 ```
+
+Full Fabric REST API integration with automatic semantic model refresh after deployment.
+
+</details>
 
 ---
 
-## Testing
-
-```bash
-# All tests (1626 tests)
-pytest tests/ -q --tb=short
-
-# Specific module
-pytest tests/test_tmdl_generator.py -v
-
-# With coverage
-pytest --cov=qlik_export --cov=powerbi_import tests/
-```
-
----
-
-## Programmatic Usage
+## ✅ Validation
 
 ```python
-# Full pipeline (recommended) — use canonical packages
+from powerbi_import.validator import ArtifactValidator
+
+result = ArtifactValidator.validate_project("artifacts/powerbi_projects/MyApp")
+# {"valid": True, "files_checked": 15, "errors": []}
+```
+
+The validator checks `.pbip` JSON, `report.json`, `model.tmdl`, page/visual structure, and `sortByColumn` cross-references.
+
+---
+
+## 🧪 Testing
+
+![Tests](https://img.shields.io/badge/tests-1%2C626%20passed-brightgreen?style=for-the-badge)
+![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen?style=for-the-badge)
+
+```bash
+python -m pytest tests/ -v                          # Run all 1,626 tests
+python -m pytest tests/test_dax_converter.py -v      # Run specific file
+python -m pytest tests/ --cov --cov-report=html      # Coverage report
+```
+
+<details>
+<summary>📋 <b>Test suite breakdown (click to expand)</b></summary>
+
+| Test File | Focus |
+|:----------|:------|
+| `test_dax_converter.py` | 175+ DAX function mappings |
+| `test_tmdl_generator.py` | TMDL semantic model output |
+| `test_visual_generator.py` | 60+ visual type mappings |
+| `test_m_query_generator.py` | 25 connector types |
+| `test_m_query_builder.py` | 40+ M transforms |
+| `test_extraction_orchestrator.py` | QVF/JSON extraction pipeline |
+| `test_edge_cases.py` | Empty inputs, malformed data, boundaries |
+| `test_complex_e2e.py` | Full end-to-end scenarios |
+| `test_migration_validation.py` | Post-migration artifact validation |
+| `test_medium_integration.py` | Medium-complexity integration tests |
+| …and 30+ more | See `tests/` directory |
+
+</details>
+
+---
+
+## 🐍 Programmatic Usage
+
+```python
 from qlik_export.extraction_orchestrator import ExtractionOrchestrator
 from qlik_export.format_adapter import adapt_qlik_for_generation
 from powerbi_import.pbip_generator import PowerBIProjectGenerator
@@ -470,16 +569,24 @@ gen = PowerBIProjectGenerator(output_dir="output")
 gen.generate_project("Sales_Dashboard", converted)
 ```
 
+<details>
+<summary>🧮 <b>DAX conversion example</b></summary>
+
 ```python
-# DAX conversion
 from qlik_export.dax_converter import convert_qlik_expression_to_dax
+
 dax = convert_qlik_expression_to_dax("Sum({<Year={2024}>} Sales)")
 # → "CALCULATE(SUM('Table'[Sales]), 'Table'[Year] = 2024)"
 ```
 
+</details>
+
+<details>
+<summary>🔌 <b>Power Query M generation example</b></summary>
+
 ```python
-# Power Query M generation
 from qlik_export.m_query_generator import generate_m_query
+
 m_query = generate_m_query({
     "connectionType": "postgresql",
     "connection": {"server": "db.example.com", "database": "sales"},
@@ -487,42 +594,58 @@ m_query = generate_m_query({
 })
 ```
 
-> **Legacy imports** like `from fabric_api import ...` still work via
+</details>
+
+> **Note:** Legacy imports like `from fabric_api import ...` still work via
 > backward-compatibility shims but emit a `DeprecationWarning`.
 
 ---
 
-## Documentation
+## 📚 Documentation
 
-| Guide | Description |
-|---|---|
-| [QUICK_START.md](docs/guides/QUICK_START.md) | Quick start (English) |
-| [MIGRATION_GUIDE.md](docs/guides/MIGRATION_GUIDE.md) | Full migration guide (English) |
-| [DEPLOYMENT_GUIDE.md](docs/guides/DEPLOYMENT_GUIDE.md) | Azure Fabric deployment |
-| [PLUGIN_DEVELOPMENT.md](docs/guides/PLUGIN_DEVELOPMENT.md) | Custom plugin development |
-| [PRET_A_LEMPLOI.md](docs/guides/PRET_A_LEMPLOI.md) | 3-command quick start (French) |
-| [QUICK_START_HYBRIDE.md](docs/guides/QUICK_START_HYBRIDE.md) | QVF migration walkthrough |
-| [GUIDE_POWER_BI_IMPORT.md](docs/guides/GUIDE_POWER_BI_IMPORT.md) | Detailed PBI Desktop import |
-| [QLIK_OBJECTS_COVERAGE.md](docs/technical/QLIK_OBJECTS_COVERAGE.md) | 72 Qlik objects — 100 % coverage |
-| [PLAN_DE_TEST.md](docs/technical/PLAN_DE_TEST.md) | Test strategy |
-| [DEV_PLAN_v8.md](docs/DEV_PLAN_v8.md) | v8 roadmap — polish, extensibility, production readiness |
-| [MAPPING_REFERENCE.md](docs/MAPPING_REFERENCE.md) | Visual, data type, connector mappings |
-| [QLIK_TO_DAX_REFERENCE.md](docs/QLIK_TO_DAX_REFERENCE.md) | Complete Qlik→DAX function reference |
-| [API_REFERENCE.md](docs/API_REFERENCE.md) | Public API reference for key modules |
-| [CHANGELOG.md](CHANGELOG.md) | Version history |
-
-Historical phase-completion notes are in `docs/DEV_PLAN_v*.md`.
+| | Guide | Description |
+|:--|:---|:---|
+| 📖 | [Quick Start](docs/guides/QUICK_START.md) | Get up and running (English) |
+| 🗺️ | [Migration Guide](docs/guides/MIGRATION_GUIDE.md) | Full migration walkthrough |
+| 🔢 | [175+ DAX Functions](docs/QLIK_TO_DAX_REFERENCE.md) | Complete Qlik→DAX reference |
+| ⚡ | [Power Query M Reference](docs/QLIK_TO_POWERQUERY_REFERENCE.md) | Qlik→M property reference |
+| 🔄 | [Load Script → M Reference](docs/QLIK_SCRIPT_TO_POWERQUERY_REFERENCE.md) | Script conversion reference |
+| 🏗️ | [Mapping Reference](docs/MAPPING_REFERENCE.md) | Visual, data type, connector mappings |
+| 📊 | [API Reference](docs/API_REFERENCE.md) | Public API for key modules |
+| 🚀 | [Deployment Guide](docs/guides/DEPLOYMENT_GUIDE.md) | PBI Service & Fabric deploy |
+| 🔌 | [Plugin Development](docs/guides/PLUGIN_DEVELOPMENT.md) | Build custom migration plugins |
+| ☁️ | [Qlik Cloud Migration](docs/guides/MIGRATION_QLIK_CLOUD.md) | Migrate from Qlik Cloud |
+| 📋 | [Qlik Objects Coverage](docs/technical/QLIK_OBJECTS_COVERAGE.md) | 72 Qlik objects — 100% coverage |
+| ❓ | [FAQ](docs/FAQ.md) | Frequently asked questions |
+| 📝 | [Changelog](CHANGELOG.md) | Release history |
 
 ---
 
-## References
+## ⚠️ Known Limitations
 
-- [Power BI Developer Mode](https://learn.microsoft.com/power-bi/developer/projects/projects-overview)
-- [TMDL Overview](https://learn.microsoft.com/analysis-services/tmdl/tmdl-overview)
-- [Microsoft Fabric REST API](https://learn.microsoft.com/rest/api/fabric/)
-- [DAX Guide](https://dax.guide/)
-- [Qlik Engine API](https://help.qlik.com/en-US/sense-developer/APIs-and-SDKs.htm)
+- `MAKEPOINT()` (spatial) has no DAX equivalent — skipped
+- Some inter-record functions (`Peek`, `Previous`) use OFFSET-based DAX — may need manual tuning
+- Data source connection strings must be reconfigured in Power Query after migration
+- See [docs/FAQ.md](docs/FAQ.md) for the full list
 
 ---
 
-MIT License
+## 🔗 References
+
+- [Power BI Developer Mode](https://learn.microsoft.com/power-bi/developer/projects/projects-overview) — PBI Projects overview
+- [TMDL Overview](https://learn.microsoft.com/analysis-services/tmdl/tmdl-overview) — Tabular Model Definition Language
+- [Microsoft Fabric REST API](https://learn.microsoft.com/rest/api/fabric/) — Fabric deployment APIs
+- [DAX Guide](https://dax.guide/) — DAX function reference
+- [Qlik Engine API](https://help.qlik.com/en-US/sense-developer/APIs-and-SDKs.htm) — Qlik Sense developer docs
+
+---
+
+<div align="center">
+
+Built with ❤️ for the Power BI migration community
+
+If this tool saves you time, consider giving it a ⭐
+
+**[MIT License](LICENSE)**
+
+</div>
