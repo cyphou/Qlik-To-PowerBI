@@ -1,0 +1,47 @@
+table Products
+	lineageTag: 7186c9e1-835d-4ef9-9991-5218bbcef99d
+
+	column ProductID
+		dataType: string
+		lineageTag: 5061b986-6331-4b3e-be88-dbdaefd38015
+		summarizeBy: none
+		sourceColumn: ProductID
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProductName
+		dataType: string
+		lineageTag: fe03324e-3882-43ea-9399-1ee29e407674
+		summarizeBy: none
+		sourceColumn: ProductName
+
+		annotation SummarizationSetBy = Automatic
+
+	column CategoryID
+		dataType: string
+		lineageTag: 53e94834-d39e-453a-93a7-5c89723e1f5e
+		summarizeBy: none
+		sourceColumn: CategoryID
+
+		annotation SummarizationSetBy = Automatic
+
+	column UnitPrice
+		dataType: string
+		lineageTag: f1c0f3f1-e310-466c-8691-5081869ef2ae
+		summarizeBy: none
+		sourceColumn: UnitPrice
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Products-995255c6-487a-4fac-bf95-680a73c37931' = m
+		mode: import
+		source =
+				let
+				    Source = Qvd.Document(File.Contents("Products.qvd"))
+				,\n    SelectedColumns = Table.SelectColumns(Source, {"ProductID", "ProductName", "CategoryID", "UnitPrice"})
+				
+				in
+				    SelectedColumns
+
+	annotation PBI_ResultType = Table
+

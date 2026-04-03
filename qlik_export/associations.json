@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "table1": "Orders",
+    "field1": "CustomerID",
+    "table2": "Customers",
+    "field2": "CustomerID"
+  },
+  {
+    "table1": "Orders",
+    "field1": "ProductID",
+    "table2": "Products",
+    "field2": "ProductID"
+  },
+  {
+    "table1": "Orders",
+    "field1": "SalesRepID",
+    "table2": "SalesReps",
+    "field2": "SalesRepID"
+  },
+  {
+    "table1": "Targets",
+    "field1": "Region",
+    "table2": "Orders",
+    "field2": "Region"
+  }
+]

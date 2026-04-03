@@ -1,3 +1,3 @@
 {
-  "script": ""
+  "script": "// Enterprise Sales Load Script\nSET DateFormat='MM/DD/YYYY';\nSET ThousandSep=',';\nSET DecimalSep='.';\n\nOrders:\nLOAD\n    OrderID,\n    OrderDate,\n    ShipDate,\n    ShipMode,\n    CustomerID,\n    Segment,\n    Region,\n    Country,\n    City,\n    Sales,\n    Quantity,\n    Discount,\n    Profit\nFROM [lib://DataFiles/Orders.csv] (txt, codepage is 1252, embedded labels, delimiter is ',', msq);\n\nProducts:\nLOAD\n    ProductID,\n    ProductName,\n    Category,\n    SubCategory,\n    UnitCost\nFROM [lib://DataFiles/Products.csv] (txt, codepage is 1252, embedded labels, delimiter is ',', msq);"
 }

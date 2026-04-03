@@ -1,1 +1,175 @@
-[]
+[
+  {
+    "connectionType": "sqlserver",
+    "connectionString": "Server=salesdb.enterprise.com;Database=Sales;",
+    "tableName": "Orders",
+    "columns": [
+      {
+        "name": "OrderID",
+        "dataType": "text"
+      },
+      {
+        "name": "OrderDate",
+        "dataType": "date"
+      },
+      {
+        "name": "ShipDate",
+        "dataType": "date"
+      },
+      {
+        "name": "ShipMode",
+        "dataType": "text"
+      },
+      {
+        "name": "CustomerID",
+        "dataType": "text"
+      },
+      {
+        "name": "Segment",
+        "dataType": "text"
+      },
+      {
+        "name": "Region",
+        "dataType": "text"
+      },
+      {
+        "name": "Country",
+        "dataType": "text"
+      },
+      {
+        "name": "City",
+        "dataType": "text"
+      },
+      {
+        "name": "Sales",
+        "dataType": "number"
+      },
+      {
+        "name": "Quantity",
+        "dataType": "integer"
+      },
+      {
+        "name": "Discount",
+        "dataType": "number"
+      },
+      {
+        "name": "Profit",
+        "dataType": "number"
+      },
+      {
+        "name": "Returned",
+        "dataType": "text"
+      }
+    ],
+    "m_query": "let\n    Source = Csv.Document(File.Contents(\"lib://DataFiles/Orders.csv\"),[Delimiter=\",\", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),\n    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])\n,\\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"OrderID\", \"OrderDate\", \"ShipDate\", \"ShipMode\", \"CustomerID\", \"Segment\", \"Region\", \"Country\", \"City\", \"Sales\", \"Quantity\", \"Discount\", \"Profit\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "connectionType": "sqlserver",
+    "connectionString": "Server=salesdb.enterprise.com;Database=Sales;",
+    "tableName": "Products",
+    "columns": [
+      {
+        "name": "ProductID",
+        "dataType": "text"
+      },
+      {
+        "name": "ProductName",
+        "dataType": "text"
+      },
+      {
+        "name": "Category",
+        "dataType": "text"
+      },
+      {
+        "name": "SubCategory",
+        "dataType": "text"
+      },
+      {
+        "name": "UnitCost",
+        "dataType": "number"
+      }
+    ],
+    "m_query": "let\n    Source = Csv.Document(File.Contents(\"lib://DataFiles/Products.csv\"),[Delimiter=\",\", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),\n    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])\n,\\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"ProductID\", \"ProductName\", \"Category\", \"SubCategory\", \"UnitCost\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "connectionType": "sqlserver",
+    "connectionString": "Server=salesdb.enterprise.com;Database=Sales;",
+    "tableName": "Customers",
+    "columns": [
+      {
+        "name": "CustomerID",
+        "dataType": "text"
+      },
+      {
+        "name": "CustomerName",
+        "dataType": "text"
+      },
+      {
+        "name": "Segment",
+        "dataType": "text"
+      },
+      {
+        "name": "Region",
+        "dataType": "text"
+      },
+      {
+        "name": "Country",
+        "dataType": "text"
+      },
+      {
+        "name": "City",
+        "dataType": "text"
+      }
+    ]
+  },
+  {
+    "connectionType": "sqlserver",
+    "connectionString": "Server=salesdb.enterprise.com;Database=Sales;",
+    "tableName": "Targets",
+    "columns": [
+      {
+        "name": "Year",
+        "dataType": "integer"
+      },
+      {
+        "name": "Region",
+        "dataType": "text"
+      },
+      {
+        "name": "Category",
+        "dataType": "text"
+      },
+      {
+        "name": "Target",
+        "dataType": "number"
+      }
+    ]
+  },
+  {
+    "connectionType": "sqlserver",
+    "connectionString": "Server=salesdb.enterprise.com;Database=Sales;",
+    "tableName": "SalesReps",
+    "columns": [
+      {
+        "name": "SalesRepID",
+        "dataType": "text"
+      },
+      {
+        "name": "SalesRep",
+        "dataType": "text"
+      },
+      {
+        "name": "Region",
+        "dataType": "text"
+      },
+      {
+        "name": "HireDate",
+        "dataType": "date"
+      },
+      {
+        "name": "Quota",
+        "dataType": "number"
+      }
+    ]
+  }
+]

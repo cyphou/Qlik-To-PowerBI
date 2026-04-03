@@ -174,6 +174,6 @@ class TestPhase6Housekeeping:
         assert "v8.0.0" in content
         assert "Plugin" in content
 
-    def test_pyproject_version_8(self, project_root_dir):
+    def test_pyproject_version_9(self, project_root_dir):
         content = (project_root_dir / "pyproject.toml").read_text("utf-8")
-        assert '8.0.0' in content
+        assert '9.0.0' in content

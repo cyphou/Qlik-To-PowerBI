@@ -1,0 +1,20 @@
+relationship 7a42f23c-b077-435d-b8ce-bcbd49651fe5
+	fromColumn: Orders.CustomerID
+	toColumn: Customers.CustomerID
+	crossFilteringBehavior: oneDirection
+
+relationship 56e23210-e27a-4ae5-9f29-b9b128bc3b6c
+	fromColumn: Targets.Region
+	toColumn: Orders.Region
+	crossFilteringBehavior: oneDirection
+
+relationship 8c49b631-ec63-4de0-b230-42d5c24a546f
+	fromColumn: Orders.OrderDate
+	toColumn: Calendar.Date
+	crossFilteringBehavior: oneDirection
+
+relationship 56dd8a26-3e55-4e5b-a186-541b5e9917f5
+	fromColumn: SalesReps.HireDate
+	toColumn: Calendar.Date
+	crossFilteringBehavior: oneDirection
+

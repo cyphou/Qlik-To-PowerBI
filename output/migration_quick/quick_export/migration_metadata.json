@@ -1,0 +1,40 @@
+{
+  "generated_at": "2026-04-03T12:06:15.789850",
+  "source": "Qlik Migration",
+  "report_name": "quick_export",
+  "objects_converted": {
+    "worksheets": 3,
+    "dashboards": 1,
+    "datasources": 3,
+    "calculations": 2,
+    "parameters": 1,
+    "filters": 0,
+    "stories": 0,
+    "sets": 0,
+    "groups": 0,
+    "bins": 0,
+    "hierarchies": 0,
+    "user_filters": 0,
+    "actions": 0,
+    "custom_sql": 1
+  },
+  "generated_output": {
+    "pages": 1,
+    "visuals": 3,
+    "theme_applied": false,
+    "theme_detail": {
+      "status": "skipped",
+      "reason": "no dashboard colors detected"
+    }
+  },
+  "tmdl_stats": {
+    "tables": 3,
+    "measures": 3,
+    "columns": 12,
+    "relationships": 0
+  },
+  "visual_type_mappings": {
+    "": "table"
+  },
+  "approximations": []
+}

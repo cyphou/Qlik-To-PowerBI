@@ -2,99 +2,251 @@
   {
     "qProperty": {
       "qInfo": {
-        "qId": "sheet_overview",
+        "qId": "sheet_exec",
         "qType": "sheet"
       },
       "qMetaDef": {
-        "title": "Vue d'ensemble",
-        "description": "Tableau de bord principal"
+        "title": "Executive Summary",
+        "description": "High-level KPIs"
       }
     },
     "cells": [
       {
-        "name": "viz_sales_by_category",
-        "type": "barchart",
-        "title": "Ventes par Catégorie",
+        "name": "viz_sales_kpi",
+        "type": "kpi",
+        "title": "Total Sales",
         "properties": {
-          "orientation": "vertical",
-          "showLegend": true,
-          "color": {
-            "auto": false,
-            "mode": "primary"
-          }
+          "fontSize": "large"
+        }
+      },
+      {
+        "name": "viz_profit_kpi",
+        "type": "kpi",
+        "title": "Total Profit",
+        "properties": {
+          "fontSize": "large"
+        }
+      },
+      {
+        "name": "viz_orders_kpi",
+        "type": "kpi",
+        "title": "Order Count",
+        "properties": {
+          "fontSize": "large"
+        }
+      },
+      {
+        "name": "viz_customers_kpi",
+        "type": "kpi",
+        "title": "Customers",
+        "properties": {
+          "fontSize": "large"
         }
       },
       {
         "name": "viz_sales_trend",
         "type": "linechart",
-        "title": "Tendance des Ventes",
+        "title": "Sales Trend",
         "properties": {
-          "dataPoints": true,
-          "showLegend": true,
-          "gridlines": true
+          "dataPoints": true
         }
       },
       {
-        "name": "viz_regional_breakdown",
-        "type": "piechart",
-        "title": "Répartition Régionale",
+        "name": "viz_profit_bar",
+        "type": "barchart",
+        "title": "Profit by Category",
         "properties": {
-          "showLabels": true,
-          "showValues": true
+          "orientation": "horizontal"
         }
       },
       {
-        "name": "viz_kpi_total",
-        "type": "kpi",
-        "title": "Total Ventes",
-        "properties": {
-          "fontSize": "large",
-          "alignment": "center"
-        }
-      },
-      {
-        "name": "viz_orders_table",
-        "type": "table",
-        "title": "Détail des Ventes",
-        "properties": {
-          "pagination": true,
-          "rowsPerPage": 10
-        }
+        "name": "viz_region_map",
+        "type": "map",
+        "title": "Sales by Region",
+        "properties": {}
       }
     ],
-    "id": "sheet_overview",
-    "title": "Vue d'ensemble"
+    "id": "sheet_exec",
+    "title": "Executive Summary"
   },
   {
     "qProperty": {
       "qInfo": {
-        "qId": "sheet_analysis",
+        "qId": "sheet_product",
         "qType": "sheet"
       },
       "qMetaDef": {
-        "title": "Analyse Détaillée",
-        "description": "Analyses avancées"
+        "title": "Product Analysis",
+        "description": "Product performance"
       }
     },
     "cells": [
       {
-        "name": "viz_customer_scatter",
-        "type": "scatterplot",
-        "title": "Analyse Clients",
+        "name": "viz_cat_bar",
+        "type": "barchart",
+        "title": "Sales by Category",
         "properties": {
-          "showTrendLine": true
+          "orientation": "vertical"
         }
       },
       {
-        "name": "viz_product_treemap",
+        "name": "viz_sub_tree",
         "type": "treemap",
-        "title": "Hiérarchie Produits",
+        "title": "SubCategory Treemap",
         "properties": {
           "showLabels": true
         }
+      },
+      {
+        "name": "viz_product_table",
+        "type": "table",
+        "title": "Product Detail",
+        "properties": {
+          "pagination": true
+        }
+      },
+      {
+        "name": "viz_product_waterfall",
+        "type": "waterfall",
+        "title": "Profit Waterfall by Sub-Category",
+        "properties": {}
+      },
+      {
+        "name": "viz_discount_scatter",
+        "type": "scatterplot",
+        "title": "Discount vs Profit Margin",
+        "properties": {
+          "showTrendLine": true
+        }
       }
     ],
-    "id": "sheet_analysis",
-    "title": "Analyse Détaillée"
+    "id": "sheet_product",
+    "title": "Product Analysis"
+  },
+  {
+    "qProperty": {
+      "qInfo": {
+        "qId": "sheet_customer",
+        "qType": "sheet"
+      },
+      "qMetaDef": {
+        "title": "Customer Analysis",
+        "description": "Customer insights"
+      }
+    },
+    "cells": [
+      {
+        "name": "viz_segment_pie",
+        "type": "piechart",
+        "title": "Sales by Segment",
+        "properties": {
+          "showLabels": true
+        }
+      },
+      {
+        "name": "viz_customer_scatter",
+        "type": "scatterplot",
+        "title": "Customer Sales vs Profit",
+        "properties": {}
+      },
+      {
+        "name": "viz_customer_pivot",
+        "type": "pivot-table",
+        "title": "Customer Pivot",
+        "properties": {}
+      },
+      {
+        "name": "viz_top_customers",
+        "type": "barchart",
+        "title": "Top 10 Customers",
+        "properties": {
+          "orientation": "horizontal"
+        }
+      }
+    ],
+    "id": "sheet_customer",
+    "title": "Customer Analysis"
+  },
+  {
+    "qProperty": {
+      "qInfo": {
+        "qId": "sheet_geo",
+        "qType": "sheet"
+      },
+      "qMetaDef": {
+        "title": "Geographic Analysis",
+        "description": "Regional performance"
+      }
+    },
+    "cells": [
+      {
+        "name": "viz_geo_map",
+        "type": "map",
+        "title": "Sales Heat Map",
+        "properties": {}
+      },
+      {
+        "name": "viz_region_combo",
+        "type": "combo",
+        "title": "Sales & Profit by Region",
+        "properties": {}
+      },
+      {
+        "name": "viz_city_bar",
+        "type": "barchart",
+        "title": "Top Cities",
+        "properties": {
+          "orientation": "horizontal"
+        }
+      }
+    ],
+    "id": "sheet_geo",
+    "title": "Geographic Analysis"
+  },
+  {
+    "qProperty": {
+      "qInfo": {
+        "qId": "sheet_operations",
+        "qType": "sheet"
+      },
+      "qMetaDef": {
+        "title": "Operations",
+        "description": "Shipping & returns"
+      }
+    },
+    "cells": [
+      {
+        "name": "viz_ship_gauge",
+        "type": "gauge",
+        "title": "Avg Days to Ship",
+        "properties": {
+          "min": 0,
+          "max": 10
+        }
+      },
+      {
+        "name": "viz_ship_mode_pie",
+        "type": "piechart",
+        "title": "Orders by Ship Mode",
+        "properties": {}
+      },
+      {
+        "name": "viz_return_combo",
+        "type": "combo",
+        "title": "Return Rate by Category",
+        "properties": {}
+      },
+      {
+        "name": "viz_orders_detail",
+        "type": "table",
+        "title": "Order Detail",
+        "properties": {
+          "pagination": true,
+          "rowsPerPage": 25
+        }
+      }
+    ],
+    "id": "sheet_operations",
+    "title": "Operations"
   }
 ]

@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "id": "mi_sales",
+    "type": "measure",
+    "title": "Sales",
+    "expression": "Sum(Sales)",
+    "format": "#,##0.00"
+  },
+  {
+    "id": "mi_profit",
+    "type": "measure",
+    "title": "Profit",
+    "expression": "Sum(Profit)",
+    "format": "#,##0.00"
+  },
+  {
+    "id": "mi_product_cat",
+    "type": "dimension",
+    "title": "Product Category",
+    "field": "Category"
+  }
+]

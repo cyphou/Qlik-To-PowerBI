@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "id": "bm_current_year",
+    "title": "Current Year",
+    "description": "Filter to current year",
+    "selections": {
+      "Year": "=$(vCurrentYear)"
+    }
+  },
+  {
+    "id": "bm_high_value",
+    "title": "High Value Orders",
+    "description": "Orders over $1000",
+    "selections": {
+      "Sales": "> 1000"
+    }
+  },
+  {
+    "id": "bm_west_region",
+    "title": "West Region",
+    "description": "Filter to West region",
+    "selections": {
+      "Region": "West"
+    }
+  }
+]

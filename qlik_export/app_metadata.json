@@ -1,6 +1,6 @@
 {
-  "name": "Exemple Tableau de Bord Ventes",
+  "name": "Enterprise Sales Analytics",
   "description": "",
-  "source_file": "examples\\qlik\\qlik_exports\\example_qlik_app.json",
-  "extracted_at": "2026-03-23T16:42:07.373209"
+  "source_file": "examples\\qlik\\test_samples\\large\\large_enterprise_sales.json",
+  "extracted_at": "2026-04-03T12:08:35.431166"
 }

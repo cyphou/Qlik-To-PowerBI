@@ -1,0 +1,65 @@
+table Customers
+	lineageTag: 743089ce-436d-4fa5-9cb6-b3f30d07fa4b
+
+	column CustomerID
+		dataType: string
+		lineageTag: ab3513d7-f70a-4067-9acd-ea2b5c0f2716
+		summarizeBy: none
+		sourceColumn: CustomerID
+
+		annotation SummarizationSetBy = Automatic
+
+	column CustomerName
+		dataType: string
+		lineageTag: 05c1f8cf-bc8c-4fb9-90d2-036cea1aed10
+		summarizeBy: none
+		sourceColumn: CustomerName
+
+		annotation SummarizationSetBy = Automatic
+
+	column Segment
+		dataType: string
+		lineageTag: bff378f2-f033-411d-9bf8-b77663686888
+		summarizeBy: none
+		sourceColumn: Segment
+
+		annotation SummarizationSetBy = Automatic
+
+	column Region
+		dataType: string
+		lineageTag: 2f0f87db-82b7-4fd3-9558-45f8fdad3192
+		summarizeBy: none
+		sourceColumn: Region
+		dataCategory: StateOrProvince
+
+		annotation SummarizationSetBy = Automatic
+
+	column Country
+		dataType: string
+		lineageTag: cfe80d83-6e20-42d1-820c-c22f047d1942
+		summarizeBy: none
+		sourceColumn: Country
+		dataCategory: Country
+
+		annotation SummarizationSetBy = Automatic
+
+	column City
+		dataType: string
+		lineageTag: 1a9fca4f-eb1c-4454-9c8a-58cec057631e
+		summarizeBy: none
+		sourceColumn: City
+		dataCategory: City
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Customers-b5859c17-59da-4b12-9c8e-6c9da48bbcc3' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost", "master"),
+				    Table = Source{[Schema="dbo",Item="Customers"]}[Data]
+				in
+				    Table
+
+	annotation PBI_ResultType = Table
+
