@@ -1,0 +1,36 @@
+{
+    "// COMMENT": "Example configuration file for migrate.py — pass via --config config.json",
+
+    "// Qlik_file": "Path to the Qlik workbook (.qvf or .qvf)",
+    "Qlik_file": "examples/Qlik_samples/Superstore.qvf",
+
+    "// prep_flow": "Optional path to a Qlik Prep flow (.tfl or .tflx)",
+    "prep_flow": null,
+
+    "// output_dir": "Output directory for generated .pbip projects (default: artifacts/powerbi_projects/)",
+    "output_dir": null,
+
+    "// model_mode": "Semantic model connection mode: import | directquery | composite",
+    "model_mode": "import",
+
+    "// output_format": "Output format: pbip (full project) | tmdl (semantic model only) | pbir (report only)",
+    "output_format": "pbip",
+
+    "// culture": "IETF locale tag for the semantic model (default: en-US)",
+    "culture": "en-US",
+
+    "// calendar_start": "Start year for the auto-generated Calendar table (default: 2020)",
+    "calendar_start": 2020,
+
+    "// calendar_end": "End year for the auto-generated Calendar table (default: 2030)",
+    "calendar_end": 2030,
+
+    "// rollback": "If true, backup existing .pbip project before overwriting",
+    "rollback": false,
+
+    "// verbose": "Enable DEBUG-level logging",
+    "verbose": false,
+
+    "// log_file": "Optional file path for log output",
+    "log_file": null
+}

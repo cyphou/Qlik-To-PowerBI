@@ -1,0 +1,17 @@
+{
+  "metadata": {
+    "name": "custom_map_to_azure_map",
+    "version": "1.0.0",
+    "author": "Migration Marketplace",
+    "description": "Override Qlik custom geocoding maps to Azure Maps visual",
+    "tags": ["geographic", "maps", "azure"],
+    "category": "visual_mapping",
+    "created": "2026-03-22"
+  },
+  "payload": {
+    "overrides": {
+      "custom_geocoding": "azureMap",
+      "mapbox": "azureMap"
+    }
+  }
+}

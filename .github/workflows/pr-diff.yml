@@ -1,0 +1,166 @@
+name: PR Migration Diff
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  migration-diff:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          path: pr
+
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: base
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Migrate samples with base branch
+        run: |
+          cd base
+          mkdir -p /tmp/base_output
+          for twb in examples/Qlik_samples/*.twb; do
+            [ -f "$twb" ] || continue
+            python migrate.py "$twb" --output-dir /tmp/base_output 2>/dev/null || true
+          done
+
+      - name: Migrate samples with PR branch
+        run: |
+          cd pr
+          mkdir -p /tmp/pr_output
+          for twb in examples/Qlik_samples/*.twb; do
+            [ -f "$twb" ] || continue
+            python migrate.py "$twb" --output-dir /tmp/pr_output 2>/dev/null || true
+          done
+
+      - name: Generate diff report
+        id: diff
+        run: |
+          cd pr
+          python -c "
+          import sys, os, json
+          sys.path.insert(0, '.')
+          from powerbi_import.incremental import IncrementalMerger
+
+          base_dir = '/tmp/base_output'
+          pr_dir = '/tmp/pr_output'
+          report_lines = ['## Migration Diff Report', '']
+
+          # Find all project dirs in PR output
+          if not os.path.isdir(pr_dir):
+              report_lines.append('No PR output generated.')
+          else:
+              projects = sorted(d for d in os.listdir(pr_dir)
+                                if os.path.isdir(os.path.join(pr_dir, d)))
+
+              if not projects:
+                  report_lines.append('No projects generated.')
+              else:
+                  total_added = 0
+                  total_modified = 0
+                  total_removed = 0
+
+                  for proj in projects:
+                      base_proj = os.path.join(base_dir, proj)
+                      pr_proj = os.path.join(pr_dir, proj)
+
+                      if not os.path.isdir(base_proj):
+                          report_lines.append(f'### {proj} — **NEW** (no base)')
+                          n_files = sum(1 for _, _, fs in os.walk(pr_proj) for f in fs)
+                          report_lines.append(f'  - {n_files} files generated')
+                          total_added += n_files
+                          continue
+
+                      diffs = IncrementalMerger.diff_projects(base_proj, pr_proj)
+                      added = [d for d in diffs if d.kind == 'added']
+                      modified = [d for d in diffs if d.kind == 'modified']
+                      removed = [d for d in diffs if d.kind == 'removed']
+                      unchanged = [d for d in diffs if d.kind == 'unchanged']
+
+                      total_added += len(added)
+                      total_modified += len(modified)
+                      total_removed += len(removed)
+
+                      if not added and not modified and not removed:
+                          report_lines.append(f'### {proj} — No changes')
+                          continue
+
+                      report_lines.append(f'### {proj}')
+                      report_lines.append(f'| Status | Count |')
+                      report_lines.append(f'|--------|-------|')
+                      report_lines.append(f'| Added | {len(added)} |')
+                      report_lines.append(f'| Modified | {len(modified)} |')
+                      report_lines.append(f'| Removed | {len(removed)} |')
+                      report_lines.append(f'| Unchanged | {len(unchanged)} |')
+                      report_lines.append('')
+
+                      if modified:
+                          report_lines.append('<details><summary>Modified files</summary>')
+                          report_lines.append('')
+                          for d in modified[:20]:
+                              report_lines.append(f'- \`{d.path}\` ({d.detail})')
+                          if len(modified) > 20:
+                              report_lines.append(f'- ... and {len(modified)-20} more')
+                          report_lines.append('</details>')
+                          report_lines.append('')
+
+                  report_lines.append('---')
+                  report_lines.append(f'**Total: +{total_added} added, '
+                                      f'~{total_modified} modified, '
+                                      f'-{total_removed} removed**')
+
+          report_text = '\n'.join(report_lines)
+
+          # Write to file for the comment step
+          with open('/tmp/diff_report.md', 'w') as f:
+              f.write(report_text)
+          print(report_text)
+          "
+
+      - name: Post diff as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '## Migration Diff Report\n\nNo diff generated.';
+            try {
+              body = fs.readFileSync('/tmp/diff_report.md', 'utf8');
+            } catch (e) {}
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const botComment = comments.find(c =>
+              c.body.includes('## Migration Diff Report'));
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }

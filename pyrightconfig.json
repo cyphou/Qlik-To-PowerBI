@@ -1,0 +1,8 @@
+{
+    "extraPaths": [
+        "qlik_export",
+        "powerbi_import"
+    ],
+    "pythonVersion": "3.8",
+    "reportMissingModuleSource": "none"
+}

@@ -1,0 +1,18 @@
+{
+  "metadata": {
+    "name": "yoy_growth_percent",
+    "version": "1.0.0",
+    "author": "Migration Marketplace",
+    "description": "Year-over-year growth percentage using SAMEPERIODLASTYEAR",
+    "tags": ["finance", "time-intelligence", "growth"],
+    "category": "dax_recipe",
+    "Qlik_function": "Table calc with LOOKUP and date offset",
+    "created": "2026-03-22"
+  },
+  "payload": {
+    "inject": {
+      "name": "YoY Growth %",
+      "dax": "DIVIDE(SUM('Sales'[Revenue]) - CALCULATE(SUM('Sales'[Revenue]), SAMEPERIODLASTYEAR('Calendar'[Date])), CALCULATE(SUM('Sales'[Revenue]), SAMEPERIODLASTYEAR('Calendar'[Date])))"
+    }
+  }
+}

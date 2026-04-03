@@ -1,5 +1,86 @@
 # Changelog
 
+## v9.0.0 — Enterprise Features (ported from TableauToPowerBI)
+
+### New Modules — 35 modules ported from TableauToPowerBI
+
+#### DAX Intelligence (4 modules)
+- **dax_optimizer.py**: AST-based DAX rewriter (IF→SWITCH, COALESCE, constant folding, VAR extraction)
+- **dax_recipes.py**: Industry KPI templates (Healthcare, Finance, Retail)
+- **dax_query_generator.py**: DAX Studio validation query auto-generation
+- **model_templates.py**: Pre-built star schema model skeletons
+
+#### Fabric-Native Generation (9 modules)
+- **fabric_constants.py**, **fabric_naming.py**: Spark type maps, naming sanitization
+- **lakehouse_generator.py**: Delta table schemas & DDL
+- **dataflow_generator.py**: Power Query M for Dataflow Gen2
+- **notebook_generator.py**: PySpark ETL notebooks (9 connector templates)
+- **pipeline_generator.py**: 3-stage Fabric Data Pipeline
+- **fabric_semantic_model_generator.py**: DirectLake semantic model
+- **fabric_project_generator.py**: Fabric artifacts orchestrator
+- **calc_column_utils.py**: Calculated column classification
+
+#### Multi-App Merge Engine (6 modules)
+- **shared_model.py**: Fingerprint-based table matching & deduplication
+- **thin_report_generator.py**: Thin reports with shared semantic model
+- **merge_assessment.py**, **merge_config.py**, **merge_report_html.py**, **global_assessment.py**
+
+#### Enterprise Governance & Validation (6 modules)
+- **governance.py**: PII detection, naming conventions, audit trail (JSONL)
+- **security_validator.py**: Path/ZIP slip/XXE protection
+- **equivalence_tester.py**: Cross-platform value comparison
+- **regression_suite.py**: Snapshot-based drift detection
+- **schema_drift.py**: Column/formula change detection
+- **visual_diff.py**: Side-by-side HTML comparison
+
+#### Enterprise APIs & Services (3 modules)
+- **api_server.py**: REST API server (stdlib, zero deps)
+- **notebook_api.py**: Jupyter interactive migration API
+- **paginated_generator.py**: RDL-style paginated reports
+
+#### Observability & SLA (4 modules)
+- **monitoring.py**: Metrics export (Azure Monitor, Prometheus, JSON)
+- **alerts_generator.py**: Threshold-based PBI data-driven alerts
+- **recovery_report.py**: Self-healing recovery tracking
+- **sla_tracker.py**: Per-app SLA compliance
+
+#### Advanced Features (3 modules)
+- **llm_client.py**: LLM-assisted DAX refinement (OpenAI/Anthropic)
+- **marketplace.py**: Versioned pattern registry
+- **permission_mapper.py**: RLS PowerShell script generator
+
+### Portfolio Assessment
+- **server_assessment.py**: Server-level RED/YELLOW/GREEN per app, complexity heatmap, wave planning
+
+### Enhanced Deployment (4 new deploy modules)
+- **bundle_deployer.py**: Shared model + thin reports atomic deployment
+- **multi_tenant.py**: Multi-tenant template substitution
+- **pbi_client.py**: Power BI Service REST API
+- **pbi_deployer.py**: Blue/green deployment, refresh scheduling
+
+### Visual Generator Enrichment
+- Added 14 new visual type mappings (azureMap, violin, parallel coordinates, calendar heatmap, etc.)
+- Added 9 new custom visual GUIDs (Violin, Parallel Coords, Calendar, OrgChart, Timeline, Radar, Dendrogram, Sunburst)
+- Added auto-generated measures system for dynamic measure creation
+- Added Qlik extension visual mapping (QLIK_EXTENSION_MAP — 16 extensions)
+
+### Infrastructure
+- 9 Copilot agent definitions (.github/agents/)
+- 3 additional CI workflows (gh-pages, pr-diff, publish)
+- Streamlit migration wizard (web/app.py)
+- 5 utility scripts (scripts/)
+- Root configs: Dockerfile, .coveragerc, pyrightconfig.json, setup.cfg, config.example.json, CONTRIBUTING.md
+- Example marketplace patterns and plugin samples
+
+### Stats
+- **55 powerbi_import modules** (was 20 in v8)
+- **1626 tests** all passing
+- **75+ visual types** (was 60+)
+- **9 agent definitions** for multi-agent Copilot workflows
+- **5 CI workflows**
+
+---
+
 ## v8.0.0 — Polish, Extensibility & Production Readiness
 
 ### Phase 1 — Critical Fixes (+98 tests)

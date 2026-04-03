@@ -133,7 +133,7 @@ class TestPhase5Documentation:
         assert f.exists()
         content = f.read_text("utf-8")
         assert "1626" in content, "copilot-instructions should have updated test count"
-        assert "8.0.0" in content
+        assert "9.0.0" in content
 
     def test_faq_has_v8_entries(self, project_root_dir):
         content = (project_root_dir / "docs" / "FAQ.md").read_text("utf-8")
@@ -148,9 +148,9 @@ class TestPhase6Housekeeping:
         import qlik_export
         assert qlik_export.__version__ == '8.0.0'
 
-    def test_version_8_in_powerbi_import(self):
+    def test_version_9_in_powerbi_import(self):
         import powerbi_import
-        assert powerbi_import.__version__ == '8.0.0'
+        assert powerbi_import.__version__ == '9.0.0'
 
     def test_fabric_api_deprecation_readme(self, project_root_dir):
         f = project_root_dir / "src" / "fabric_api" / "README.md"

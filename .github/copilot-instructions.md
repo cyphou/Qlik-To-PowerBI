@@ -47,13 +47,52 @@ python migrate.py app.qvf --verbose        # Detailed logging
 ├── powerbi_import/                     # Power BI generation layer (canonical)
 │   ├── tmdl_generator.py             # TMDL semantic model output
 │   ├── pbip_generator.py             # Full .pbip project output
-│   ├── visual_generator.py           # 60+ visual types, 30+ config templates
+│   ├── visual_generator.py           # 75+ visual types, 30+ config templates
 │   ├── import_to_powerbi.py          # Import orchestrator
 │   ├── plugins.py                    # Plugin architecture (7 hooks)
 │   ├── progress.py                   # Step-level progress tracking
 │   ├── validator.py                  # Artifact validation
+│   ├── dax_optimizer.py              # AST-based DAX rewriter (IF→SWITCH, COALESCE, etc.)
+│   ├── dax_recipes.py                # Industry KPI templates (Healthcare/Finance/Retail)
+│   ├── dax_query_generator.py        # DAX Studio validation query generator
+│   ├── model_templates.py            # Pre-built star schema skeletons
+│   ├── governance.py                 # PII detection, naming conventions, audit trail
+│   ├── security_validator.py         # Path/ZIP slip/XXE protection
+│   ├── monitoring.py                 # Metrics export (Azure Monitor, Prometheus, JSON)
+│   ├── alerts_generator.py           # Threshold-based PBI alert rules
+│   ├── recovery_report.py            # Self-healing recovery tracking
+│   ├── sla_tracker.py                # Per-app SLA compliance
+│   ├── schema_drift.py               # Column/formula change detection
+│   ├── equivalence_tester.py         # Cross-platform value comparison
+│   ├── regression_suite.py           # Snapshot-based drift detection
+│   ├── visual_diff.py                # Side-by-side HTML comparison
+│   ├── marketplace.py                # Versioned pattern registry
+│   ├── api_server.py                 # REST API server (stdlib)
+│   ├── notebook_api.py               # Jupyter interactive migration API
+│   ├── paginated_generator.py        # RDL-style paginated reports
+│   ├── permission_mapper.py          # RLS PowerShell script generator
+│   ├── llm_client.py                 # LLM-assisted DAX refinement
+│   ├── server_assessment.py          # Portfolio-level assessment & wave planning
+│   ├── shared_model.py               # Multi-app merge engine (fingerprint matching)
+│   ├── thin_report_generator.py      # Thin reports with shared semantic model
+│   ├── merge_assessment.py           # Merge JSON report
+│   ├── merge_config.py               # Reproducible merge decisions
+│   ├── merge_report_html.py          # Merge HTML dashboard
+│   ├── global_assessment.py          # Cross-app merge analysis
+│   ├── fabric_constants.py           # Spark type maps, Fabric patterns
+│   ├── fabric_naming.py              # Fabric artifact name sanitization
+│   ├── lakehouse_generator.py        # Delta table schemas & DDL
+│   ├── dataflow_generator.py         # Power Query M for Dataflow Gen2
+│   ├── notebook_generator.py         # PySpark ETL notebooks
+│   ├── pipeline_generator.py         # 3-stage Fabric Data Pipeline
+│   ├── fabric_semantic_model_generator.py  # DirectLake semantic model
+│   ├── fabric_project_generator.py   # Fabric artifacts orchestrator
+│   ├── calc_column_utils.py          # Calculated column classification
 │   ├── config/                       # Migration config (pydantic-settings)
-│   └── deploy/                       # Azure deployment (auth, client, deployer)
+│   └── deploy/                       # Azure deployment (auth, client, deployer,
+│       │                             #   bundle_deployer, multi_tenant,
+│       │                             #   pbi_client, pbi_deployer)
+│       └── config/                   # Environment-based deployment config
 ├── src/fabric_api/                     # Deprecated — backward-compat shims
 │   ├── tmdl_generator.py             # Unique TMDLGenerator class (not yet migrated)
 │   ├── visual_generator.py           # Unique implementation (not yet migrated)
@@ -61,8 +100,10 @@ python migrate.py app.qvf --verbose        # Detailed logging
 ├── tools/migration/                   # 28 standalone migration scripts
 ├── tools/analysis/                    # Diagnostic tools
 ├── tools/testing/                     # Integration test suites
+├── scripts/                          # Utility scripts (M syntax check, version bump)
+├── web/                              # Streamlit migration wizard
 ├── tests/                            # pytest test suite
-├── examples/                         # Usage examples & samples
+├── examples/                         # Usage examples, marketplace, plugins
 └── docs/                             # Guides, references, reports
 ```
 
@@ -119,7 +160,7 @@ SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB
 | Reshape | sort, transpose, add index, skip/remove rows, promote/demote headers |
 | Calculated | add custom column, conditional column |
 
-## Visual Type Mapping — 60+ Types
+## Visual Type Mapping — 75+ Types
 
 | Qlik Type | Power BI Visual |
 |-----------|----------------|
@@ -165,14 +206,70 @@ SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB
 - P()/E() set analysis → ALL/EXCEPT
 - Dollar-sign expression expansion `$(=expr)` with Qlik→DAX conversion
 
-## Current Stats (v8.0.0)
+## Current Stats (v9.0.0)
 
 - **1626 tests** across 41 test files
+- **55 powerbi_import modules** (was 20 in v8)
 - **164 entries** in `_SIMPLE_FUNCTION_MAP`
 - **5/6 sample migrations** pass at 100% fidelity
 - **Plugin system** with 7 hook points (`--plugins` CLI flag)
 - **JSON output** for CI/CD (`--json` CLI flag)
 - **Progress callbacks** for pipeline visibility
+- **9 agent definitions** for multi-agent Copilot workflows
+- **5 CI workflows** (lint, test, deploy, gh-pages, publish)
+
+## v9 — Enterprise Features (ported from TableauToPowerBI)
+
+### DAX Intelligence
+- AST-based DAX optimizer (IF→SWITCH, COALESCE, constant folding, VAR extraction)
+- Industry-specific KPI templates (Healthcare, Finance, Retail)
+- DAX Studio validation query auto-generation
+- Pre-built star schema model templates
+- LLM-assisted DAX refinement (OpenAI/Anthropic)
+
+### Fabric-Native Generation (`--output-format fabric`)
+- Lakehouse delta table schemas & DDL
+- Dataflow Gen2 Power Query M ingestion
+- PySpark ETL notebooks (9 connector templates)
+- 3-stage Data Pipeline orchestrator
+- DirectLake semantic model
+
+### Multi-App Merge Engine
+- Fingerprint-based table matching & deduplication
+- Thin reports with shared semantic model (byPath)
+- Merge assessment JSON & HTML reports
+- Per-table merge rules (save/load for reproducibility)
+- Cross-app merge cluster analysis
+
+### Enterprise Governance & Validation
+- PII detection, naming conventions, audit trail (JSONL)
+- Security: path validation, ZIP slip defense, XXE protection
+- Equivalence testing: cross-platform value comparison
+- Regression snapshots for drift detection
+- Schema drift detection (added/removed/renamed columns)
+- Visual diff: side-by-side HTML comparison
+- SLA compliance tracking (max time, min fidelity)
+
+### Portfolio Assessment & Observability
+- Server-level assessment: RED/YELLOW/GREEN per app
+- Complexity heatmap, effort estimation, wave planning
+- Metrics export to Azure Monitor, Prometheus, JSON
+- Self-healing recovery tracking
+- Threshold-based PBI data-driven alerts
+
+### Enterprise APIs & Automation
+- REST API server (stdlib, zero deps)
+- Jupyter-based interactive migration API
+- RDL-style paginated report generator
+- RLS permission PowerShell script generator
+- Versioned pattern registry (marketplace)
+- Streamlit web migration wizard
+
+### Enhanced Deployment
+- Bundle deployer (shared model + thin reports)
+- Multi-tenant deployment with template substitution
+- Power BI Service REST API (blue/green deployment)
+- Refresh scheduling
 
 ## v8 Visual & Reporting Features
 

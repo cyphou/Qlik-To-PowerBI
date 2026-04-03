@@ -178,6 +178,19 @@ VISUAL_TYPE_MAP = {
     "pareto": "lineClusteredColumnComboChart",
     "dualaxis": "lineClusteredColumnComboChart",
 
+    # ── Advanced / Spatial ────────────────────────────────────
+    "makepoint": "azureMap",
+    "spatial": "azureMap",
+    "azuremap": "azureMap",
+    "violinplot": "boxAndWhisker",
+    "violin": "boxAndWhisker",
+    "parallelcoordinates": "lineChart",
+    "parallel-coordinates": "lineChart",
+    "calendarheatmap": "matrix",
+    "orgchart": "decompositionTree",
+    "radar": "lineChart",
+    "dendrogram": "decompositionTree",
+
     # ── PBI pass-through (already correct) ─────────────────
     "clusteredbarchart": "clusteredBarChart",
     "stackedbarchart": "stackedBarChart",
@@ -255,7 +268,122 @@ CUSTOM_VISUAL_GUIDS = {
         "class": "bulletChart",
         "roles": {"Value": "measure", "Target": "measure", "Category": "dimension"},
     },
+    "violin": {
+        "guid": "ViolinPlot1.0.0",
+        "name": "Violin Plot",
+        "class": "violinPlot",
+        "roles": {"Category": "dimension", "Value": "measure"},
+    },
+    "parallelcoordinates": {
+        "guid": "ParallelCoordinates1.0.0",
+        "name": "Parallel Coordinates",
+        "class": "parallelCoordinates",
+        "roles": {"Axis": "dimension", "Value": "measure"},
+    },
+    "calendar": {
+        "guid": "Calendar1.0.0",
+        "name": "Calendar Visual",
+        "class": "calendarVisual",
+        "roles": {"Date": "dimension", "Value": "measure"},
+    },
+    "orgchart": {
+        "guid": "OrgChart1.0.0",
+        "name": "Organization Chart",
+        "class": "orgChart",
+        "roles": {"Node": "dimension", "Parent": "dimension", "Value": "measure"},
+    },
+    "timeline": {
+        "guid": "Timeline1.0.0",
+        "name": "Timeline Visual",
+        "class": "timelineVisual",
+        "roles": {"Start": "dimension", "End": "dimension", "Category": "dimension"},
+    },
+    "radar": {
+        "guid": "RadarChart1.0.0",
+        "name": "Radar Chart",
+        "class": "radarChart",
+        "roles": {"Category": "dimension", "Value": "measure"},
+    },
+    "dendrogram": {
+        "guid": "Dendrogram1.0.0",
+        "name": "Dendrogram",
+        "class": "dendrogram",
+        "roles": {"Source": "dimension", "Target": "dimension", "Value": "measure"},
+    },
+    "sunburst": {
+        "guid": "Sunburst1.0.0",
+        "name": "Sunburst Chart",
+        "class": "sunburstChart",
+        "roles": {"Groups": "dimension", "Values": "measure"},
+    },
 }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Auto-Generated Measures System
+# ═══════════════════════════════════════════════════════════════════
+# Some visual types need auto-generated DAX measures (e.g. RANKX for
+# bump charts). Track them so TMDL generator can include them.
+
+_auto_generated_measures = []
+
+
+def get_auto_generated_measures():
+    """Return list of measures auto-generated during visual creation."""
+    return list(_auto_generated_measures)
+
+
+def clear_auto_generated_measures():
+    """Reset the auto-generated measures list before a fresh generation run."""
+    _auto_generated_measures.clear()
+
+
+def _add_auto_measure(name, expression, display_folder='Auto-Generated'):
+    """Register a measure created as a side-effect of visual generation."""
+    _auto_generated_measures.append({
+        'name': name,
+        'expression': expression,
+        'displayFolder': display_folder,
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Extension Visual Mapping — Qlik extension IDs → PBI visual types
+# ═══════════════════════════════════════════════════════════════════
+
+QLIK_EXTENSION_MAP = {
+    'qlik-smart-pivot': 'pivotTable',
+    'qlik-word-cloud': 'wordCloud',
+    'qlik-sankey-chart-ext': 'sankeyDiagram',
+    'qlik-network-chart': 'networkNavigator',
+    'qlik-gantt-chart': 'ganttChart',
+    'qlik-bullet-chart': 'bulletChart',
+    'qlik-radar-chart': 'radarChart',
+    'qlik-funnel-chart-ext': 'funnel',
+    'qlik-calendar-heatmap': 'matrix',
+    'qlik-trellis-container': 'smallMultiple',
+    'qlik-variable-input': 'slicer',
+    'qlik-navigation-button': 'actionButton',
+    'sn-org-chart': 'orgChart',
+    'sn-grid-chart': 'matrix',
+    'cl-kpi': 'card',
+    'cl-kpi-extended': 'multiRowCard',
+}
+
+
+def resolve_extension_visual(extension_id):
+    """Map a Qlik extension ID to a PBI visual type with migration notes.
+
+    Returns:
+        tuple: (pbi_visual_type, migration_note) or (None, None) if unknown
+    """
+    ext_map = {
+        ext_id: (pbi_type, f'Mapped from Qlik extension: {ext_id}')
+        for ext_id, pbi_type in QLIK_EXTENSION_MAP.items()
+    }
+    if extension_id and extension_id.lower() in ext_map:
+        return ext_map[extension_id.lower()]
+    return None, None
 
 
 def resolve_custom_visual_type(source_mark, use_custom_visuals=True):

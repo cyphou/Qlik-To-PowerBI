@@ -1,0 +1,18 @@
+{
+  "metadata": {
+    "name": "revenue_ytd",
+    "version": "1.0.0",
+    "author": "Migration Marketplace",
+    "description": "Year-to-date revenue calculation using TOTALYTD",
+    "tags": ["finance", "time-intelligence", "revenue"],
+    "category": "dax_recipe",
+    "Qlik_function": "RUNNING_SUM with date filter",
+    "created": "2026-03-22"
+  },
+  "payload": {
+    "inject": {
+      "name": "Revenue YTD",
+      "dax": "TOTALYTD(SUM('Sales'[Revenue]), 'Calendar'[Date])"
+    }
+  }
+}

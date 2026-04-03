@@ -1,0 +1,26 @@
+[run]
+source = qlik_export/,powerbi_import/
+omit =
+    tests/*
+    */__pycache__/*
+    */deploy/*
+    powerbi_import/wizard.py
+    powerbi_import/telemetry_dashboard.py
+
+[report]
+show_missing = True
+precision = 1
+fail_under = 80
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if __name__ == .__main__
+    raise NotImplementedError
+    pass
+    except ImportError
+    def main
+    input\(
+
+[html]
+directory = htmlcov
+title = Qlik-to-PowerBI Coverage Report
