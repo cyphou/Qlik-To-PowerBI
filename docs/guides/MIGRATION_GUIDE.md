@@ -127,7 +127,7 @@ The generation phase produces a complete PBIP project:
 - **Expressions** (shared Power Query M)
 
 ### Report Definition
-- 60+ visual types mapped from Qlik equivalents
+- 75+ visual types mapped from Qlik equivalents (v9: +14 new types incl. sankey, chord, sunburst, decomposition tree, shape map)
 - Page layouts preserving sheet structure
 - Data bindings linking visuals to model columns
 - Bookmarks with filter state
@@ -198,7 +198,7 @@ Excel, CSV, SQL Server, PostgreSQL, BigQuery, Oracle, MySQL, Snowflake, Teradata
 
 ## Visual Mapping
 
-60+ Qlik visual types map to Power BI equivalents:
+75+ Qlik visual types map to Power BI equivalents:
 
 | Qlik Type | Power BI Visual |
 |-----------|----------------|
@@ -216,7 +216,12 @@ Excel, CSV, SQL Server, PostgreSQL, BigQuery, Oracle, MySQL, Snowflake, Teradata
 | waterfall | waterfallChart |
 | filterpane | slicer |
 | text-image | textbox |
-| *(40+ more)* | ... |
+| sankey | sankeyDiagram *(v9)* |
+| chord | chordChart *(v9)* |
+| sunburst | sunburstChart *(v9)* |
+| decompositionTree | decompositionTree *(v9)* |
+| shapeMap | shapeMap *(v9)* |
+| *(50+ more)* | ... |
 
 ---
 
@@ -267,3 +272,67 @@ Qlik `$(=expression)` patterns are expanded with the expression converted to DAX
 - Ensure the module is on `PYTHONPATH`
 
 See also: [FAQ](../FAQ.md)
+
+---
+
+## Enterprise Features (v9)
+
+### DAX Optimizer
+
+After generation, an AST-based optimizer automatically rewrites DAX for better readability and performance:
+
+| Optimization | Before | After |
+|-------------|--------|-------|
+| Nested IF → SWITCH | `IF(x="A",1,IF(x="B",2,0))` | `SWITCH(x,"A",1,"B",2,0)` |
+| ISBLANK → COALESCE | `IF(ISBLANK(x),default,x)` | `COALESCE(x,default)` |
+| Constant folding | `1 + 2 + 3` | `6` |
+| VAR extraction | Repeated subexpressions | `VAR _v = expr RETURN ...` |
+| Time Intelligence | Calendar table detected | Auto-generated YTD/QTD/MTD measures |
+
+### Fabric-Native Output
+
+```bash
+python migrate.py app.json --output-format fabric
+```
+
+Generates a complete Fabric project:
+- **Lakehouse** — Delta table schemas & DDL for each source table
+- **Dataflow Gen2** — Power Query M ingestion with Lakehouse destinations
+- **Notebook** — PySpark ETL pipeline (9 connector templates)
+- **Pipeline** — 3-stage orchestration (Dataflow → Notebook → Semantic Model refresh)
+- **Semantic Model** — DirectLake model pointing to Lakehouse tables
+
+### Multi-App Merge
+
+```bash
+python migrate.py --merge app1.json app2.json app3.json
+```
+
+Combines multiple Qlik apps into a shared semantic model:
+1. **Fingerprint matching** — Tables are hashed by column names/types
+2. **Jaccard scoring** — Overlap between table pairs is scored
+3. **Deduplication** — Matching tables merged, measures unified
+4. **Thin reports** — Each app becomes a thin report referencing the shared model
+
+### Portfolio Assessment
+
+```bash
+python migrate.py --assess-server exports/
+```
+
+Scans all Qlik exports and generates:
+- **RED/YELLOW/GREEN** status per app
+- Complexity scoring (DAX depth, visual count, relationship count)
+- Effort estimation (hours per app)
+- Wave planning recommendations (which apps to migrate first)
+
+### Governance & Security
+
+| Feature | Module | Description |
+|---------|--------|-------------|
+| PII detection | `governance.py` | Scans column names for email, SSN, phone patterns |
+| Naming conventions | `governance.py` | Validates against configurable naming rules |
+| Audit trail | `governance.py` | JSONL log of all migration decisions |
+| Path validation | `security_validator.py` | Prevents path traversal attacks |
+| ZIP slip defense | `security_validator.py` | Prevents malicious QVF extraction |
+| Schema drift | `schema_drift.py` | Detects column changes between versions |

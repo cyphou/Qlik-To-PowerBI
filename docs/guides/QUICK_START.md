@@ -78,7 +78,7 @@ artifacts/powerbi_projects/Sales/
 | Calculated columns | ✅ Full |
 | Hierarchies | ✅ Full |
 | Power Query M (25 connector types) | ✅ Full |
-| Visuals (60+ types) | ✅ Full |
+| Visuals (75+ types) | ✅ Full |
 | RLS / Section Access | ✅ Full |
 | Bookmarks & variables | ✅ Full |
 
@@ -89,6 +89,19 @@ artifacts/powerbi_projects/Sales/
 - **[Migration Guide](MIGRATION_GUIDE.md)** — Detailed technical walkthrough
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** — Deploy to Azure Fabric
 - **[Plugin Development](PLUGIN_DEVELOPMENT.md)** — Create custom migration plugins
+
+### v9 Enterprise Options
+
+```bash
+# Generate Fabric-native artifacts (Lakehouse + Dataflow + Notebook + Pipeline)
+python migrate.py "YourApp.json" --output-format fabric
+
+# Merge multiple apps into a shared semantic model
+python migrate.py --merge app1.json app2.json
+
+# Portfolio-level assessment
+python migrate.py --assess-server exports/
+```
 
 ---
 

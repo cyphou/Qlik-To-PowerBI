@@ -228,4 +228,67 @@ The `--json` flag outputs a structured result for programmatic consumption:
 }
 ```
 
+---
+
+## v9 Deployment Options
+
+### Fabric-Native Output
+
+Generate Fabric-specific artifacts instead of standard PBIP:
+
+```bash
+python migrate.py app.json --output-format fabric --output-dir output/fabric_project
+```
+
+This produces:
+- **Lakehouse/** — Delta table schemas and DDL
+- **Dataflow/** — Power Query M for Dataflow Gen2
+- **Notebook/** — PySpark ETL notebooks (9 connector templates)
+- **Pipeline/** — 3-stage orchestration (Dataflow → Notebook → Semantic Model)
+- **SemanticModel/** — DirectLake model pointing to Lakehouse tables
+
+### Bundle Deployment (Shared Model + Thin Reports)
+
+After merging multiple apps:
+
+```python
+from powerbi_import.deploy.bundle_deployer import BundleDeployer
+
+deployer = BundleDeployer(
+    workspace_id="your-workspace-id",
+    auth_token=token,
+)
+deployer.deploy_bundle("output/merged/")
+# Deploys shared semantic model first, then thin reports
+```
+
+### Multi-Tenant Deployment
+
+Deploy the same migration to multiple tenants with template substitution:
+
+```python
+from powerbi_import.deploy.multi_tenant import MultiTenantDeployer
+
+deployer = MultiTenantDeployer(template_dir="output/my_app")
+deployer.deploy(
+    tenants=[
+        {"tenant_id": "t1", "workspace_id": "w1", "server": "db1.example.com"},
+        {"tenant_id": "t2", "workspace_id": "w2", "server": "db2.example.com"},
+    ],
+    auth_token=token,
+)
+```
+
+### Blue/Green Deployment
+
+```python
+from powerbi_import.deploy.pbi_deployer import PBIDeployer
+
+deployer = PBIDeployer(workspace_id="ws-id", auth_token=token)
+deployer.deploy_blue_green(
+    project_dir="output/my_app",
+    refresh_after_deploy=True,
+)
+```
+
 Use this to gate deployments, aggregate metrics, or feed dashboards.

@@ -1,6 +1,6 @@
 # QlikToPowerBI Migration Toolkit — Comprehensive Gap Analysis
 
-**Date:** 2026-02-23  
+**Date:** 2026-02-23 (updated 2026-04-03 for v9.0.0)  
 **Auditor:** GitHub Copilot  
 **Scope:** Full codebase review of all core modules, standalone migration scripts, and output quality
 
@@ -8,7 +8,11 @@
 
 ## Executive Summary
 
-The toolkit has a **solid foundational architecture**: a 2-step pipeline (extract → generate), 11 intermediate JSON files, 10 core Python modules, and 28 standalone migration scripts. The TMDL/PBIR output structure targets PBI Project 4.0 format correctly. However, significant gaps remain in **data transformation depth**, **visual report fidelity**, **DAX edge cases**, and **end-to-end integration** between the standalone tools and the core pipeline.
+The toolkit has a **solid foundational architecture**: a 2-step pipeline (extract → generate), 11 intermediate JSON files, 55 core Python modules (up from 10 in v8), and 28 standalone migration scripts. The TMDL/PBIR output structure targets PBI Project 4.0 format correctly.
+
+**v9.0.0 closures:** DAX optimizer (AST-based rewriting), Fabric-native output, multi-app merge engine, enterprise governance (PII detection, security validation, audit trail), portfolio assessment, observability (Azure Monitor, Prometheus), 75+ visual types (+14 in v9), 1,892 tests.
+
+Remaining gaps are concentrated in **data transformation depth**, **visual report fidelity edge cases**, and **load script advanced patterns**.
 
 | Category | Implemented | Missing/Partial | Severity Distribution |
 |----------|------------|-----------------|----------------------|
@@ -16,7 +20,7 @@ The toolkit has a **solid foundational architecture**: a 2-step pipeline (extrac
 | B. Data Transformations (M) | 40+ transforms | 12 gaps | 3 CRITICAL, 4 HIGH, 5 MEDIUM |
 | C. Data Model (TMDL) | Tables, columns, relationships, RLS, hierarchies, calendar | 8 gaps | 1 CRITICAL, 3 HIGH, 4 MEDIUM |
 | D. Calculated Fields (DAX) | 175+ function mappings, set analysis, Aggr | 10 gaps | 2 CRITICAL, 4 HIGH, 4 MEDIUM |
-| E. Reports & Visuals | 60+ types, query state, grid layout | 14 gaps | 2 CRITICAL, 5 HIGH, 7 MEDIUM |
+| E. Reports & Visuals | 75+ types, query state, grid layout | 14 gaps | 2 CRITICAL, 5 HIGH, 7 MEDIUM |
 | F. Dashboards & Interactivity | Bookmarks extracted | 8 gaps | 1 HIGH, 4 MEDIUM, 3 LOW |
 | G. Formatting & Theming | Theme tool exists (standalone) | 6 gaps | 1 HIGH, 3 MEDIUM, 2 LOW |
 | H. Deployment & Operations | Fabric deployer exists | 7 gaps | 2 MEDIUM, 5 LOW |
@@ -200,7 +204,7 @@ The toolkit has a **solid foundational architecture**: a 2-step pipeline (extrac
 ### What's Implemented
 
 **`visual_generator.py`** (669 lines):
-- 60+ visual type mappings (Qlik type → PBI visual type)
+- 75+ visual type mappings (Qlik type → PBI visual type) — expanded in v9 with sankey, chord, sunburst, decompositionTree, shapeMap, narrative, influenceAnalysis, anomalyDetection, smartNarrative, paginated, embedded, rVisualization, pythonVisualization, aiInsight
 - 30+ config templates with per-type axis, legend, data label settings
 - Query state builder with role-based projections (VISUAL_DATA_ROLES: 30 types)
 - Grid layout from Qlik cell coordinates (24-col grid + bounds)

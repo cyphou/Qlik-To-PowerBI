@@ -4,7 +4,7 @@ Complete mapping tables for all conversion categories.
 
 ---
 
-## Visual Type Mapping (60+)
+## Visual Type Mapping (75+)
 
 | Qlik Type | Power BI Visual | Notes |
 |-----------|----------------|-------|
@@ -44,6 +44,19 @@ Complete mapping tables for all conversion categories.
 | nlp | qAndA | |
 | variwidthtable | tableEx | |
 | buttongroup | slicer | button style |
+| chord | chordChart | custom visual (v9) |
+| sunburst | sunburstChart | custom visual (v9) |
+| decompositionTree | decompositionTree | v9 |
+| shapeMap | shapeMap | v9 |
+| narrative | narrative | v9 |
+| influenceAnalysis | keyInfluencers | v9 |
+| anomalyDetection | anomalyDetection | v9 |
+| smartNarrative | smartNarrative | v9 |
+| paginated | paginatedReport | v9 |
+| embedded | embeddedVisual | v9 |
+| rVisualization | rVisual | v9 |
+| pythonVisualization | pythonVisual | v9 |
+| aiInsight | aiInsight | v9 |
 
 ---
 
@@ -197,3 +210,47 @@ Most Qlik number formats translate directly to DAX format strings.
 |-------------|-----------|
 | `$(=Year(Today())-1)` | `YEAR(TODAY()) - 1` |
 | `$(vMyVar)` | Resolved variable value with Qlik→DAX conversion |
+---
+
+## v9 Enterprise Features
+
+### DAX Optimizer Transformations
+
+| Input Pattern | Optimized Output |
+|---------------|------------------|
+| `IF([Status] = "A", 1, IF([Status] = "B", 2, IF([Status] = "C", 3, 0)))` | `SWITCH([Status], "A", 1, "B", 2, "C", 3, 0)` |
+| `IF(ISBLANK([X]), [Default], [X])` | `COALESCE([X], [Default])` |
+| `1 + 2 + 3` | `6` (constant folding) |
+| Repeated sub-expressions | VAR extraction |
+| Time dimension detected | Auto-generated YTD/QTD/MTD measures |
+
+### Fabric Output Mapping
+
+| Qlik Concept | Fabric Artifact |
+|-------------|----------------|
+| Data connections | Lakehouse delta tables (DDL) |
+| Load scripts | Dataflow Gen2 (Power Query M) |
+| Table transforms | PySpark ETL notebook |
+| Pipeline | 3-stage Data Pipeline (Dataflow → Notebook → Semantic Model) |
+| Data model | DirectLake semantic model |
+
+### Qlik Extension → Power BI Visual
+
+| Qlik Extension | Power BI Equivalent |
+|----------------|--------------------|
+| qlik-sankey-chart | sankeyDiagram |
+| qlik-word-cloud | wordCloud |
+| qlik-radar-chart | radarChart |
+| qlik-bullet-chart | bulletChart |
+| qlik-funnel-chart | funnel |
+| qlik-network-chart | forceDirectedGraph |
+| qlik-heatmap-chart | heatMap |
+| qlik-timeline | timeline |
+| qlik-gantt-chart | ganttChart |
+| qlik-trellis | smallMultiples |
+| qlik-org-chart | orgChart |
+| qlik-calendar | calendar |
+| qlik-variance-waterfall | waterfallChart |
+| qlik-multi-kpi | multiRowCard |
+| qlik-horizon-chart | horizonChart |
+| SenseTheme | themeJson |

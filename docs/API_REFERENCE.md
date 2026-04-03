@@ -2,6 +2,8 @@
 
 Public API documentation for key modules in the Qlik to Power BI migration toolkit.
 
+> **Version:** 9.0.0
+
 ---
 
 ## Table of Contents
@@ -11,6 +13,11 @@ Public API documentation for key modules in the Qlik to Power BI migration toolk
 3. [Power BI Importer](#power-bi-importer) — `powerbi_import/import_to_powerbi.py`
 4. [Plugin System](#plugin-system) — `powerbi_import/plugins.py`
 5. [Progress Tracking](#progress-tracking) — `powerbi_import/progress.py`
+6. [DAX Optimizer](#dax-optimizer) — `powerbi_import/dax_optimizer.py` *(v9)*
+7. [Shared Model Builder](#shared-model-builder) — `powerbi_import/shared_model.py` *(v9)*
+8. [Fabric Project Generator](#fabric-project-generator) — `powerbi_import/fabric_project_generator.py` *(v9)*
+9. [Server Assessment](#server-assessment) — `powerbi_import/server_assessment.py` *(v9)*
+10. [Governance](#governance) — `powerbi_import/governance.py` *(v9)*
 
 ---
 
@@ -359,4 +366,155 @@ class NullProgress:
     def complete(self, message: str = "") -> None
     def fail(self, error: str) -> None
     def skip(self, name: str, reason: str = "") -> None
+```
+
+---
+
+## DAX Optimizer
+
+**Module:** `powerbi_import.dax_optimizer` *(v9)*
+
+AST-based DAX rewriter that optimizes generated DAX expressions for readability and performance.
+
+### `optimize_dax()`
+
+Apply all optimization passes to a DAX expression.
+
+```python
+def optimize_dax(expression: str) -> str
+```
+
+**Optimizations applied:**
+- Nested IF → SWITCH rewrite
+- ISBLANK(x, default, x) → COALESCE(x, default)
+- Constant folding (e.g., `1 + 2` → `3`)
+- VAR extraction for repeated sub-expressions
+- SUMX simplification
+- Time Intelligence auto-generation
+
+### `build_measure_dag()`
+
+Build a directed acyclic graph of measure dependencies.
+
+```python
+def build_measure_dag(measures: list) -> dict
+```
+
+**Returns:** `{measure_name: [dependency1, dependency2, ...]}` — topological dependency map.
+
+### `optimize_model()`
+
+Optimize all measures in a converted model.
+
+```python
+def optimize_model(converted_objects: dict) -> dict
+```
+
+---
+
+## Shared Model Builder
+
+**Module:** `powerbi_import.shared_model` *(v9)*
+
+Multi-app merge engine with fingerprint-based table matching.
+
+### Class: `SharedModelBuilder`
+
+```python
+class SharedModelBuilder:
+    def __init__(self)
+    def add_app(self, app_name: str, converted_objects: dict) -> None
+    def merge(self) -> dict
+    def get_merge_report(self) -> dict
+```
+
+### `add_app()`
+
+Register an app's converted objects for merging.
+
+### `merge()`
+
+Merge all registered apps into a single shared semantic model. Uses Jaccard column overlap scoring to match tables across apps.
+
+**Returns:** Merged `converted_objects` dict with deduplicated tables and unified measures.
+
+### `get_merge_report()`
+
+Generate a merge assessment report with match scores and conflict details.
+
+---
+
+## Fabric Project Generator
+
+**Module:** `powerbi_import.fabric_project_generator` *(v9)*
+
+Orchestrates generation of Fabric-native artifacts.
+
+### Class: `FabricProjectGenerator`
+
+```python
+class FabricProjectGenerator:
+    def __init__(self, output_dir: str = "output/fabric")
+    def generate(self, app_name: str, converted_objects: dict) -> str
+```
+
+**Generated artifacts:**
+- Lakehouse delta table schemas & DDL
+- Dataflow Gen2 Power Query M ingestion
+- PySpark ETL notebooks (9 connector templates)
+- 3-stage Data Pipeline orchestrator
+- DirectLake semantic model
+
+**Returns:** Path to the generated Fabric project directory.
+
+---
+
+## Server Assessment
+
+**Module:** `powerbi_import.server_assessment` *(v9)*
+
+Portfolio-level assessment for batch migration planning.
+
+### `assess_server()`
+
+Assess a directory of Qlik exports for migration readiness.
+
+```python
+def assess_server(export_dir: str) -> dict
+```
+
+**Returns:** Assessment dict with per-app RED/YELLOW/GREEN status, complexity scores, effort estimates, and wave planning recommendations.
+
+---
+
+## Governance
+
+**Module:** `powerbi_import.governance` *(v9)*
+
+Enterprise governance checks for migrated artifacts.
+
+### `check_pii()`
+
+Scan column names and expressions for PII patterns.
+
+```python
+def check_pii(converted_objects: dict) -> list
+```
+
+**Returns:** List of PII findings with column name, table, and PII type (email, SSN, phone, etc.).
+
+### `check_naming_conventions()`
+
+Validate naming conventions against configurable rules.
+
+```python
+def check_naming_conventions(converted_objects: dict, rules: dict = None) -> list
+```
+
+### `generate_audit_trail()`
+
+Generate a JSONL audit trail of all migration decisions.
+
+```python
+def generate_audit_trail(migration_events: list, output_path: str) -> str
 ```

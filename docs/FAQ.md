@@ -161,3 +161,58 @@ Yes — implement `transform_dax(self, formula)` and return the modified formula
 
 ### Q: What happens if a plugin raises an error?
 The error is logged and the pipeline continues. Plugins never crash the migration.
+
+---
+
+## Enterprise Features (v9)
+
+### Q: How do I generate Fabric-native artifacts?
+```bash
+python migrate.py app.json --output-format fabric
+```
+This generates Lakehouse delta tables, Dataflow Gen2 ingestion, PySpark ETL notebooks, a 3-stage Data Pipeline, and a DirectLake semantic model.
+
+### Q: How do I merge multiple Qlik apps?
+```bash
+python migrate.py --merge app1.json app2.json app3.json
+```
+The merge engine uses fingerprint-based table matching with Jaccard column overlap scoring. Matching tables are deduplicated, and thin reports reference a shared semantic model.
+
+### Q: How do I assess a portfolio of Qlik apps?
+```bash
+python migrate.py --assess-server exports/
+```
+Scans all JSON exports in the directory and produces a RED/YELLOW/GREEN assessment per app with complexity scores, effort estimates, and wave planning recommendations.
+
+### Q: What does the DAX optimizer do?
+After generation, the DAX optimizer automatically:
+- Rewrites nested IF chains to SWITCH
+- Simplifies ISBLANK patterns to COALESCE
+- Folds constants (e.g., `1 + 2` → `3`)
+- Extracts repeated sub-expressions into VARs
+- Auto-generates Time Intelligence measures (YTD, QTD, MTD) when a Calendar table is detected
+
+### Q: Is PII detection available?
+Yes. `governance.py` scans column names and expressions for PII patterns (email, SSN, phone, credit card, etc.) and flags them in the migration report.
+
+### Q: How does schema drift detection work?
+`schema_drift.py` compares two versions of intermediate JSON files and reports added, removed, renamed, and type-changed columns. Useful for incremental migration scenarios.
+
+### Q: What security validations are performed?
+`security_validator.py` checks for:
+- Path traversal attacks (e.g., `../../etc/passwd`)
+- ZIP slip vulnerabilities in QVF extraction
+- XXE injection in XML content
+- Overly long file paths
+
+### Q: What monitoring/observability is available?
+`monitoring.py` exports migration metrics to Azure Monitor, Prometheus, or JSON format. `sla_tracker.py` tracks per-app migration time and fidelity against configurable SLA thresholds.
+
+### Q: Can I deploy a shared model with thin reports?
+Yes. After `--merge`, use the bundle deployer:
+```python
+from powerbi_import.deploy.bundle_deployer import BundleDeployer
+deployer = BundleDeployer(workspace_id="...", token="...")
+deployer.deploy_bundle("output/merged/")
+```
+This deploys the shared semantic model first, then all thin reports referencing it.

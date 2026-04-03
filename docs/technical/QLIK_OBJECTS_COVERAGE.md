@@ -1,6 +1,6 @@
 # 📋 Couverture Complète des Objets Qlik - Analyse de Migration
 
-**Date :** 13 février 2026 (mis à jour v7.0.0)  
+**Date :** 3 avril 2026 (mis à jour v9.0.0)  
 **Objectif :** Identifier tous les objets Qlik et leur statut de migration vers Power BI
 
 ---
@@ -370,12 +370,30 @@ Avant de migrer une application Qlik, vérifier la présence de :
 - [ ] Custom themes complets
 - [ ] Advanced aggregations
 
-### Phase 3 - Q3 2026 (Nice to Have)
-- [ ] Extensions mapping
-- [ ] Stories export
-- [ ] GeoAnalytics
+### Phase 3 - Q2-Q3 2026 (Enterprise — v9.0.0) ✅ LIVRÉ
+- [x] **DAX Optimizer** — AST-based rewriting (IF→SWITCH, COALESCE, constant folding, VAR extraction)
+- [x] **Fabric-native generation** — Lakehouse, Dataflow Gen2, PySpark Notebooks, Pipeline, DirectLake
+- [x] **Multi-app merge** — Fingerprint matching, Jaccard scoring, shared semantic model, thin reports
+- [x] **Enterprise governance** — PII detection, naming conventions, audit trail, security validation
+- [x] **Portfolio assessment** — RED/YELLOW/GREEN per app, effort estimation, wave planning
+- [x] **Observability** — Azure Monitor, Prometheus, JSON metrics, SLA tracking
+- [x] **75+ visual types** — 14 new types (sankey, chord, sunburst, decomposition tree, etc.)
+- [x] **18 custom visual GUIDs** — 9 new (sankey, chord, sunburst, infographic, etc.)
+- [x] **16-entry Qlik extension map** — Auto-resolve Qlik extensions to PBI equivalents
+- [x] **Bundle deployment** — Shared model + thin reports, multi-tenant templates, blue/green
+- [x] **REST API server** — Stdlib-based, zero deps
+- [x] **Paginated reports** — RDL-style output
+- [x] **1,892 tests** — 266 new tests across 12 test files
+
+### Phase 4 - Q3-Q4 2026 (Planned — v9.1)
+- [ ] NPrinting → Paginated Reports (enhanced)
+- [ ] DAX stub completion (13 → ≤3 remaining)
+- [ ] Assessment Qlik-native overhaul
+- [ ] Load script coverage expansion (30 → 36+ statements)
+- [ ] Extensions mapping (enhanced)
+- [ ] Stories export (enhanced)
+- [ ] GeoAnalytics → Azure Maps
 - [ ] Mashups alternatives
-- [ ] Inter-record functions
 
 ---
 
