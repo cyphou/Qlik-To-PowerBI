@@ -227,6 +227,30 @@ def run_generation(report_name=None, output_dir=None, calendar_start=None,
     print_step(2, 2, "POWER BI PROJECT GENERATION")
     t0 = time.monotonic()
 
+    if output_format == 'fabric':
+        try:
+            from powerbi_import.fabric_project_generator import generate_fabric_project
+            from qlik_export.format_adapter import adapt_qlik_for_generation
+            from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+
+            qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+            extracted = ExtractionOrchestrator.load_intermediate_json(qlik_dir)
+            adapted = adapt_qlik_for_generation(extracted)
+
+            fabric_out = output_dir or os.path.join('artifacts', 'fabric_projects')
+            name = report_name or 'FabricProject'
+            result = generate_fabric_project(adapted, name, fabric_out)
+
+            print(f"\n\u2713 Fabric project generated: {result.get('output_dir', fabric_out)}")
+            for artifact_type, count in result.get('artifacts', {}).items():
+                print(f"    {artifact_type}: {count}")
+            _stats.pbip_path = result.get('output_dir', fabric_out)
+            return True
+        except Exception as e:
+            logger.error(f"Fabric generation failed: {e}", exc_info=True)
+            print(f"\n\u2717 Fabric generation failed: {e}")
+            return False
+
     try:
         from powerbi_import.import_to_powerbi import PowerBIImporter
 
@@ -788,7 +812,7 @@ def main():
 
     parser.add_argument(
         '--output-format',
-        choices=['pbip', 'tmdl', 'pbir'],
+        choices=['pbip', 'tmdl', 'pbir', 'fabric'],
         default='pbip',
         help='Output format: pbip (default, full project), tmdl (semantic model only), pbir (report only)'
     )
@@ -853,6 +877,21 @@ def main():
         help='Plugin module paths to load (e.g., my_module.MyPlugin)'
     )
 
+    parser.add_argument(
+        '--merge',
+        metavar='DIR',
+        nargs='+',
+        default=None,
+        help='Merge multiple Qlik app exports into a shared semantic model. Provide paths to .json exports.'
+    )
+
+    parser.add_argument(
+        '--assess-server',
+        metavar='DIR',
+        default=None,
+        help='Run portfolio-level assessment on a directory of Qlik app exports (RED/YELLOW/GREEN scoring)'
+    )
+
     args = parser.parse_args()
 
     # Load configuration file if specified (CLI args take precedence)
@@ -911,6 +950,81 @@ def main():
     # ── Batch-config migration mode ───────────────────────────
     if args.batch_config:
         return _run_batch_config(args)
+
+    # ── Multi-app merge mode ──────────────────────────────────
+    if args.merge:
+        try:
+            from powerbi_import.shared_model import SharedModelBuilder
+            from powerbi_import.thin_report_generator import generate_thin_reports
+            from powerbi_import.merge_assessment import generate_merge_assessment
+            from qlik_export.format_adapter import adapt_qlik_for_generation
+            from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+
+            print_header("MULTI-APP MERGE")
+            apps = []
+            for app_path in args.merge:
+                if not os.path.isfile(app_path):
+                    print(f"  \u26a0 File not found: {app_path}")
+                    continue
+                qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+                orchestrator = ExtractionOrchestrator(output_dir=qlik_dir)
+                orchestrator.extract(app_path)
+                extracted = orchestrator.get_extraction_summary_data()
+                adapted = adapt_qlik_for_generation(extracted)
+                app_name = os.path.splitext(os.path.basename(app_path))[0]
+                apps.append({'name': app_name, 'data': adapted})
+                print(f"  \u2713 Loaded: {app_name}")
+
+            if len(apps) < 2:
+                print("  \u2717 At least 2 apps required for merge")
+                return ExitCode.GENERAL_ERROR
+
+            builder = SharedModelBuilder()
+            for app in apps:
+                builder.add_app(app['name'], app['data'])
+
+            merge_out = args.output_dir or os.path.join('output', 'merged')
+            result = builder.build(merge_out)
+            assessment = generate_merge_assessment(result)
+
+            print(f"\n  Shared tables:  {assessment.get('shared_tables', 0)}")
+            print(f"  Unique tables:  {assessment.get('unique_tables', 0)}")
+            print(f"  Thin reports:   {len(apps)}")
+            print(f"\n\u2713 Merged project: {merge_out}")
+            return ExitCode.SUCCESS
+        except Exception as e:
+            logger.error(f"Merge failed: {e}", exc_info=True)
+            print(f"\n\u2717 Merge failed: {e}")
+            return ExitCode.GENERAL_ERROR
+
+    # ── Server/portfolio assessment mode ──────────────────────
+    if args.assess_server:
+        try:
+            from powerbi_import.server_assessment import assess_portfolio
+
+            print_header("PORTFOLIO ASSESSMENT")
+            result = assess_portfolio(args.assess_server)
+
+            print(f"  Apps analyzed:  {result.get('total_apps', 0)}")
+            print(f"  GREEN:          {result.get('green', 0)}")
+            print(f"  YELLOW:         {result.get('yellow', 0)}")
+            print(f"  RED:            {result.get('red', 0)}")
+
+            out_dir = args.output_dir or os.path.join('output', 'assessments')
+            os.makedirs(out_dir, exist_ok=True)
+            report_path = os.path.join(out_dir, 'portfolio_assessment.json')
+            with open(report_path, 'w', encoding='utf-8') as f:
+                json.dump(result, f, indent=2, ensure_ascii=False)
+            print(f"\n\u2713 Portfolio assessment: {report_path}")
+
+            if json_mode:
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+
+            return ExitCode.SUCCESS
+        except Exception as e:
+            logger.error(f"Portfolio assessment failed: {e}", exc_info=True)
+            print(f"\n\u2717 Assessment failed: {e}")
+            return ExitCode.ASSESSMENT_FAILED
 
     # ── Batch migration mode ──────────────────────────────────
     if args.batch:
@@ -1064,10 +1178,46 @@ def main():
         )
         if results['generation']:
             progress.complete(f"{_stats.pages_generated} pages, {_stats.visuals_generated} visuals")
-            # Plugin hook: post_generation
-            plugin_manager.call_hook('post_generation', project_dir=_stats.pbip_path)
         else:
             progress.fail("Generation failed")
+
+        # DAX optimization pass
+        if results.get('generation') and not args.dry_run:
+            try:
+                from powerbi_import.dax_optimizer import optimize_dax
+                out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+                tables_dir = os.path.join(out_base, source_basename,
+                                          f'{source_basename}.SemanticModel',
+                                          'definition', 'tables')
+                if os.path.isdir(tables_dir):
+                    import re as _re
+                    optimized_count = 0
+                    for tmdl_file in os.listdir(tables_dir):
+                        if not tmdl_file.endswith('.tmdl'):
+                            continue
+                        fpath = os.path.join(tables_dir, tmdl_file)
+                        content = open(fpath, 'r', encoding='utf-8').read()
+                        new_content = content
+                        # Find DAX expressions in measures (inline and multiline)
+                        for m in _re.finditer(r'(measure\s+.+?=\s*)(.+?)(?=\n\t|\n\s*\n|\Z)', content, _re.DOTALL):
+                            original = m.group(2).strip()
+                            if original.startswith('```') or original.startswith('let'):
+                                continue
+                            opt, rules = optimize_dax(original)
+                            if rules:
+                                new_content = new_content.replace(original, opt, 1)
+                                optimized_count += 1
+                        if new_content != content:
+                            with open(fpath, 'w', encoding='utf-8') as f:
+                                f.write(new_content)
+                    if optimized_count and not json_mode:
+                        print(f"  \u2713 DAX optimizer: {optimized_count} measures optimized")
+            except Exception as exc:
+                logger.debug("DAX optimization skipped: %s", exc)
+
+        # Plugin hook: post_generation
+        if results.get('generation'):
+            plugin_manager.call_hook('post_generation', project_dir=_stats.pbip_path)
 
     # Step 3: Incremental merge (optional)
     if getattr(args, 'incremental', None) and results.get('generation'):

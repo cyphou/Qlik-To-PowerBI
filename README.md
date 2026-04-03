@@ -9,9 +9,9 @@
 Migrate your Qlik Sense applications to Power BI in seconds — fully automated, zero
 manual rework.
 
-![Tests](https://img.shields.io/badge/tests-1%2C626%20passed-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-1%2C892%20passed-brightgreen?style=flat-square)
 ![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen?style=flat-square)
-![Version](https://img.shields.io/badge/version-8.0.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-9.0.0-blue?style=flat-square)
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)
 
@@ -72,15 +72,24 @@ python migrate.py "MonApp.qvf" --plugins my_module.MyPlugin
 
 # 🏃 Dry run — preview without writing files
 python migrate.py "MonApp.qvf" --dry-run
+
+# 🏭 Generate Fabric-native artifacts (Lakehouse + Dataflow + Notebook + Pipeline)
+python migrate.py "MonApp.qvf" --output-format fabric
+
+# 🔀 Merge multiple apps into a shared semantic model
+python migrate.py --merge app1.json app2.json app3.json
+
+# 📊 Portfolio-level server assessment
+python migrate.py --assess-server exports/
 ```
 
 ---
 
 ## 🎯 Key Features
 
-| 🔄 **175+ DAX Conversions** | 📊 **60+ Visual Types** |
+| 🔄 **175+ DAX Conversions** | 📊 **75+ Visual Types** |
 | :--- | :--- |
-| Translates Qlik expressions to DAX: Set Analysis → CALCULATE, Aggr → SUMMARIZE/SUMX iterators, If/Match → IF/SWITCH, inter-record functions → OFFSET/WINDOW/RANKX, dollar-sign expansion `$(=expr)`, cross-table RELATED/LOOKUPVALUE, RLS security | Maps every Qlik visual to Power BI: bar, line, pie, scatter, map, treemap, waterfall, KPI, gauge, table, pivot-table, boxplot, histogram, combo, mekko, bullet, wordcloud, filterpane, container, and 40+ more |
+| Translates Qlik expressions to DAX: Set Analysis → CALCULATE, Aggr → SUMMARIZE/SUMX iterators, If/Match → IF/SWITCH, inter-record functions → OFFSET/WINDOW/RANKX, dollar-sign expansion `$(=expr)`, cross-table RELATED/LOOKUPVALUE, RLS security. **v9:** AST-based DAX optimizer (IF→SWITCH, COALESCE, constant folding, VAR extraction, Time Intelligence auto-injection). | Maps every Qlik visual to Power BI: bar, line, pie, scatter, map, treemap, waterfall, KPI, gauge, table, pivot-table, boxplot, histogram, combo, mekko, bullet, wordcloud, filterpane, container, sankey, chord, sunburst, decomposition tree, shape map, and 50+ more |
 
 | 🔌 **25 Data Connectors** | 🧠 **Smart Semantic Model** |
 | :--- | :--- |
@@ -88,7 +97,11 @@ python migrate.py "MonApp.qvf" --dry-run
 
 | 🛡️ **Security & Governance** | 🚀 **Deploy Anywhere** |
 | :--- | :--- |
-| Section Access → RLS roles with USERPRINCIPALNAME. Wildcard `*` support, OMIT → OLS annotations, REDUCTION parsing. Bookmark filter state preservation. Theme and styling migration. | One-command deploy to Power BI Service or Microsoft Fabric with Azure AD auth (Service Principal / Managed Identity). Gateway config generation included. Plugin system with 7 hook points for extensibility. |
+| Section Access → RLS roles with USERPRINCIPALNAME. Wildcard `*` support, OMIT → OLS annotations, REDUCTION parsing. PII detection, naming conventions, audit trail. Schema drift detection. | One-command deploy to Power BI Service or Microsoft Fabric with Azure AD auth (Service Principal / Managed Identity). Bundle deployment, multi-tenant templates, blue/green deployment. |
+
+| 🏭 **Fabric-Native Output** | 🔀 **Multi-App Merge** |
+| :--- | :--- |
+| `--output-format fabric` generates: Lakehouse delta tables, Dataflow Gen2 ingestion, PySpark ETL notebooks, 3-stage Data Pipeline orchestrator, DirectLake semantic model. | `--merge` combines multiple Qlik apps into a shared semantic model with thin reports. Fingerprint-based table matching, Jaccard overlap scoring, deduplication, per-table merge rules. |
 
 > **Note:** Zero external dependencies for core migration. The entire engine runs on Python's standard library.
 
@@ -129,7 +142,7 @@ flowchart LR
         MQ["m_query_generator.py<br/>25 connectors"]
         SC["qlik_script_converter.py<br/>LOAD → M"]
         TMDL["tmdl_generator.py<br/>Semantic Model"]
-        VG["visual_generator.py<br/>60+ visual types"]
+        VG["visual_generator.py<br/>75+ visual types"]
     end
 
     subgraph OUTPUT["🟢 Power BI Project"]
@@ -234,19 +247,31 @@ graph TD
 │   ├── qlik_migrator.py              #   QlikApp → Power BI converter
 │   ├── qlik_script_converter.py      #   Load script → Power Query M
 │   └── qvf_extractor.py              #   .qvf ZIP reader
-├── powerbi_import/                     # Power BI generation layer
+├── powerbi_import/                     # Power BI generation layer (55 modules)
 │   ├── tmdl_generator.py             #   TMDL semantic model output
 │   ├── pbip_generator.py             #   Full .pbip project output
-│   ├── visual_generator.py           #   60+ visual types + config templates
+│   ├── visual_generator.py           #   75+ visual types + config templates
 │   ├── import_to_powerbi.py          #   Import orchestrator
 │   ├── plugins.py                    #   Plugin architecture (7 hooks)
 │   ├── validator.py                  #   Artifact validation
+│   ├── dax_optimizer.py              #   AST-based DAX rewriter
+│   ├── dax_recipes.py                #   Industry KPI templates
+│   ├── governance.py                 #   PII detection, audit trail
+│   ├── security_validator.py         #   Path/ZIP slip/XXE protection
+│   ├── shared_model.py               #   Multi-app merge engine
+│   ├── server_assessment.py          #   Portfolio RED/YELLOW/GREEN
+│   ├── monitoring.py                 #   Metrics export (Azure Monitor)
+│   ├── fabric_project_generator.py   #   Fabric artifacts orchestrator
+│   ├── lakehouse_generator.py        #   Delta table schemas & DDL
+│   ├── dataflow_generator.py         #   Dataflow Gen2 M queries
+│   ├── notebook_generator.py         #   PySpark ETL notebooks
+│   ├── pipeline_generator.py         #   3-stage Data Pipeline
 │   ├── config/                       #   Migration config (pydantic-settings)
 │   └── deploy/                       #   Azure Fabric deployment
 ├── tools/migration/                   # 28 standalone migration scripts
 ├── tools/analysis/                    # Diagnostic tools
-├── tests/                            # 1626 pytest tests
-├── examples/                         # Usage examples & samples
+├── tests/                            # 1,892 pytest tests (41 test files)
+├── examples/                         # Usage examples, marketplace, plugins
 └── docs/                             # Guides, references, reports
 ```
 
@@ -333,7 +358,7 @@ flowchart TB
 
 ---
 
-## 📊 Visual Type Mapping (60+)
+## 📊 Visual Type Mapping (75+)
 
 <details>
 <summary>🎨 <b>Full visual mapping table (click to expand)</b></summary>
@@ -373,7 +398,7 @@ flowchart TB
 |:---|:---|:---|
 | Applications (.qvf) | Power Query M (ETL) | `migrate_qvf.py` |
 | Data models | Tables / Relationships / Hierarchies → TMDL | `migrate_qvf.py` |
-| Visualizations (60+ types) | PBI visuals (`report.json`) | `migrate_qvf.py` |
+| Visualizations (75+ types) | PBI visuals (`report.json`) | `migrate_qvf.py` |
 | Load scripts | 60+ functions → Power Query M | `migrate_qlik_scripts.py` |
 | Variables | What-If parameter tables | `migrate_qlik_variables.py` |
 | Section Access | Row Level Security (RLS) | `migrate_section_access.py` |
@@ -474,6 +499,9 @@ flowchart LR
 | `--verbose` | Detailed logging |
 | `--assess` | Pre-migration readiness check |
 | `--wizard` | Interactive guided migration |
+| `--output-format FORMAT` | Output format: `pbip` (default), `tmdl`, `pbir`, `fabric` |
+| `--merge FILE [FILE ...]` | Merge multiple apps into shared semantic model |
+| `--assess-server DIR` | Portfolio-level server assessment |
 | `--deploy WORKSPACE_ID` | Deploy to Power BI Service |
 
 </details>
@@ -521,11 +549,11 @@ The validator checks `.pbip` JSON, `report.json`, `model.tmdl`, page/visual stru
 
 ## 🧪 Testing
 
-![Tests](https://img.shields.io/badge/tests-1%2C626%20passed-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-1%2C892%20passed-brightgreen?style=for-the-badge)
 ![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen?style=for-the-badge)
 
 ```bash
-python -m pytest tests/ -v                          # Run all 1,626 tests
+python -m pytest tests/ -v                          # Run all 1,892 tests
 python -m pytest tests/test_dax_converter.py -v      # Run specific file
 python -m pytest tests/ --cov --cov-report=html      # Coverage report
 ```
@@ -537,7 +565,7 @@ python -m pytest tests/ --cov --cov-report=html      # Coverage report
 |:----------|:------|
 | `test_dax_converter.py` | 175+ DAX function mappings |
 | `test_tmdl_generator.py` | TMDL semantic model output |
-| `test_visual_generator.py` | 60+ visual type mappings |
+| `test_visual_generator.py` | 75+ visual type mappings |
 | `test_m_query_generator.py` | 25 connector types |
 | `test_m_query_builder.py` | 40+ M transforms |
 | `test_extraction_orchestrator.py` | QVF/JSON extraction pipeline |
@@ -545,6 +573,13 @@ python -m pytest tests/ --cov --cov-report=html      # Coverage report
 | `test_complex_e2e.py` | Full end-to-end scenarios |
 | `test_migration_validation.py` | Post-migration artifact validation |
 | `test_medium_integration.py` | Medium-complexity integration tests |
+| `test_dax_optimizer.py` | AST-based DAX rewriting |
+| `test_governance.py` | PII detection, naming conventions |
+| `test_security_validator.py` | Path/ZIP slip defense |
+| `test_fabric_native.py` | Fabric artifact generation |
+| `test_shared_model.py` | Multi-app fingerprint merge |
+| `test_v9_cli_features.py` | Fabric/merge/assess-server CLI |
+| `test_v9_visual_types.py` | 14 new visual types + extensions |
 | …and 30+ more | See `tests/` directory |
 
 </details>
