@@ -62,11 +62,11 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bMax\s*\(', 'MAX('),
     (r'\bMedian\s*\(', 'MEDIAN('),
     (r'\bStdev\s*\(', 'STDEV.S('),
-    (r'\bSkew\s*\(', '/* Skew: no DAX equivalent — use custom measure with SUMX/AVERAGEX */ 0'),  # unsupported
+    (r'\bSkew\s*\(', '/* UNSUPPORTED: Skew — no DAX equivalent, input: {0} */ 0'),
     (r'\bOnly\s*\(', 'FIRSTNONBLANK('),
-    (r'\bMode\s*\(', 'MINX(TOPN(1, ADDCOLUMNS(VALUES({0}), "@cnt", CALCULATE(COUNTROWS({1}))), [@cnt], DESC), {0})'),
+    (r'\bMode\s*\(', 'MINX(TOPN(1, ADDCOLUMNS(VALUES({0}), "@freq", CALCULATE(COUNT({0}))), [@freq], DESC), {0})'),
     (r'\bFractile\s*\(', 'PERCENTILE.INC('),
-    (r'\bCorrel\s*\(', '/* Correl: no DAX equivalent — use custom SUMX/AVERAGEX Pearson formula */ 0'),  # unsupported
+    (r'\bCorrel\s*\(', '/* Correl — no DAX equivalent, Pearson approximation */ DIVIDE(SUMX(ALL(\'Table\'), ({0} - AVERAGE({0})) * ({1} - AVERAGE({1}))), SQRT(SUMX(ALL(\'Table\'), ({0} - AVERAGE({0})) ^ 2) * SUMX(ALL(\'Table\'), ({1} - AVERAGE({1})) ^ 2)), 0)'),
     (r'\bRangeSum\s*\(', 'SUM( /* RangeSum */ '),
     (r'\bRangeAvg\s*\(', 'AVERAGE( /* RangeAvg */ '),
     (r'\bRangeCount\s*\(', 'COUNT( /* RangeCount */ '),
@@ -127,17 +127,17 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bReplace\s*\(', 'SUBSTITUTE('),
     (r'\bSubStringCount\s*\(', '(LEN({0}) - LEN(SUBSTITUTE({0}, {1}, ""))) / LEN({1})'),
     (r'\bPurgeChar\s*\(', 'SUBSTITUTE('),
-    (r'\bKeepChar\s*\(', '/* KeepChar: no DAX equivalent — returns input unchanged */ {0}'),  # no native DAX
+    (r'\bKeepChar\s*\(', '/* UNSUPPORTED: KeepChar — no DAX equivalent, manual conversion required */ {0}'),
     (r'\bRepeat\s*\(', 'REPT('),
     (r'\bCapitalize\s*\(', '/* Capitalize: no direct DAX */ UPPER(LEFT({0}, 1)) & LOWER(MID({0}, 2, LEN({0})))'),
     (r'\bTextBetween\s*\(', 'MID({0}, SEARCH({1}, {0}) + LEN({1}), SEARCH({2}, {0}, SEARCH({1}, {0}) + LEN({1})) - SEARCH({1}, {0}) - LEN({1}))'),
     (r'\bOrd\s*\(', 'UNICODE('),
     (r'\bChr\s*\(', 'UNICHAR('),
     (r'\bSubField\s*\(', 'PATHITEM(SUBSTITUTE({0}, {1}, "|"), {2})'),
-    (r'\bHash128\s*\(', '/* Hash128: no DAX equivalent */ {0}'),
-    (r'\bHash160\s*\(', '/* Hash160: no DAX equivalent */ {0}'),
-    (r'\bHash256\s*\(', '/* Hash256: no DAX equivalent */ {0}'),
-    (r'\bEvaluate\s*\(', '/* Evaluate: no DAX equivalent */ {0}'),
+    (r'\bHash128\s*\(', '/* UNSUPPORTED: Hash128 — no DAX equivalent */ {0}'),
+    (r'\bHash160\s*\(', '/* UNSUPPORTED: Hash160 — no DAX equivalent */ {0}'),
+    (r'\bHash256\s*\(', '/* UNSUPPORTED: Hash256 — no DAX equivalent */ {0}'),
+    (r'\bEvaluate\s*\(', '/* UNSUPPORTED: Evaluate — no DAX equivalent (dynamic eval) */ {0}'),
     (r'\bApplyMap\s*\(', 'LOOKUPVALUE('),
     (r'\bMapSubstring\s*\(', '/* MapSubstring: partial — single SUBSTITUTE only */ SUBSTITUTE('),
     (r'\bWildMatch\s*\(', '/* WildMatch */ CONTAINSSTRING('),
@@ -170,7 +170,7 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bAcos\s*\(', 'ACOS('),
     (r'\bAtan\s*\(', 'ATAN('),
     (r'\bAtan2\s*\(', 'IF({0} > 0, ATAN({1}/{0}), IF({0} < 0 && {1} >= 0, ATAN({1}/{0}) + PI(), IF({0} < 0 && {1} < 0, ATAN({1}/{0}) - PI(), IF({1} > 0, PI()/2, -PI()/2))))'),
-    (r'\bBitCount\s*\(', '/* BitCount: no DAX equivalent */ 0'),  # unsupported
+    (r'\bBitCount\s*\(', '/* BitCount — no DAX equivalent, 8-bit approx via MOD/INT */ MOD(INT({0}), 2) + MOD(INT({0} / 2), 2) + MOD(INT({0} / 4), 2) + MOD(INT({0} / 8), 2) + MOD(INT({0} / 16), 2) + MOD(INT({0} / 32), 2) + MOD(INT({0} / 64), 2) + MOD(INT({0} / 128), 2)'),
 
     # ── Type conversion ───────────────────────────────────────
     (r'\bNum\s*\(', 'VALUE('),
@@ -195,6 +195,9 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
 
 # Pre-compile patterns for performance
 _COMPILED_FUNCTION_MAP = [(re.compile(p, re.IGNORECASE), r) for p, r in _SIMPLE_FUNCTION_MAP]
+
+# Detect replacement templates containing {0}, {1}, etc.
+_TEMPLATE_RE = re.compile(r'\{[0-9]+\}')
 
 
 # ── Qlik → DAX data type mapping ─────────────────────────────────
@@ -294,8 +297,12 @@ def convert_qlik_expression_to_dax(
 
     # Phase 5: Simple function mapping (175+ replacements)
     for pattern, replacement in _COMPILED_FUNCTION_MAP:
-        # Use lambda to avoid interpreting backslashes in replacement as regex escapes
-        dax = pattern.sub(lambda m: replacement, dax)
+        if _TEMPLATE_RE.search(replacement):
+            # Template replacement — extract args and substitute {0}, {1}, etc.
+            dax = _apply_template_replacement(dax, pattern, replacement)
+        else:
+            # Simple replacement (no argument substitution needed)
+            dax = pattern.sub(lambda m, r=replacement: r, dax)
 
     # Phase 6: Alt() → COALESCE
     dax = _convert_alt(dax)
@@ -1075,6 +1082,55 @@ def _convert_inter_record(expr: str, table_name: str = "") -> str:
         r"RANKX(ALL('Table'), \1)",
         expr, flags=re.IGNORECASE,
     )
+    return expr
+
+
+# ── Template argument substitution ────────────────────────────────
+
+def _substitute_args(template: str, func_args: List[str]) -> str:
+    """Substitute {0}, {1}, ... placeholders in a DAX template with actual arguments."""
+    result = template
+    for idx, arg in enumerate(func_args):
+        result = result.replace('{' + str(idx) + '}', arg.strip())
+    return result
+
+
+def _apply_template_replacement(expr: str, pattern, template: str) -> str:
+    """Apply a template replacement with {0}, {1}, etc. argument substitution.
+
+    Finds each occurrence of the pattern (which matches ``FuncName(``),
+    bracket-matches to the closing paren, extracts arguments via
+    ``_split_top_level_args``, substitutes placeholders, and replaces
+    the entire function call.
+    """
+    max_iterations = 50  # safety limit to prevent infinite loops
+    for _ in range(max_iterations):
+        m = pattern.search(expr)
+        if not m:
+            break
+
+        # The pattern matches up to and including the opening '('
+        # Find the closing ')' using bracket matching
+        depth = 1
+        i = m.end()
+        while i < len(expr) and depth > 0:
+            if expr[i] == '(':
+                depth += 1
+            elif expr[i] == ')':
+                depth -= 1
+            i += 1
+        # i is past the closing ')'
+
+        # Extract inner text (between opening and closing parens)
+        inner = expr[m.end():i - 1]
+        args = _split_top_level_args(inner)
+
+        # Substitute placeholders
+        result = _substitute_args(template, args)
+
+        # Replace the entire function call (from start of match to closing paren)
+        expr = expr[:m.start()] + result + expr[i:]
+
     return expr
 
 

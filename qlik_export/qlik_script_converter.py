@@ -26,6 +26,11 @@ class QlikCommandType(Enum):
     INLINE = 'INLINE'
     PRECEDING = 'PRECEDING'
     STORE = 'STORE'
+    APPLYMAP = 'APPLYMAP'
+    CROSSTABLE = 'CROSSTABLE'
+    GENERIC = 'GENERIC'
+    HIERARCHY = 'HIERARCHY'
+    INTERVALMATCH = 'INTERVALMATCH'
 
 
 @dataclass
@@ -139,6 +144,22 @@ class QlikScriptToPowerQueryConverter:
             if re.search(pattern, pq_func, re.IGNORECASE):
                 pq_func = re.sub(pattern, f'{pq_name}(', pq_func, flags=re.IGNORECASE)
         
+        # Handle ApplyMap('MapName', Field[, Default]) → M record lookup
+        def _applymap_repl(m):
+            mn = m.group(1)
+            fld = m.group(2)
+            dflt = m.group(3) if m.group(3) else 'null'
+            if dflt != 'null' and not dflt.startswith('"'):
+                dflt = f'"{ dflt}"'
+            return f'try {mn}{{[Key=[{fld}]]}}[Value] otherwise {dflt}'
+
+        pq_func = re.sub(
+            r"ApplyMap\s*\(\s*'(\w+)'\s*,\s*\[?(\w+)\]?\s*(?:,\s*'?([^)']*)'?)?\s*\)",
+            _applymap_repl,
+            pq_func,
+            flags=re.IGNORECASE,
+        )
+
         # Convertir l'opérateur de concaténation & en &
         pq_func = pq_func.replace(' & ', ' & ')
         
@@ -417,6 +438,7 @@ class QlikScriptToPowerQueryConverter:
                 pq_scripts.append('')
         
         # ── Handle MAPPING LOAD → lookup table ───────────────
+        mapping_tables: Dict[str, Tuple[str, str]] = {}  # name → (key_col, val_col)
         mapping_pattern = re.compile(
             r'(\w+):\s*\n?\s*MAPPING\s+LOAD\s+(.*?)\s+FROM\s+\[([^\]]+)\]',
             re.IGNORECASE | re.DOTALL
@@ -425,6 +447,10 @@ class QlikScriptToPowerQueryConverter:
             map_name = m.group(1)
             fields_str = m.group(2)
             source_path = m.group(3)
+            fields = [f.strip().rstrip(',') for f in fields_str.split(',')]
+            key_col = fields[0] if fields else 'Key'
+            val_col = fields[1] if len(fields) > 1 else 'Value'
+            mapping_tables[map_name] = (key_col, val_col)
             
             pq_scripts.append(f'// Mapping table: {map_name} (use as lookup in Power BI)')
             pq_scripts.append('let')
@@ -432,14 +458,196 @@ class QlikScriptToPowerQueryConverter:
             if ext in ('xlsx', 'xls'):
                 pq_scripts.append(f'    Source = Excel.Workbook(File.Contents("{source_path}"), null, true),')
                 pq_scripts.append(f'    Sheet = Source{{0}}[Data],')
+                pq_scripts.append(f'    Promoted = Table.PromoteHeaders(Sheet, [PromoteAllScalars=true]),')
+            else:
+                pq_scripts.append(f'    Source = Csv.Document(File.Contents("{source_path}"), [Delimiter=",", Encoding=65001]),')
+                pq_scripts.append(f'    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),')
+            pq_scripts.append(f'    RenamedCols = Table.RenameColumns(Promoted, {{{{"{key_col}", "Key"}}, {{"{val_col}", "Value"}}}})')
+            pq_scripts.append('in')
+            pq_scripts.append('    RenamedCols')
+            pq_scripts.append(f'// Usage: Table.AddColumn(YourTable, "{val_col}", each try {map_name}{{[Key=[YourField]]}}[Value] otherwise null)')
+            pq_scripts.append('')
+        
+        # ── Handle APPLYMAP in LOAD fields → Table.AddColumn lookup ──
+        applymap_load_pattern = re.compile(
+            r'(?:(\w+):\s*\n?\s*)?LOAD\s+(.*?ApplyMap\s*\(.*?\).*?)\s+FROM\s+\[([^\]]+)\]',
+            re.IGNORECASE | re.DOTALL,
+        )
+        for m in applymap_load_pattern.finditer(processed):
+            table_name = m.group(1) or 'ApplyMapTable'
+            fields_str = m.group(2)
+            source_path = m.group(3)
+            ext = source_path.rsplit('.', 1)[-1].lower() if '.' in source_path else 'csv'
+
+            pq_scripts.append(f'// Query: {table_name} (ApplyMap lookup)')
+            pq_scripts.append('let')
+            if ext in ('xlsx', 'xls'):
+                pq_scripts.append(f'    Source = Excel.Workbook(File.Contents("{source_path}"), null, true),')
+                pq_scripts.append(f'    Sheet = Source{{0}}[Data],')
                 pq_scripts.append(f'    Promoted = Table.PromoteHeaders(Sheet, [PromoteAllScalars=true])')
             else:
                 pq_scripts.append(f'    Source = Csv.Document(File.Contents("{source_path}"), [Delimiter=",", Encoding=65001]),')
                 pq_scripts.append(f'    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars=true])')
-            pq_scripts.append('in')
-            pq_scripts.append('    Promoted')
+            base = 'Promoted'
+
+            # Parse ApplyMap calls from fields and add lookup columns
+            am_re = re.compile(
+                r"ApplyMap\s*\(\s*'(\w+)'\s*,\s*\[?(\w+)\]?\s*(?:,\s*'?([^)']*)'?)?\s*\)\s*(?:as\s+(\w+))?",
+                re.IGNORECASE,
+            )
+            step_idx = 0
+            for am in am_re.finditer(fields_str):
+                mn = am.group(1)
+                fld = am.group(2)
+                dflt = am.group(3) if am.group(3) else 'null'
+                if dflt != 'null' and not dflt.startswith('"'):
+                    dflt = f'"{dflt}"'
+                alias = am.group(4) if am.group(4) else f'{mn}_Lookup'
+                step_idx += 1
+                step = f'Lookup{step_idx}'
+                pq_scripts.append(f',\n    {step} = Table.AddColumn({base}, "{alias}", each try {mn}{{[Key=[{fld}]]}}[Value] otherwise {dflt})')
+                base = step
+
+            pq_scripts.append(f'\nin\n    {base}')
             pq_scripts.append('')
-        
+
+        # ── Handle CROSSTABLE → Table.UnpivotOtherColumns ────
+        crosstable_pattern = re.compile(
+            r'(?:(\w+):\s*\n?\s*)?'
+            r'CROSSTABLE\s*\(\s*(\w+)\s*,\s*(\w+)\s*(?:,\s*(\d+))?\s*\)\s*'
+            r'LOAD\s+(.*?)\s+FROM\s+\[([^\]]+)\]',
+            re.IGNORECASE | re.DOTALL,
+        )
+        for m in crosstable_pattern.finditer(processed):
+            table_name = m.group(1) or 'CrossTable'
+            attr_field = m.group(2)
+            data_field = m.group(3)
+            n_qual = int(m.group(4)) if m.group(4) else 1
+            fields_str = m.group(5)
+            source_path = m.group(6)
+            ext = source_path.rsplit('.', 1)[-1].lower() if '.' in source_path else 'csv'
+
+            # Determine qualifier columns (the first N columns to keep)
+            fields = [f.strip().rstrip(',') for f in fields_str.split(',')]
+            keep_cols = fields[:n_qual] if fields else ['Column1']
+            keep_list = ', '.join(f'"{c}"' for c in keep_cols)
+
+            pq_scripts.append(f'// CROSSTABLE({attr_field}, {data_field}, {n_qual}) → Unpivot')
+            pq_scripts.append(f'// Query: {table_name}')
+            pq_scripts.append('let')
+            if ext in ('xlsx', 'xls'):
+                pq_scripts.append(f'    Source = Excel.Workbook(File.Contents("{source_path}"), null, true),')
+                pq_scripts.append(f'    Sheet = Source{{0}}[Data],')
+                pq_scripts.append(f'    Promoted = Table.PromoteHeaders(Sheet, [PromoteAllScalars=true]),')
+            else:
+                pq_scripts.append(f'    Source = Csv.Document(File.Contents("{source_path}"), [Delimiter=",", Encoding=65001]),')
+                pq_scripts.append(f'    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),')
+            pq_scripts.append(f'    Unpivoted = Table.UnpivotOtherColumns(Promoted, {{{keep_list}}}, "{attr_field}", "{data_field}")')
+            pq_scripts.append('in')
+            pq_scripts.append('    Unpivoted')
+            pq_scripts.append('')
+
+        # ── Handle GENERIC LOAD → Table.Pivot ────────────────
+        generic_pattern = re.compile(
+            r'(?:(\w+):\s*\n?\s*)?'
+            r'GENERIC\s+LOAD\s+(.*?)\s+FROM\s+\[([^\]]+)\]',
+            re.IGNORECASE | re.DOTALL,
+        )
+        for m in generic_pattern.finditer(processed):
+            table_name = m.group(1) or 'GenericTable'
+            fields_str = m.group(2)
+            source_path = m.group(3)
+            ext = source_path.rsplit('.', 1)[-1].lower() if '.' in source_path else 'csv'
+
+            fields = [f.strip().rstrip(',') for f in fields_str.split(',')]
+            key_col = fields[0] if fields else 'Key'
+            attr_col = fields[1] if len(fields) > 1 else 'Attribute'
+            val_col = fields[2] if len(fields) > 2 else 'Value'
+
+            pq_scripts.append(f'// GENERIC LOAD → Table.Pivot')
+            pq_scripts.append(f'// Query: {table_name}')
+            pq_scripts.append('let')
+            if ext in ('xlsx', 'xls'):
+                pq_scripts.append(f'    Source = Excel.Workbook(File.Contents("{source_path}"), null, true),')
+                pq_scripts.append(f'    Sheet = Source{{0}}[Data],')
+                pq_scripts.append(f'    Promoted = Table.PromoteHeaders(Sheet, [PromoteAllScalars=true]),')
+            else:
+                pq_scripts.append(f'    Source = Csv.Document(File.Contents("{source_path}"), [Delimiter=",", Encoding=65001]),')
+                pq_scripts.append(f'    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),')
+            pq_scripts.append(f'    Pivoted = Table.Pivot(Promoted, List.Distinct(Promoted[{attr_col}]), "{attr_col}", "{val_col}")')
+            pq_scripts.append('in')
+            pq_scripts.append('    Pivoted')
+            pq_scripts.append('')
+
+        # ── Handle HIERARCHY → parent-child expansion ────────
+        hierarchy_pattern = re.compile(
+            r'HIERARCHY\s*\(\s*(\w+)\s*,\s*(\w+)\s*,\s*(\w+)\s*,\s*(\w+)\s*,\s*(\w+)\s*(?:,\s*[\'"]?([^\'")\s]+)[\'"]?\s*)?\)',
+            re.IGNORECASE,
+        )
+        for m in hierarchy_pattern.finditer(processed):
+            node_id = m.group(1)
+            parent_id = m.group(2)
+            node_name = m.group(3)
+            hier_name = m.group(4)
+            path_name = m.group(5)
+            path_sep = m.group(6) if m.group(6) else '/'
+
+            pq_scripts.append(f'// HIERARCHY({node_id}, {parent_id}, {node_name}, {hier_name}, {path_name}, "{path_sep}")')
+            pq_scripts.append('// Parent-child hierarchy expansion')
+            pq_scripts.append('let')
+            pq_scripts.append(f'    Source = PreviousStep,')
+            pq_scripts.append(f'    // Self-join to resolve parent names')
+            pq_scripts.append(f'    Joined = Table.NestedJoin(Source, {{"{parent_id}"}}, Source, {{"{node_id}"}}, "ParentData", JoinKind.LeftOuter),')
+            pq_scripts.append(f'    ExpandParent = Table.ExpandTableColumn(Joined, "ParentData", {{"{node_name}"}}, {{"ParentName"}}),')
+            pq_scripts.append(f'    // Second level: resolve grandparent')
+            pq_scripts.append(f'    Joined2 = Table.NestedJoin(ExpandParent, {{"ParentName"}}, Source, {{"{node_name}"}}, "GrandParent", JoinKind.LeftOuter),')
+            pq_scripts.append(f'    ExpandGrand = Table.ExpandTableColumn(Joined2, "GrandParent", {{"{node_name}"}}, {{"GrandParentName"}}),')
+            pq_scripts.append(f'    // Build path: GrandParent{path_sep}Parent{path_sep}Node')
+            pq_scripts.append(f'    AddPath = Table.AddColumn(ExpandGrand, "{path_name}", each Text.Combine(List.RemoveNulls({{[GrandParentName], [ParentName], [{node_name}]}}), "{path_sep}")),')
+            pq_scripts.append(f'    AddHierName = Table.AddColumn(AddPath, "{hier_name}", each [{node_name}])')
+            pq_scripts.append('in')
+            pq_scripts.append('    AddHierName')
+            pq_scripts.append('')
+
+        # ── Handle INTERVALMATCH → range join ────────────────
+        interval_pattern = re.compile(
+            r'INTERVALMATCH\s*\(\s*(\w+)\s*\)\s*\n?\s*LOAD\s+(.*?)\s+(?:FROM\s+\[([^\]]+)\]|RESIDENT\s+(\w+))',
+            re.IGNORECASE | re.DOTALL,
+        )
+        for m in interval_pattern.finditer(processed):
+            date_field = m.group(1)
+            fields_str = m.group(2)
+            source_path = m.group(3)
+            resident_table = m.group(4)
+            fields = [f.strip().rstrip(',') for f in fields_str.split(',')]
+            low_field = fields[0] if fields else 'LowDate'
+            high_field = fields[1] if len(fields) > 1 else 'HighDate'
+            extra_fields = fields[2:] if len(fields) > 2 else []
+            expand_cols = [low_field, high_field] + extra_fields
+            expand_list = ', '.join(f'"{c}"' for c in expand_cols)
+
+            pq_scripts.append(f'// INTERVALMATCH({date_field}) → range join')
+            pq_scripts.append('let')
+            if resident_table:
+                pq_scripts.append(f'    Intervals = {resident_table},')
+            elif source_path:
+                ext = source_path.rsplit('.', 1)[-1].lower() if '.' in source_path else 'csv'
+                if ext in ('xlsx', 'xls'):
+                    pq_scripts.append(f'    IntSource = Excel.Workbook(File.Contents("{source_path}"), null, true),')
+                    pq_scripts.append(f'    IntSheet = IntSource{{0}}[Data],')
+                    pq_scripts.append(f'    Intervals = Table.PromoteHeaders(IntSheet, [PromoteAllScalars=true]),')
+                else:
+                    pq_scripts.append(f'    IntSource = Csv.Document(File.Contents("{source_path}"), [Delimiter=",", Encoding=65001]),')
+                    pq_scripts.append(f'    Intervals = Table.PromoteHeaders(IntSource, [PromoteAllScalars=true]),')
+            pq_scripts.append(f'    Source = PreviousStep,')
+            pq_scripts.append(f'    Matched = Table.AddColumn(Source, "IntervalMatch", each')
+            pq_scripts.append(f'        Table.SelectRows(Intervals, (i) => i[{low_field}] <= [{date_field}] and i[{high_field}] >= [{date_field}])'),
+            pq_scripts.append(f'    ),')
+            pq_scripts.append(f'    Expanded = Table.ExpandTableColumn(Matched, "IntervalMatch", {{{expand_list}}})')
+            pq_scripts.append('in')
+            pq_scripts.append('    Expanded')
+            pq_scripts.append('')
+
         # ── Handle CONCATENATE(Table) LOAD → Table.Combine ───
         concat_pattern = re.compile(
             r'CONCATENATE\s*\(\s*(\w+)\s*\)\s*\n?\s*LOAD',
@@ -500,6 +708,18 @@ class QlikScriptToPowerQueryConverter:
                 continue
             # Skip if it's an INLINE (already handled)
             if re.search(r'\bINLINE\s*\[', load_stmt_str, re.IGNORECASE):
+                continue
+            # Skip CROSSTABLE (already handled)
+            if re.search(r'\bCROSSTABLE\s*\(', load_stmt_str, re.IGNORECASE):
+                continue
+            # Skip GENERIC LOAD (already handled)
+            if re.search(r'\bGENERIC\s+LOAD\b', load_stmt_str, re.IGNORECASE):
+                continue
+            # Skip INTERVALMATCH (already handled)
+            if re.search(r'\bINTERVALMATCH\s*\(', load_stmt_str, re.IGNORECASE):
+                continue
+            # Skip LOAD statements containing ApplyMap (already handled)
+            if re.search(r'\bApplyMap\s*\(', load_stmt_str, re.IGNORECASE):
                 continue
             # Skip non-LOAD lines
             if not re.search(r'\bLOAD\b', load_stmt_str, re.IGNORECASE):

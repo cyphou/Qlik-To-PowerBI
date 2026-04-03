@@ -289,6 +289,48 @@ class TestCalculationChecks:
         calc_cat = report.categories[1]
         assert any("TOTAL" in c.name for c in calc_cat.checks)
 
+    def test_inter_record_detected(self):
+        data = _empty_extracted()
+        data["calculations"] = [
+            _make_calc("PrevSales", "Above(Sum(Sales))"),
+            _make_calc("NextSales", "Below(Sum(Sales))"),
+            _make_calc("PeekVal", "Peek(Sales, -1)"),
+        ]
+        report = run_assessment(data)
+        calc_cat = report.categories[1]
+        assert any(c.severity == WARN and "Inter-record" in c.name for c in calc_cat.checks)
+
+    def test_no_inter_record_passes(self):
+        data = _empty_extracted()
+        data["calculations"] = [_make_calc("Simple", "Sum(Sales)")]
+        report = run_assessment(data)
+        calc_cat = report.categories[1]
+        assert any("Inter-record" in c.name and c.severity == PASS for c in calc_cat.checks)
+
+    def test_deep_aggr_nesting_warns(self):
+        data = _empty_extracted()
+        data["calculations"] = [
+            _make_calc("DeepAggr", "Aggr(Aggr(Sum(Sales), Product), Region)"),
+        ]
+        report = run_assessment(data)
+        calc_cat = report.categories[1]
+        aggr_checks = [c for c in calc_cat.checks if "Aggr()" in c.name]
+        assert len(aggr_checks) == 1
+        assert aggr_checks[0].severity == WARN
+        assert "depth" in aggr_checks[0].detail.lower()
+
+    def test_deep_dollar_chain_warns(self):
+        data = _empty_extracted()
+        data["calculations"] = [
+            _make_calc("ChainedVar", "Sum($(=$(=$(=vField))))"),
+        ]
+        report = run_assessment(data)
+        calc_cat = report.categories[1]
+        ds_checks = [c for c in calc_cat.checks if "Dollar-sign" in c.name]
+        assert len(ds_checks) == 1
+        assert ds_checks[0].severity == WARN
+        assert "depth" in ds_checks[0].detail.lower()
+
 
 # ═══════════════════════════════════════════════════════════════════
 #  Category: Visual & Sheet Coverage
@@ -320,6 +362,31 @@ class TestVisualChecks:
         report = run_assessment(data)
         vis_cat = report.categories[2]
         assert any(c.severity == WARN and "Unmapped" in c.name for c in vis_cat.checks)
+
+    def test_extension_detected(self):
+        data = _empty_extracted()
+        data["worksheets"] = [
+            {"name": "SankeyViz", "chart_type": "qlik-sankey-chart-ext"},
+        ]
+        report = run_assessment(data)
+        vis_cat = report.categories[2]
+        assert any(c.severity == WARN and "extension" in c.name.lower() for c in vis_cat.checks)
+
+    def test_extension_via_field(self):
+        data = _empty_extracted()
+        data["worksheets"] = [
+            {"name": "CustomExt", "chart_type": "barchart", "extensionType": "vizlib-combo-chart"},
+        ]
+        report = run_assessment(data)
+        vis_cat = report.categories[2]
+        assert any(c.severity == WARN and "extension" in c.name.lower() for c in vis_cat.checks)
+
+    def test_no_extensions_passes(self):
+        data = _empty_extracted()
+        data["worksheets"] = [{"name": "Bar", "chart_type": "barchart"}]
+        report = run_assessment(data)
+        vis_cat = report.categories[2]
+        assert any("extension" in c.name.lower() and c.severity == PASS for c in vis_cat.checks)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -422,6 +489,54 @@ class TestLoadScriptChecks:
         report = run_assessment(data)
         ls_cat = report.categories[6]
         assert any(c.severity == WARN and "chain" in c.name.lower() for c in ls_cat.checks)
+
+    def test_section_access_detected_via_user_filters(self):
+        data = _empty_extracted()
+        data["user_filters"] = [{"user": "admin", "table": "Sales", "filter": "Region='US'"}]
+        report = run_assessment(data)
+        ls_cat = report.categories[6]
+        assert any("Section Access" in c.name and c.severity == WARN for c in ls_cat.checks)
+
+    def test_section_access_detected_via_loadscript(self):
+        data = _empty_extracted()
+        data["loadscript"] = {"script": "SECTION ACCESS;\nLOAD * INLINE [\nACCESS, USERID\nADMIN, *\n];"}
+        report = run_assessment(data)
+        ls_cat = report.categories[6]
+        assert any("Section Access" in c.name and c.severity == WARN for c in ls_cat.checks)
+
+    def test_no_section_access_passes(self):
+        data = _empty_extracted()
+        report = run_assessment(data)
+        ls_cat = report.categories[6]
+        assert any("Section Access" in c.name and c.severity == PASS for c in ls_cat.checks)
+
+    def test_stacked_load_detected(self):
+        data = _empty_extracted()
+        data["loadscript"] = {"script": "Sales:\nLOAD Amount, Date\nLOAD Amount, Date\nFROM data.qvd;"}
+        report = run_assessment(data)
+        ls_cat = report.categories[6]
+        assert any("Stacked LOAD" in c.name for c in ls_cat.checks)
+        stacked_checks = [c for c in ls_cat.checks if "Stacked LOAD" in c.name]
+        assert stacked_checks[0].severity in (INFO, WARN)
+
+    def test_no_stacked_load_passes(self):
+        data = _empty_extracted()
+        data["loadscript"] = {"script": "Sales:\nLOAD Amount, Date FROM data.qvd;"}
+        report = run_assessment(data)
+        ls_cat = report.categories[6]
+        assert any("Stacked LOAD" in c.name and c.severity == PASS for c in ls_cat.checks)
+
+    def test_deep_variable_chain_depth(self):
+        data = _empty_extracted()
+        data["calculations"] = [
+            _make_calc("Deep", "Sum($(=$(=$(=vField))))"),
+        ]
+        report = run_assessment(data)
+        ls_cat = report.categories[6]
+        var_checks = [c for c in ls_cat.checks if "chain" in c.name.lower() or "Variable" in c.name]
+        assert len(var_checks) >= 1
+        # Should have chain depth info
+        assert any("depth" in c.detail.lower() for c in var_checks)
 
 
 # ═══════════════════════════════════════════════════════════════════

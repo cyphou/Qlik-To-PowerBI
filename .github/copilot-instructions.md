@@ -208,7 +208,7 @@ SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB
 
 ## Current Stats (v9.0.0)
 
-- **1626 tests** across 41 test files
+- **2000 tests** across 44 test files
 - **55 powerbi_import modules** (was 20 in v8)
 - **164 entries** in `_SIMPLE_FUNCTION_MAP`
 - **5/6 sample migrations** pass at 100% fidelity

@@ -128,6 +128,80 @@ _PRECEDING_LOAD_PATTERN = re.compile(
     r'LOAD\s+[^;]+\nLOAD\s+[^;]+\nFROM\b', re.IGNORECASE,
 )
 
+# ── Inter-record function detection ─────────────────────────────────
+
+_INTER_RECORD_PATTERN = re.compile(
+    r'\b(Above|Below|Previous|Peek|FieldValue)\s*\(',
+    re.IGNORECASE,
+)
+
+# ── Qlik custom extension types (need manual visual mapping) ───────
+
+_EXTENSION_TYPES = frozenset({
+    "qlik-smart-pivot", "qlik-word-cloud", "qlik-funnel-chart-ext",
+    "qlik-radar-chart", "qlik-sankey-chart-ext", "qlik-network-chart",
+    "qlik-bullet-chart", "sn-org-chart", "qlik-trellis-container",
+    "sn-action-button", "cl-kpi", "climber-kpi",
+    "vizlib-combo-chart", "vizlib-writeback", "vizlib-calendar",
+    "vizlib-finance-report", "vizlib-kpi-designer",
+    "trueChart", "anychart", "branchtree",
+})
+
+# ── Helper: measure Aggr nesting depth ──────────────────────────────
+
+def _aggr_nesting_depth(formula: str) -> int:
+    """Return the max nesting depth of Aggr() calls in *formula*."""
+    depth = 0
+    max_depth = 0
+    i = 0
+    lower = formula.lower()
+    while i < len(lower):
+        if lower[i:i + 5] == 'aggr(' or (lower[i:i + 4] == 'aggr' and i + 4 < len(lower) and lower[i + 4] == '('):
+            depth += 1
+            if depth > max_depth:
+                max_depth = depth
+            i += 5
+        elif lower[i] == '(':
+            i += 1
+        elif lower[i] == ')':
+            if depth > 0:
+                depth -= 1
+            i += 1
+        else:
+            i += 1
+    return max_depth
+
+
+def _dollar_sign_chain_depth(formula: str) -> int:
+    """Return the max nesting depth of $() variable references."""
+    depth = 0
+    max_depth = 0
+    i = 0
+    while i < len(formula):
+        if formula[i:i + 2] == '$(' or formula[i:i + 3] == '$(=':
+            depth += 1
+            if depth > max_depth:
+                max_depth = depth
+            i += 2
+        elif formula[i] == ')':
+            if depth > 0:
+                depth -= 1
+            i += 1
+        else:
+            i += 1
+    return max_depth
+
+
+def _get_load_script_text(extracted: Dict) -> str:
+    """Extract raw load script text from extracted data (if available)."""
+    ls = extracted.get("loadscript", "")
+    if isinstance(ls, dict):
+        return ls.get("script", ls.get("content", ""))
+    if isinstance(ls, str):
+        return ls
+    return ""
+
+
 # ── Chart type mapping (from visual_generator.VISUAL_TYPE_MAP) ──────
 
 _MAPPED_CHART_TYPES = frozenset({
@@ -429,8 +503,11 @@ def _check_calculations(extracted: Dict) -> CategoryResult:
     set_analysis_calcs = []
     nested_set_calcs = []
     aggr_calcs = []
+    aggr_max_depth = 0
     dollar_sign_calcs = []
+    dollar_max_depth = 0
     total_qualifier_calcs = []
+    inter_record_calcs = []
 
     for calc in calculations:
         formula = calc.get("formula", "")
@@ -446,10 +523,18 @@ def _check_calculations(extracted: Dict) -> CategoryResult:
                 nested_set_calcs.append(name)
         if _AGGR_PATTERN.search(formula):
             aggr_calcs.append(name)
+            depth = _aggr_nesting_depth(formula)
+            if depth > aggr_max_depth:
+                aggr_max_depth = depth
         if _DOLLAR_SIGN_PATTERN.search(formula):
             dollar_sign_calcs.append(name)
+            depth = _dollar_sign_chain_depth(formula)
+            if depth > dollar_max_depth:
+                dollar_max_depth = depth
         if _TOTAL_QUALIFIER.search(formula):
             total_qualifier_calcs.append(name)
+        if _INTER_RECORD_PATTERN.search(formula):
+            inter_record_calcs.append(name)
 
     # No DAX equivalent
     if no_dax_equiv:
@@ -511,29 +596,59 @@ def _check_calculations(extracted: Dict) -> CategoryResult:
             "No Set Analysis expressions detected.",
         ))
 
-    # Aggr() expressions
+    # Aggr() expressions (with nesting depth analysis)
     if aggr_calcs:
         names_preview = ", ".join(aggr_calcs[:5])
         extra = f" (+{len(aggr_calcs) - 5} more)" if len(aggr_calcs) > 5 else ""
-        cat.checks.append(CheckItem(
-            cat.name, "Aggr() expressions", INFO,
+        sev = INFO
+        detail = (
             f"{len(aggr_calcs)} Aggr() expression(s): {names_preview}{extra}. "
-            "Auto-decomposed to DAX iterators (SUMX, COUNTX, AVERAGEX, etc.).",
+            f"Max nesting depth: {aggr_max_depth}. "
+            "Auto-decomposed to DAX iterators (SUMX, COUNTX, AVERAGEX, etc.)."
+        )
+        rec = (
             "Verify iterator results match original Aggr() behavior, "
-            "especially for multi-dimension aggregations.",
+            "especially for multi-dimension aggregations."
+        )
+        if aggr_max_depth >= 3:
+            sev = FAIL
+            rec = (
+                f"Deeply nested Aggr (depth {aggr_max_depth}) is very likely to produce "
+                "incorrect DAX. Manual rewrite is strongly recommended."
+            )
+        elif aggr_max_depth >= 2:
+            sev = WARN
+            rec = (
+                f"Nested Aggr (depth {aggr_max_depth}) may produce incorrect DAX. "
+                "Verify each iterator chain against original Qlik behavior."
+            )
+        cat.checks.append(CheckItem(
+            cat.name, "Aggr() expressions", sev, detail, rec,
         ))
 
-    # Dollar-sign expressions
+    # Dollar-sign expressions (with chain depth analysis)
     if dollar_sign_calcs:
         names_preview = ", ".join(dollar_sign_calcs[:5])
         extra = f" (+{len(dollar_sign_calcs) - 5} more)" if len(dollar_sign_calcs) > 5 else ""
-        cat.checks.append(CheckItem(
-            cat.name, "Dollar-sign expressions", INFO,
+        sev = INFO
+        detail = (
             f"{len(dollar_sign_calcs)} expression(s) use $(=...) or $(var): "
             f"{names_preview}{extra}. "
-            "Auto-expanded with Qlik→DAX conversion of inner expressions.",
+            f"Max chain depth: {dollar_max_depth}. "
+            "Auto-expanded with Qlik→DAX conversion of inner expressions."
+        )
+        rec = (
             "Verify expanded expressions resolve correctly — dynamic "
-            "evaluation in Qlik has no exact DAX parallel.",
+            "evaluation in Qlik has no exact DAX parallel."
+        )
+        if dollar_max_depth >= 3:
+            sev = WARN
+            rec = (
+                f"Deep variable chaining (depth {dollar_max_depth}) increases risk of "
+                "incorrect expansion. Consider simplifying before migration."
+            )
+        cat.checks.append(CheckItem(
+            cat.name, "Dollar-sign expressions", sev, detail, rec,
         ))
 
     # TOTAL qualifier
@@ -544,6 +659,24 @@ def _check_calculations(extracted: Dict) -> CategoryResult:
             "Auto-converted to ALL/ALLEXCEPT in DAX.",
             "Check that the generated ALL/ALLEXCEPT covers the same "
             "dimension scope as the original TOTAL qualifier.",
+        ))
+
+    # Inter-record functions (Above, Below, Previous, Peek, FieldValue)
+    if inter_record_calcs:
+        names_preview = ", ".join(inter_record_calcs[:5])
+        extra = f" (+{len(inter_record_calcs) - 5} more)" if len(inter_record_calcs) > 5 else ""
+        cat.checks.append(CheckItem(
+            cat.name, "Inter-record functions", WARN,
+            f"{len(inter_record_calcs)} expression(s) use inter-record functions "
+            f"(Above/Below/Previous/Peek/FieldValue): {names_preview}{extra}. "
+            "Auto-converted to DAX OFFSET or iterators where possible.",
+            "Inter-record functions depend on sort order and load sequence. "
+            "Verify the generated DAX produces the same row-by-row results.",
+        ))
+    else:
+        cat.checks.append(CheckItem(
+            cat.name, "Inter-record functions", PASS,
+            "No inter-record function usage detected.",
         ))
 
     return cat
@@ -625,6 +758,33 @@ def _check_visuals(extracted: Dict) -> CategoryResult:
             f"{device_layouts} dashboard(s) have device-specific layouts.",
             "Power BI mobile layouts must be configured manually in "
             "Power BI Desktop.",
+        ))
+
+    # Qlik custom extensions (require manual visual mapping)
+    extension_visuals = []
+    for ws in worksheets:
+        chart_type = ws.get("chart_type", ws.get("visualization", "")).lower().strip()
+        ext_type = ws.get("extensionType", ws.get("extension", "")).strip()
+        ws_name = ws.get("name", "?")
+        if ext_type:
+            extension_visuals.append((ws_name, ext_type))
+        elif chart_type in _EXTENSION_TYPES:
+            extension_visuals.append((ws_name, chart_type))
+
+    if extension_visuals:
+        ext_names = ", ".join(f"{n} ({t})" for n, t in extension_visuals[:5])
+        extra = f" (+{len(extension_visuals) - 5} more)" if len(extension_visuals) > 5 else ""
+        cat.checks.append(CheckItem(
+            cat.name, "Custom extensions", WARN,
+            f"{len(extension_visuals)} visualization(s) use Qlik custom extensions: "
+            f"{ext_names}{extra}.",
+            "Custom Qlik extensions have no direct Power BI equivalent. "
+            "Map to the closest Power BI visual or use a custom visual from AppSource.",
+        ))
+    else:
+        cat.checks.append(CheckItem(
+            cat.name, "Custom extensions", PASS,
+            "No Qlik custom extensions detected.",
         ))
 
     return cat
@@ -810,6 +970,7 @@ def _check_load_script(extracted: Dict) -> CategoryResult:
     custom_sql = extracted.get("custom_sql", [])
     # Check for both adapted format and raw Qlik format
     _calcs = extracted.get("calculations", [])
+    load_script_text = _get_load_script_text(extracted)
 
     # Custom SQL queries
     if custom_sql:
@@ -826,17 +987,66 @@ def _check_load_script(extracted: Dict) -> CategoryResult:
             "No custom SQL queries in the load script.",
         ))
 
+    # Section Access detection (requires RLS migration)
+    user_filters = extracted.get("user_filters", [])
+    has_section_access = bool(user_filters)
+    if load_script_text and _SECTION_ACCESS_PATTERN.search(load_script_text):
+        has_section_access = True
+    if has_section_access:
+        cat.checks.append(CheckItem(
+            cat.name, "Section Access (RLS)", WARN,
+            f"Section Access detected"
+            + (f" with {len(user_filters)} user filter rule(s)" if user_filters else "")
+            + ". Requires RLS role migration in Power BI.",
+            "Auto-converted to TMDL RLS roles. Verify user/group mappings "
+            "and USERPRINCIPALNAME() filter expressions in Power BI Service.",
+        ))
+    else:
+        cat.checks.append(CheckItem(
+            cat.name, "Section Access (RLS)", PASS,
+            "No Section Access detected — no RLS migration needed.",
+        ))
+
+    # Stacked LOAD patterns (LOAD ... LOAD chains in load script)
+    stacked_loads = 0
+    preceding_loads = 0
+    if load_script_text:
+        stacked_loads = len(_STACKED_LOAD_PATTERN.findall(load_script_text))
+        preceding_loads = len(_PRECEDING_LOAD_PATTERN.findall(load_script_text))
+    if stacked_loads > 0:
+        sev = INFO if stacked_loads <= 3 else WARN
+        detail = (
+            f"{stacked_loads} stacked LOAD pattern(s) detected"
+            + (f" ({preceding_loads} with preceding LOAD + FROM)" if preceding_loads else "")
+            + ". Stacked LOADs are converted to chained Power Query M steps."
+        )
+        cat.checks.append(CheckItem(
+            cat.name, "Stacked LOAD patterns", sev, detail,
+            "Review generated M steps for multi-stage transformations — "
+            "column references may need adjustment." if sev == WARN else "",
+        ))
+    else:
+        cat.checks.append(CheckItem(
+            cat.name, "Stacked LOAD patterns", PASS,
+            "No stacked LOAD patterns detected in load script.",
+        ))
+
     # Detect variable chain depth (formulas referencing other variables)
     variable_refs = 0
+    max_chain_depth = 0
     for calc in _calcs:
         formula = calc.get("formula", "")
         if _DOLLAR_SIGN_PATTERN.search(formula):
             variable_refs += 1
+            depth = _dollar_sign_chain_depth(formula)
+            if depth > max_chain_depth:
+                max_chain_depth = depth
 
-    if variable_refs > 10:
+    if variable_refs > 10 or max_chain_depth >= 3:
         cat.checks.append(CheckItem(
             cat.name, "Variable chain complexity", WARN,
             f"{variable_refs} expressions reference variables via $(). "
+            f"Max chain depth: {max_chain_depth}. "
             "Deep variable chains may produce unexpected DAX when expanded.",
             "Review expanded DAX for correctness — consider simplifying "
             "deeply nested variable references.",
@@ -845,6 +1055,7 @@ def _check_load_script(extracted: Dict) -> CategoryResult:
         cat.checks.append(CheckItem(
             cat.name, "Variable references", INFO,
             f"{variable_refs} expression(s) reference variables via $(). "
+            f"Max chain depth: {max_chain_depth}. "
             "Auto-expanded during DAX conversion.",
         ))
     else:

@@ -9,7 +9,7 @@
 Migrate your Qlik Sense applications to Power BI in seconds — fully automated, zero
 manual rework.
 
-![Tests](https://img.shields.io/badge/tests-1%2C892%20passed-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-2%2C000%20passed-brightgreen?style=flat-square)
 ![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen?style=flat-square)
 ![Version](https://img.shields.io/badge/version-9.0.0-blue?style=flat-square)
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
@@ -549,11 +549,11 @@ The validator checks `.pbip` JSON, `report.json`, `model.tmdl`, page/visual stru
 
 ## 🧪 Testing
 
-![Tests](https://img.shields.io/badge/tests-1%2C892%20passed-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-2%2C000%20passed-brightgreen?style=for-the-badge)
 ![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen?style=for-the-badge)
 
 ```bash
-python -m pytest tests/ -v                          # Run all 1,892 tests
+python -m pytest tests/ -v                          # Run all 2,000 tests
 python -m pytest tests/test_dax_converter.py -v      # Run specific file
 python -m pytest tests/ --cov --cov-report=html      # Coverage report
 ```
