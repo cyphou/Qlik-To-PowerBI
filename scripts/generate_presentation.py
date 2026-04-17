@@ -181,10 +181,10 @@ def build_presentation():
                  font_size=20, color=PBI_YELLOW, alignment=PP_ALIGN.LEFT)
     # Bottom info
     _add_textbox(slide, Inches(1), Inches(5.5), Inches(6), Inches(0.4),
-                 'Python 3.12+ · Zero external dependencies · 2,000 tests',
+                 'Python 3.12+ · Zero external dependencies · 2,224 tests',
                  font_size=14, color=MID_GRAY)
     _add_textbox(slide, Inches(1), Inches(5.9), Inches(6), Inches(0.4),
-                 'v9.1.0 — Preceptorship Multi-Agent Model', font_size=14, color=MID_GRAY)
+                 'v10.0.0 — Preceptorship Multi-Agent Model', font_size=14, color=MID_GRAY)
 
     # ══════════════════════════════════════════════════════════════
     # SLIDE 2 — What It Does
@@ -208,7 +208,8 @@ def build_presentation():
     _add_card(slide, Inches(4.9), Inches(4.2), Inches(3.4), Inches(2.2),
               '⚙️  Smart Generation',
               '175+ DAX formula conversions, 75+ visual type mappings, 40+ Power Query M transforms, '
-              'auto-Calendar table, RLS roles, hierarchies, themes, set analysis → CALCULATE.',
+              'auto-Calendar table, RLS roles, hierarchies, themes, set analysis → CALCULATE. '
+              'Auto-detects table relationships from shared key columns (CamelCase-aware).',
               AZURE_BLUE)
     _add_card(slide, Inches(8.7), Inches(4.2), Inches(3.4), Inches(2.2),
               '🚀  Deploy Anywhere',
@@ -234,7 +235,7 @@ def build_presentation():
               '• extraction_orchestrator.py — main orchestrator\n'
               '• qvf_extractor.py — .qvf ZIP reader\n'
               '• dax_converter.py — 175+ formula conversions\n'
-              '• m_query_builder.py — 25 connectors + 40+ transforms\n'
+              '• m_query_builder.py — 42 connectors + 40+ transforms\n'
               '• qlik_script_converter.py — load script → M\n'
               '• format_adapter.py — bridge to generation layer\n'
               '• datasource_extractor.py — type/formula adapters',
@@ -669,16 +670,16 @@ def build_presentation():
         ('175+', 'DAX\nConversions', QLIK_GREEN),
         ('75+', 'Visual Type\nMappings', PBI_YELLOW),
         ('40+', 'M Query\nTransforms', AZURE_BLUE),
-        ('25', 'Data Source\nConnectors', GREEN),
+        ('42', 'Data Source\nConnectors', GREEN),
         ('11', 'Intermediate\nJSON Files', ACCENT_PURPLE),
-        ('2,000', 'Automated\nTests', RGBColor(0xEF, 0x44, 0x44)),
+        ('2,224', 'Automated\nTests', RGBColor(0xEF, 0x44, 0x44)),
     ]
     for i, (num, label, color) in enumerate(stats):
         x = Inches(0.7) + Inches(i * 2.1)
         _add_stat_card(slide, x, Inches(1.8), Inches(1.9), Inches(1.3), num, label, color)
 
     _add_textbox(slide, Inches(0.8), Inches(3.8), Inches(11), Inches(0.5),
-                 'Zero external dependencies · Python standard library only · Works on Python 3.12+',
+                 'Zero external dependencies · Python standard library only · Works on Python 3.12+ · Dark/Light mode HTML reports',
                  font_size=16, color=MID_GRAY, alignment=PP_ALIGN.CENTER)
 
     # Feature highlights
@@ -687,14 +688,16 @@ def build_presentation():
         'Row-Level Security (RLS) from Section Access',
         'Set Analysis → CALCULATE with filter modifiers',
         'Cross-table RELATED() / LOOKUPVALUE() inference',
+        'Auto-detect relationships from shared key columns (CamelCase)',
         'Aggr() decomposition → SUMX/COUNTX/AVERAGEX iterators',
         'Inter-record Above/Below/Peek → OFFSET/WINDOW',
+        'Dark/Light mode toggle on all HTML reports',
     ]
     for i, feat in enumerate(features):
         col = i % 2
         row = i // 2
         x = Inches(1.0) + Inches(col * 5.5)
-        y = Inches(4.5) + Inches(row * 0.45)
+        y = Inches(4.5) + Inches(row * 0.40)
         _add_textbox(slide, x, y, Inches(5.5), Inches(0.4),
                      '✓  ' + feat, font_size=14, color=WHITE)
 
@@ -760,12 +763,12 @@ def build_presentation():
     # Specialist agents
     agents = [
         ('Extractor', 'QVF/JSON parsing\n→ 11 JSON files', QLIK_GREEN),
-        ('Converter', '175+ DAX conversions\n25 M connectors', QLIK_GREEN),
+        ('Converter', '175+ DAX conversions\n42 M connectors', QLIK_GREEN),
         ('Generator', 'TMDL + PBIR\n75+ visuals', AZURE_BLUE),
         ('Assessor', 'Readiness scoring\nStrategy advising', AZURE_BLUE),
         ('Merger', 'Multi-app merge\nThin reports', ACCENT_PURPLE),
         ('Deployer', 'Fabric / PBI Service\nAzure AD auth', GREEN),
-        ('Tester', '2,000 tests\nRegression suites', RGBColor(0xEF, 0x44, 0x44)),
+        ('Tester', '2,224 tests\nRegression suites', RGBColor(0xEF, 0x44, 0x44)),
     ]
     for i, (name, desc, color) in enumerate(agents):
         x = Inches(0.4) + Inches(i * 1.8)
@@ -797,7 +800,7 @@ def build_presentation():
                  'python migrate.py your_app.qvf', font_size=20,
                  color=PBI_YELLOW, alignment=PP_ALIGN.CENTER, font_name='Cascadia Code')
     _add_textbox(slide, Inches(1), Inches(5.5), Inches(11), Inches(0.4),
-                 'v9.1.0 · 2,000 tests · 175+ DAX conversions · 75+ visual mappings',
+                 'v10.0.0 · 2,224 tests · 175+ DAX conversions · 42 connectors · 75+ visual mappings',
                  font_size=14, color=MID_GRAY, alignment=PP_ALIGN.CENTER)
 
     # ── Save ──
