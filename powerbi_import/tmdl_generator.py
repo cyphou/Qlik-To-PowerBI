@@ -2960,7 +2960,8 @@ def _write_tmdl_files(model_data, output_dir):
     _write_relationships_tmdl(def_dir, relationships)
 
     # 4. expressions.tmdl (with datasource parameters)
-    _write_expressions_tmdl(def_dir, tables, datasources=model.get('_datasources'))
+    _write_expressions_tmdl(def_dir, tables, datasources=model.get('_datasources'),
+                            output_dir=output_dir)
 
     # 5. roles.tmdl
     if roles:
@@ -3135,7 +3136,7 @@ def _write_model_tmdl(def_dir, model, tables, roles=None):
         f.write(content)
 
 
-def _write_expressions_tmdl(def_dir, tables, datasources=None):
+def _write_expressions_tmdl(def_dir, tables, datasources=None, output_dir=None):
     """Generate expressions.tmdl with M parameters.
 
     Creates parameterized data source expressions:
@@ -3199,6 +3200,13 @@ def _write_expressions_tmdl(def_dir, tables, datasources=None):
 
         if common_dir:
             default_folder = "C:\\\\" + common_dir.replace('/', '\\\\')
+
+    # If output_dir is provided, set DataFolder to the data/ subdirectory
+    # next to the .pbip file (two levels up from definition/)
+    if output_dir:
+        project_dir = os.path.dirname(os.path.dirname(def_dir))
+        data_dir = os.path.join(project_dir, 'data')
+        default_folder = data_dir.replace('\\', '\\\\')
 
     lines = []
     lines.append(f'expression DataFolder = "{default_folder}" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]')

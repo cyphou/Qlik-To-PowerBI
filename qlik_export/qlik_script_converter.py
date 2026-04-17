@@ -263,18 +263,21 @@ class QlikScriptToPowerQueryConverter:
             pq_function = QlikScriptToPowerQueryConverter.SOURCE_TYPE_MAP.get(
                 file_ext, 'Csv.Document'
             )
+            # Use DataFolder parameter for file-based sources
+            filename = load_stmt.source.replace('\\', '/').rsplit('/', 1)[-1]
+            file_ref = f'DataFolder & "\\\\{filename}"'
             
             if file_ext in ['xlsx', 'xls']:
-                pq_script.append(f'let\n    Source = Excel.Workbook(File.Contents("{load_stmt.source}"), null, true),')
+                pq_script.append(f'let\n    Source = Excel.Workbook(File.Contents({file_ref}), null, true),')
                 pq_script.append('    Sheet1 = Source{{[Item="Sheet1",Kind="Sheet"]}}[Data],')
                 pq_script.append('    PromotedHeaders = Table.PromoteHeaders(Sheet1, [PromoteAllScalars=true])')
                 base_table = 'PromotedHeaders'
             elif file_ext in ['csv', 'txt']:
-                pq_script.append(f'let\n    Source = Csv.Document(File.Contents("{load_stmt.source}"),[Delimiter=",", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),')
+                pq_script.append(f'let\n    Source = Csv.Document(File.Contents({file_ref}),[Delimiter=",", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),')
                 pq_script.append('    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])')
                 base_table = 'PromotedHeaders'
             else:
-                pq_script.append(f'let\n    Source = {pq_function}(File.Contents("{load_stmt.source}"))')
+                pq_script.append(f'let\n    Source = {pq_function}(File.Contents({file_ref}))')
                 base_table = 'Source'
                 
         elif load_stmt.source_type == 'resident':

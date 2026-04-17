@@ -193,7 +193,8 @@ MAPPING LOAD Code, Country FROM [C:\\mapping.csv];"""
 LOAD * FROM [$(vPath)\\sales.csv];"""
         converter = QlikScriptToPowerQueryConverter()
         result = converter.convert_qlik_script_to_powerquery(script)
-        assert "C:\\Data" in result
+        assert "DataFolder" in result
+        assert "sales.csv" in result
 
     def test_qualify_unqualify(self):
         script = """QUALIFY *;

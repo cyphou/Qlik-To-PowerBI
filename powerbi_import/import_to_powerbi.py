@@ -31,7 +31,7 @@ class PowerBIImporter:
     def import_all(self, generate_pbip=True, report_name=None, output_dir=None,
                    calendar_start=None, calendar_end=None, culture=None,
                    model_mode='import', output_format='pbip', paginated=False,
-                   validate=True):
+                   validate=True, sample_data=None):
         """Import all extracted objects and generate Power BI project.
 
         Args:
@@ -43,6 +43,7 @@ class PowerBIImporter:
             culture: Override culture/locale for semantic model
             paginated: If True, generate paginated report layout
             validate: If True, run post-generation artifact validation
+            sample_data: Path to directory with sample data files to bundle
         """
 
         print("=" * 80)
@@ -70,6 +71,10 @@ class PowerBIImporter:
         print(f"  Datasources: {len(converted_objects.get('datasources', []))}")
         print(f"  Worksheets: {len(converted_objects.get('worksheets', []))}")
         print(f"  Calculations: {len(converted_objects.get('calculations', []))}")
+
+        # Inject sample data directory for file bundling
+        if sample_data:
+            converted_objects['_sample_data_dir'] = sample_data
 
         # Generate Power BI Project (.pbip) directly from converted objects
         if generate_pbip:

@@ -215,7 +215,7 @@ def run_extraction(qlik_file):
 
 def run_generation(report_name=None, output_dir=None, calendar_start=None,
                    calendar_end=None, culture=None, model_mode='import',
-                   output_format='pbip', paginated=False):
+                   output_format='pbip', paginated=False, sample_data=None):
     """Generate Power BI project (.pbip) from extracted Qlik data.
 
     Loads the intermediate JSON from ``qlik_export/``, transforms to
@@ -228,6 +228,7 @@ def run_generation(report_name=None, output_dir=None, calendar_start=None,
         calendar_end: End year for Calendar table (default: 2030)
         culture: Override culture/locale for semantic model
         paginated: If True, generate paginated report layout
+        sample_data: Path to directory with sample data files to bundle
     """
     global _stats
     print_step(2, 2, "POWER BI PROJECT GENERATION")
@@ -264,7 +265,7 @@ def run_generation(report_name=None, output_dir=None, calendar_start=None,
         importer.import_all(generate_pbip=True, report_name=report_name, output_dir=output_dir,
                             calendar_start=calendar_start, calendar_end=calendar_end,
                             culture=culture, model_mode=model_mode,
-                            output_format=output_format)
+                            output_format=output_format, sample_data=sample_data)
 
         # Collect generation stats from the output
         base_dir = output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
@@ -1164,6 +1165,13 @@ def main():
     )
 
     parser.add_argument(
+        '--sample-data',
+        metavar='DIR',
+        default=None,
+        help='Directory containing sample data files (CSV) to copy into the generated project'
+    )
+
+    parser.add_argument(
         '--workers',
         metavar='N',
         type=int,
@@ -1730,6 +1738,7 @@ def main():
             model_mode=args.mode,
             output_format=args.output_format,
             paginated=getattr(args, 'paginated', False),
+            sample_data=getattr(args, 'sample_data', None),
         )
         if results['generation']:
             progress.complete(f"{_stats.pages_generated} pages, {_stats.visuals_generated} visuals")

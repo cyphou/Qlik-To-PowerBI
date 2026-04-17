@@ -1,0 +1,11 @@
+CustomerID,CustomerName,Country,City,Region
+C001,Alice Martin,France,Paris,Europe
+C002,Bob Johnson,United States,New York,North America
+C003,Carlos Garcia,Spain,Madrid,Europe
+C004,Diana Chen,China,Shanghai,Asia
+C005,Emma Wilson,United Kingdom,London,Europe
+C006,François Dubois,France,Lyon,Europe
+C007,Giulia Rossi,Italy,Milan,Europe
+C008,Hans Mueller,Germany,Berlin,Europe
+C009,Ichiro Tanaka,Japan,Tokyo,Asia
+C010,Karen Smith,Canada,Toronto,North America

@@ -478,7 +478,8 @@ LOAD * FROM [$(vPath)sales.csv]
 (txt, utf8, embedded labels, delimiter is ',');
 '''
         result = QlikScriptToPowerQueryConverter.convert_qlik_script_to_powerquery(script)
-        self.assertIn('data/sales.csv', result)
+        self.assertIn('DataFolder', result)
+        self.assertIn('sales.csv', result)
 
 
 # ════════════════════════════════════════════════════════════════════

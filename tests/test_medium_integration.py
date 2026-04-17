@@ -261,7 +261,8 @@ LOAD * FROM [$(vDataPath)\\sales_$(vYear).csv] (txt, utf8);
 """
         converter = QlikScriptToPowerQueryConverter()
         result = converter.convert_qlik_script_to_powerquery(script)
-        assert "C:\\SharedData" in result
+        assert "DataFolder" in result
+        assert "sales_" in result
 
     def test_inline_table(self):
         """INLINE data load."""

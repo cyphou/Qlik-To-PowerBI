@@ -95,6 +95,21 @@ class PowerBIProjectGenerator:
         self.create_metadata(project_dir, report_name, converted_objects)
         print(f"  ✓ Metadata created")
         
+        # 5. Copy sample data files if provided
+        sample_data_dir = converted_objects.get('_sample_data_dir')
+        if sample_data_dir and os.path.isdir(sample_data_dir):
+            data_dest = os.path.join(project_dir, 'data')
+            os.makedirs(data_dest, exist_ok=True)
+            import shutil
+            copied = 0
+            for f in os.listdir(sample_data_dir):
+                src = os.path.join(sample_data_dir, f)
+                if os.path.isfile(src):
+                    shutil.copy2(src, os.path.join(data_dest, f))
+                    copied += 1
+            if copied:
+                print(f"  ✓ Sample data copied: {copied} files → {data_dest}")
+        
         # 5. Create paginated report layout (if requested)
         if self._paginated:
             pag_dir = self._create_paginated_report(project_dir, report_name, converted_objects)
