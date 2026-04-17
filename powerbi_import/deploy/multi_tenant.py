@@ -4,7 +4,7 @@ with per-tenant connection string overrides and RLS role mappings.
 
 Usage (CLI)::
 
-    python migrate.py --shared-model wb1.twbx wb2.twbx \\
+    python migrate.py --shared-model app1.qvf app2.qvf \\
         --multi-tenant tenants.json --deploy-bundle WORKSPACE_ID
 
 Usage (programmatic)::

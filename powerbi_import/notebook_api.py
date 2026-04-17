@@ -9,7 +9,7 @@ Usage in a Jupyter notebook::
     from powerbi_import.notebook_api import MigrationSession
 
     session = MigrationSession()
-    session.load('path/to/app.twbx')
+    session.load('path/to/app.qvf')
     session.assess()
     session.preview_dax()
     session.edit_dax('Total Sales', 'SUM(Sales[Amount])')

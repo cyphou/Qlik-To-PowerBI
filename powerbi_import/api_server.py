@@ -3,7 +3,7 @@
 Sprint 110: Lightweight HTTP wrapper around the migration pipeline.
 
 Endpoints:
-    POST /migrate          Upload .twb/.twbx/.tds/.tdsx → returns job ID
+    POST /migrate          Upload .qvf/.json → returns job ID
     GET  /status/{id}      Check migration job status
     GET  /download/{id}    Download generated .pbip project as ZIP
     GET  /health           Health check
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 # Add paths for project imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'Qlik_export'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'qlik_export'))
 
 # ── Job store ─────────────────────────────────────────────────────────────────
 
@@ -118,24 +118,22 @@ def _run_migration(job_id, input_path, options=None):
         _update_job(job_id, output_dir=output_dir)
 
         # Import migration modules
-        from Qlik_export.extract_Qlik_data import QlikExtractor
+        from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+        from qlik_export.format_adapter import adapt_qlik_for_generation
         from powerbi_import.import_to_powerbi import PowerBIImporter
 
-        # Step 1: Extract
-        extractor = QlikExtractor(input_path)
-        extractor.extract_all()
+        # Step 1: Extract Qlik objects → intermediate JSON
+        extract_dir = tempfile.mkdtemp(prefix=f'pbi_extract_{job_id}_')
+        orchestrator = ExtractionOrchestrator(output_dir=extract_dir)
+        orchestrator.extract(input_path)
+        orchestrator.write_intermediate_json(extract_dir)
 
-        # Step 2: Generate
+        # Step 2: Generate Power BI project
         report_name = os.path.splitext(os.path.basename(input_path))[0]
-        src_dir = os.path.dirname(os.path.abspath(
-            os.path.join(os.path.dirname(__file__), '..', 'Qlik_export')
-        ))
-        importer = PowerBIImporter(os.path.join(src_dir, 'Qlik_export'))
-
-        converted = importer._load_converted_objects()
-        importer.generate_powerbi_project(
+        importer = PowerBIImporter(extract_dir)
+        importer.import_all(
+            generate_pbip=True,
             report_name=report_name,
-            converted_objects=converted,
             output_dir=output_dir,
             calendar_start=options.get('calendar_start'),
             calendar_end=options.get('calendar_end'),
@@ -266,7 +264,7 @@ class MigrationHandler(BaseHTTPRequestHandler):
 
             # Parse multipart or raw file upload
             content_type = self.headers.get('Content-Type', '')
-            filename = 'upload.twbx'
+            filename = 'upload.qvf'
             file_data = body
 
             if 'multipart/form-data' in content_type:
@@ -286,7 +284,7 @@ class MigrationHandler(BaseHTTPRequestHandler):
                 try:
                     import base64
                     payload = json.loads(body)
-                    filename = payload.get('filename', 'upload.twbx')
+                    filename = payload.get('filename', 'upload.qvf')
                     file_data = base64.b64decode(payload['file'])
                 except (json.JSONDecodeError, KeyError, Exception) as exc:
                     self._send_error(400, f'Invalid JSON payload: {exc}')
@@ -294,9 +292,9 @@ class MigrationHandler(BaseHTTPRequestHandler):
 
             # Validate extension
             ext = os.path.splitext(filename)[1].lower()
-            if ext not in ('.twb', '.twbx', '.tds', '.tdsx'):
+            if ext not in ('.qvf', '.json'):
                 self._send_error(400,
-                    f'Unsupported file type: {ext}. Use .twb, .twbx, .tds, or .tdsx')
+                    f'Unsupported file type: {ext}. Use .qvf or .json')
                 return
 
             # Save to temp file
@@ -403,7 +401,7 @@ def _parse_multipart(body, boundary):
                         c for c in filename if ord(c) >= 32 and c != '\x00'
                     )
                     if not filename or not re.match(r'^[\w\-. ]+$', filename):
-                        filename = f'upload_{uuid.uuid4().hex[:8]}.twbx'
+                        filename = f'upload_{uuid.uuid4().hex[:8]}.qvf'
                 break
         return filename, data
     return None
@@ -434,7 +432,7 @@ def run_server(host='127.0.0.1', port=8000):
     """Start the migration API server."""
     server = HTTPServer((host, port), MigrationHandler)
     print(f"Migration API server running on http://{host}:{port}")
-    print(f"  POST /migrate     Upload .twb/.twbx/.tds/.tdsx for migration")
+    print(f"  POST /migrate     Upload .qvf/.json for migration")
     print(f"  GET  /status/{{id}} Check job status")
     print(f"  GET  /download/{{id}} Download result as ZIP")
     print(f"  GET  /health      Health check")

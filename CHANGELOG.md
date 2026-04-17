@@ -2,6 +2,13 @@
 
 ## v10.1.0 — Gap Closure & Pipeline Wiring
 
+### REST API Server Fix
+- **Fixed broken `api_server.py`**: rewrote `_run_migration()` to use actual Qlik extraction pipeline (`ExtractionOrchestrator` + `PowerBIImporter`) instead of non-existent `Qlik_export.extract_Qlik_data`
+- **Updated file extensions**: `.qvf`/`.json` accepted (was `.twb`/`.twbx`/`.tds`/`.tdsx`)
+- **Fixed all Tableau references**: docstrings, default filenames, server help text
+- **Fixed stale Tableau references** in `notebook_api.py` and `deploy/multi_tenant.py`
+- **16 new tests** for api_server (imports, multipart parsing, rate limiting, job management)
+
 ### Bridge Table Improvements
 - **Composite key support**: M2M relationships between the same table pair with multiple columns are now merged into a single bridge table with all column pairs
 - **Synthetic key detection**: Qlik `$Syn*` tables are automatically flagged as manyToMany candidates in both `_inject_relationships()` and `_detect_many_to_many()`
@@ -41,7 +48,7 @@
 
 ### Tests
 - **20 new tests**: geo wiring (3), CLI flags (6), refresh wiring (2), server wiring (3), plus 6 flag tests in existing test file
-- Total test count: **2,438** (up from 2,407)
+- Total test count: **2,454** (up from 2,407)
 
 ---
 
