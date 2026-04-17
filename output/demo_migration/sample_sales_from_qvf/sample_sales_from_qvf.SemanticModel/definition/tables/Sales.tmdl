@@ -1,22 +1,22 @@
 table Sales
-	lineageTag: 028a9795-5617-4ba9-a547-cb31caaa3ac2
+	lineageTag: 7a699818-2b1f-431f-b99b-a6e16ec4d49f
 
 	measure 'CA Total' = SUM('Sales'[Amount])
 		formatString: #,0.00
 		displayFolder: Measures
-		lineageTag: 042418cf-48e1-40a8-b029-108a97e4645d
+		lineageTag: 44cfccf6-58eb-4c2e-9e92-190e66e315c1
 
 	measure 'Qté Totale' = SUM('Sales'[Quantity])
 		formatString: #,0.00
 		displayFolder: Measures
-		lineageTag: f1922c92-b7b7-4d6a-bf5f-fea05bfc2167
+		lineageTag: 674c7544-744d-46bd-8ac5-c5d09cdc094d
 
 	measure 'Année en cours' = "Year(Today())"
-		lineageTag: 25dce2b6-a5ce-4f90-8747-cde58c83110a
+		lineageTag: 06c2d7da-75a7-44e5-97ef-21bccd3500d7
 
 	column SaleID
 		dataType: int64
-		lineageTag: 1dedadb4-1bb0-4416-9783-e50c1aea9c1b
+		lineageTag: 22990535-1916-478d-8ffd-f0eb361d5ab1
 		summarizeBy: none
 		sourceColumn: SaleID
 
@@ -24,7 +24,7 @@ table Sales
 
 	column CustomerID
 		dataType: int64
-		lineageTag: 335950a0-4520-4933-8eab-ed1f414cbac7
+		lineageTag: 3a00c2b0-2c54-48ad-9adc-b8281326033e
 		summarizeBy: none
 		sourceColumn: CustomerID
 
@@ -32,7 +32,7 @@ table Sales
 
 	column ProductID
 		dataType: int64
-		lineageTag: e15f9a91-6dd0-4d1b-b93c-b088a17f1d64
+		lineageTag: 7ea3b46d-d896-4c93-be28-3d029c940351
 		summarizeBy: none
 		sourceColumn: ProductID
 
@@ -40,7 +40,7 @@ table Sales
 
 	column OrderDate
 		dataType: dateTime
-		lineageTag: eb4f4765-1a65-443f-93da-15be0d7e8600
+		lineageTag: e32db441-68cb-43a2-a191-48986020a9db
 		summarizeBy: none
 		sourceColumn: OrderDate
 
@@ -48,7 +48,7 @@ table Sales
 
 	column Amount
 		dataType: double
-		lineageTag: 9e2dd17d-ff50-4d4e-b0c5-6d029dd0c185
+		lineageTag: 4fc3febb-76ae-4836-aad2-5087d2bd6d01
 		summarizeBy: none
 		sourceColumn: Amount
 
@@ -56,13 +56,13 @@ table Sales
 
 	column Quantity
 		dataType: int64
-		lineageTag: 2910f3ba-6aa5-4583-b497-c0bcc8241457
+		lineageTag: 908961c9-89ee-4264-9af9-3ea120c54113
 		summarizeBy: none
 		sourceColumn: Quantity
 
 		annotation SummarizationSetBy = Automatic
 
-	partition 'Sales-d9cc3d81-936e-4f55-b348-9142e701ee9a' = m
+	partition 'Sales-bdb8c5a8-cf25-43bf-ae2d-c3016b0a1888' = m
 		mode: import
 		source =
 				let
@@ -70,9 +70,10 @@ table Sales
 				    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])
 				,
 				    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"SaleID", "CustomerID", "ProductID", "OrderDate", "Amount", "Quantity"})
-				
+				,
+				    #"Changed Type" = Table.TransformColumnTypes(SelectedColumns, {{"SaleID", Int64.Type}, {"CustomerID", Int64.Type}, {"ProductID", Int64.Type}, {"OrderDate", type datetime}, {"Amount", type number}, {"Quantity", Int64.Type}})
 				in
-				    SelectedColumns
+				    #"Changed Type"
 
 	annotation PBI_ResultType = Table
 

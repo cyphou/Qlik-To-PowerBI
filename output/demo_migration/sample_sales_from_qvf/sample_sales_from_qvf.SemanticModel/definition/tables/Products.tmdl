@@ -1,9 +1,9 @@
 table Products
-	lineageTag: 50313f0f-432d-49d0-aa3e-fed07125bc79
+	lineageTag: 47a2037b-d46f-41d4-8d0b-39dec4d2c372
 
 	column ProductID
 		dataType: int64
-		lineageTag: 6e6fc324-c6d8-402f-a5e9-82b2f7e2c155
+		lineageTag: cce58e7e-f9c2-4c4b-a435-316f300cc649
 		summarizeBy: none
 		sourceColumn: ProductID
 
@@ -11,7 +11,7 @@ table Products
 
 	column ProductName
 		dataType: string
-		lineageTag: 75eac102-ce2a-4381-a1ca-98b3376e0d84
+		lineageTag: 927e126c-363d-4f53-9db5-fc6c099d6514
 		summarizeBy: none
 		sourceColumn: ProductName
 
@@ -19,7 +19,7 @@ table Products
 
 	column CategoryID
 		dataType: int64
-		lineageTag: 174369f4-40f9-4667-971e-ba6eb4340bfb
+		lineageTag: dcfff6d4-2891-46aa-bace-7272503ccf76
 		summarizeBy: none
 		sourceColumn: CategoryID
 
@@ -27,13 +27,13 @@ table Products
 
 	column UnitPrice
 		dataType: double
-		lineageTag: e2945c55-a076-40b9-9cad-9e8c57d7704f
+		lineageTag: 6b2de643-cc82-48c2-b22b-c4309580746a
 		summarizeBy: none
 		sourceColumn: UnitPrice
 
 		annotation SummarizationSetBy = Automatic
 
-	partition 'Products-535537ff-4730-43d3-8f1e-f66a690ff59c' = m
+	partition 'Products-2534a465-c41a-4c18-9df5-9a48dcb0c05a' = m
 		mode: import
 		source =
 				let
@@ -41,9 +41,10 @@ table Products
 				    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])
 				,
 				    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"ProductID", "ProductName", "CategoryID", "UnitPrice"})
-				
+				,
+				    #"Changed Type" = Table.TransformColumnTypes(SelectedColumns, {{"ProductID", Int64.Type}, {"CategoryID", Int64.Type}, {"UnitPrice", type number}})
 				in
-				    SelectedColumns
+				    #"Changed Type"
 
 	annotation PBI_ResultType = Table
 

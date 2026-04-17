@@ -84,7 +84,71 @@ _DAX_TO_M_TYPE = {
     'Double': 'type number', 'double': 'type number',
     'Int64': 'Int64.Type', 'int64': 'Int64.Type',
     'DateTime': 'type datetime', 'dateTime': 'type datetime',
+    'Decimal': 'type number', 'decimal': 'type number',
 }
+
+
+def _inject_column_types_step(m_query: str, columns: list) -> str:
+    """Inject a Table.TransformColumnTypes step into the M query.
+
+    CSV sources load all columns as text.  This adds an explicit type
+    conversion step so that numeric / date columns are properly typed
+    before the DAX engine evaluates measures like ``SUM()``.
+    """
+    if not columns or not m_query:
+        return m_query
+
+    # Build type pairs for non-string columns
+    type_pairs = []
+    for col in columns:
+        col_name = col.get('name', '')
+        col_type = col.get('datatype', 'string')
+        m_type = _DAX_TO_M_TYPE.get(col_type)
+        if m_type and m_type != 'type text' and col_name:
+            type_pairs.append(f'{{"{col_name}", {m_type}}}')
+
+    if not type_pairs:
+        return m_query  # all columns are text, nothing to do
+
+    # Find the last step name and the 'in' clause to inject before it
+    lines = m_query.strip().split('\n')
+    in_index = None
+    for i, line in enumerate(lines):
+        stripped = line.strip().lower()
+        if stripped == 'in' or stripped.startswith('in '):
+            in_index = i
+            break
+
+    if in_index is None:
+        return m_query  # malformed query, skip
+
+    # Determine the previous step name (what the 'in' references)
+    pre_in = lines[:in_index]
+    prev_step = 'Source'
+    for line in reversed(pre_in):
+        stripped = line.strip().rstrip(',')
+        if '=' in stripped and not stripped.startswith('//'):
+            prev_step = stripped.split('=')[0].strip()
+            break
+
+    # Ensure last line before 'in' ends with comma
+    if pre_in and not pre_in[-1].rstrip().endswith(','):
+        pre_in[-1] = pre_in[-1].rstrip() + ','
+
+    # Build the step
+    pairs_str = ', '.join(type_pairs)
+    type_step = f'    #"Changed Type" = Table.TransformColumnTypes({prev_step}, {{{pairs_str}}})'
+    pre_in.append(type_step)
+
+    # Update 'in' to reference the new last step
+    rest = lines[in_index:]
+    rest[0] = 'in'
+    if len(rest) > 1:
+        rest[1] = '    #"Changed Type"'
+    else:
+        rest.append('    #"Changed Type"')
+
+    return '\n'.join(pre_in + rest)
 
 
 def _split_dax_args(s):
@@ -868,6 +932,10 @@ def _build_table(table, connection, calculations, columns_metadata, dax_context=
     m_steps = _build_m_transform_steps(columns, col_metadata_map)
     if m_steps:
         m_query = inject_m_steps(m_query, m_steps)
+
+    # Inject Table.TransformColumnTypes for non-string columns
+    # CSV/text sources load everything as text; explicit typing is required
+    m_query = _inject_column_types_step(m_query, columns)
 
     # Determine partition mode based on model_mode
     # For composite: large tables use directQuery, small/lookup use import

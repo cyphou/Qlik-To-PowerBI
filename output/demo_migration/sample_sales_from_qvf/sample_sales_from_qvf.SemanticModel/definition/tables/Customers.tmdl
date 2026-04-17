@@ -1,9 +1,9 @@
 table Customers
-	lineageTag: daf1dcec-0ffc-43d5-a977-6226b0e3ed1d
+	lineageTag: a57f5099-12e1-47a9-ba29-2402bee8da94
 
 	column CustomerID
 		dataType: int64
-		lineageTag: 59b966fa-b6dd-49b7-bbb8-0eb7dffdfc39
+		lineageTag: 0c831e7f-2589-4b0d-8640-0e01914e93a6
 		summarizeBy: none
 		sourceColumn: CustomerID
 
@@ -11,7 +11,7 @@ table Customers
 
 	column CustomerName
 		dataType: string
-		lineageTag: 3381697b-6c2b-494c-88d5-64b363c882c7
+		lineageTag: eb8f0d27-672b-43b5-aa37-bce28f4ec3f9
 		summarizeBy: none
 		sourceColumn: CustomerName
 
@@ -19,7 +19,7 @@ table Customers
 
 	column Country
 		dataType: string
-		lineageTag: 9ee0f7f6-e54c-4fa6-86fd-3d80515e6aa5
+		lineageTag: 84a8e74d-3dd6-44e0-bb8a-766fc78caa0c
 		summarizeBy: none
 		sourceColumn: Country
 		dataCategory: Country
@@ -28,7 +28,7 @@ table Customers
 
 	column City
 		dataType: string
-		lineageTag: 4277b5b9-36b4-418c-830c-fbdc3fe1bd21
+		lineageTag: f7934978-151f-4a0f-90ed-d03df1f13c6b
 		summarizeBy: none
 		sourceColumn: City
 		dataCategory: City
@@ -37,14 +37,14 @@ table Customers
 
 	column Region
 		dataType: string
-		lineageTag: bac81899-50f0-4b04-9e5b-94fd76d87efb
+		lineageTag: 7272f3ec-81c3-485d-9b32-2b097d15dd1e
 		summarizeBy: none
 		sourceColumn: Region
 		dataCategory: StateOrProvince
 
 		annotation SummarizationSetBy = Automatic
 
-	partition 'Customers-67e102f2-7cca-4fc5-9af4-7263e4a65d98' = m
+	partition 'Customers-212d2550-bf8c-497f-8501-f36216f560d5' = m
 		mode: import
 		source =
 				let
@@ -52,9 +52,10 @@ table Customers
 				    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])
 				,
 				    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"CustomerID", "CustomerName", "Country", "City", "Region"})
-				
+				,
+				    #"Changed Type" = Table.TransformColumnTypes(SelectedColumns, {{"CustomerID", Int64.Type}})
 				in
-				    SelectedColumns
+				    #"Changed Type"
 
 	annotation PBI_ResultType = Table
 
