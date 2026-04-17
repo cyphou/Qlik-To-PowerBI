@@ -41,6 +41,10 @@ from qlik_export.datasource_extractor import (
     convert_formula_to_dax,
     map_to_powerbi_type
 )
+from qlik_export.qlik_model_converter import (
+    RelationshipCardinality,
+    CrossFilterDirection,
+)
 from qlik_export.m_query_builder import (
     inject_m_steps,
     m_transform_rename,
@@ -434,7 +438,8 @@ def generate_tmdl(datasources, report_name, extra_objects, output_dir,
         'measures': sum(len(t.get('measures', [])) for t in tables),
         'relationships': len(rels),
         'hierarchies': sum(len(t.get('hierarchies', [])) for t in tables),
-        'roles': len(model.get('model', {}).get('roles', []))
+        'roles': len(model.get('model', {}).get('roles', [])),
+        'relationship_report': model.get('_relationship_report', {}),
     }
     return stats
 
@@ -842,8 +847,18 @@ def _build_semantic_model(datasources, report_name="Report", extra_objects=None,
     # Phase 10c: Replace RELATED() with LOOKUPVALUE() for manyToMany
     _fix_related_for_many_to_many(model)
 
+    # Phase 10e: Optimize cross-filter direction (Phase 3)
+    n_downgraded = _optimize_cross_filter_direction(model)
+    if n_downgraded:
+        print(f"  ✓ Optimized {n_downgraded} relationship(s): "
+              f"bothDirections → oneDirection")
+
     # Phase 11: Deactivate relationships that create ambiguous paths
     _deactivate_ambiguous_paths(model)
+
+    # Phase 11b: Validate relationships and produce health report (Phase 4)
+    rel_report = _validate_relationships(model)
+    model['_relationship_report'] = rel_report
 
     # Deduplicate measures globally
     global_measure_names = set()
@@ -1516,13 +1531,40 @@ def _detect_many_to_many(model, datasources):
 
 
 def _set_cardinality(rel, from_card, to_card):
-    """Set cardinality and crossFilteringBehavior on a relationship."""
+    """Set cardinality and crossFilteringBehavior on a relationship.
+
+    Uses ``RelationshipCardinality`` and ``CrossFilterDirection`` enums
+    from ``qlik_model_converter`` to ensure consistency across code paths.
+
+    Args:
+        rel: Relationship dict to mutate.
+        from_card: 'one' or 'many'.
+        to_card: 'one' or 'many'.
+    """
+    # Map string tokens to canonical enum values
+    _CARD_MAP = {
+        ('one', 'one'): RelationshipCardinality.ONE_TO_ONE,
+        ('one', 'many'): RelationshipCardinality.ONE_TO_MANY,
+        ('many', 'one'): RelationshipCardinality.MANY_TO_ONE,
+        ('many', 'many'): RelationshipCardinality.MANY_TO_MANY,
+    }
+    cardinality = _CARD_MAP.get((from_card, to_card),
+                                 RelationshipCardinality.MANY_TO_ONE)
+
     rel['fromCardinality'] = from_card
     rel['toCardinality'] = to_card
+    rel['_cardinality_enum'] = cardinality.value
+
     # manyToMany requires bothDirections; everything else uses oneDirection
-    if from_card == 'many' and to_card == 'many':
-        rel['crossFilteringBehavior'] = 'bothDirections'
+    if cardinality == RelationshipCardinality.MANY_TO_MANY:
+        rel['crossFilteringBehavior'] = CrossFilterDirection.BOTH.value.lower() + 'Directions'
     else:
+        rel['crossFilteringBehavior'] = CrossFilterDirection.SINGLE.value.lower() + 'Direction'
+
+    # Normalize to the string values TMDL expects
+    # CrossFilterDirection.BOTH → "bothDirections", SINGLE → "oneDirection"
+    # (already correct from above, but be explicit for readability)
+    if rel['crossFilteringBehavior'] not in ('oneDirection', 'bothDirections'):
         rel['crossFilteringBehavior'] = 'oneDirection'
 
 
@@ -1730,6 +1772,169 @@ def _generate_bridge_tables(model):
     model['model']['tables'].extend(new_tables)
 
     return len(new_tables)
+
+
+# ── Phase 3: Cross-Filter Direction Optimization ────────────────────
+
+def _optimize_cross_filter_direction(model):
+    """Minimize use of bothDirections cross-filtering.
+
+    Power BI best practice: use ``oneDirection`` (single) whenever possible.
+    ``bothDirections`` should only be used for manyToMany relationships or
+    when visual bindings explicitly require reverse filtering.
+
+    This function scans all active relationships and downgrades
+    ``bothDirections`` to ``oneDirection`` except for manyToMany
+    relationships, which require bidirectional filtering to work.
+
+    Returns:
+        int: Number of relationships changed from bothDirections to oneDirection.
+    """
+    changed = 0
+    for rel in model['model']['relationships']:
+        if rel.get('isActive') is False:
+            continue
+        cfb = rel.get('crossFilteringBehavior', 'oneDirection')
+        from_card = rel.get('fromCardinality', 'many')
+        to_card = rel.get('toCardinality', 'one')
+
+        is_m2m = from_card == 'many' and to_card == 'many'
+
+        if cfb == 'bothDirections' and not is_m2m:
+            rel['crossFilteringBehavior'] = 'oneDirection'
+            changed += 1
+
+    return changed
+
+
+# ── Phase 4: Relationship Validation & Reporting ────────────────────
+
+def _validate_relationships(model):
+    """Validate all relationships and produce a health report.
+
+    Checks performed:
+    1. Orphan relationships — references to tables/columns that don't exist
+    2. Duplicate relationships — same (fromTable, fromColumn, toTable, toColumn)
+    3. Self-referencing — fromTable == toTable
+    4. ManyToMany count — flagged as warnings (performance risk)
+    5. Inactive relationship count
+    6. BothDirections count — flagged if excessive
+    7. Type mismatches — fromColumn and toColumn have different data types
+
+    Returns:
+        dict: Relationship health report with errors, warnings, and stats.
+    """
+    tables = {t.get('name', ''): t for t in model['model']['tables']}
+    rels = model['model']['relationships']
+
+    errors = []
+    warnings = []
+    info = []
+
+    # Build column lookup: {(table, col): dataType}
+    col_types = {}
+    for tname, tbl in tables.items():
+        for col in tbl.get('columns', []):
+            cname = col.get('name', '')
+            col_types[(tname, cname)] = col.get('dataType', 'string')
+
+    seen_pairs = set()
+    m2m_count = 0
+    inactive_count = 0
+    both_dir_count = 0
+    bridge_count = 0
+
+    for rel in rels:
+        ft = rel.get('fromTable', '')
+        fc = rel.get('fromColumn', '')
+        tt = rel.get('toTable', '')
+        tc = rel.get('toColumn', '')
+        name = rel.get('name', '')
+
+        # Check for bridge tables
+        if ft.startswith('Bridge_') or tt.startswith('Bridge_'):
+            bridge_count += 1
+
+        # 1. Orphan check
+        if ft and ft not in tables:
+            errors.append(f"Orphan: relationship '{name}' references "
+                          f"non-existent table '{ft}'")
+        if tt and tt not in tables:
+            errors.append(f"Orphan: relationship '{name}' references "
+                          f"non-existent table '{tt}'")
+        if ft in tables and fc:
+            t_cols = {c.get('name', '') for c in tables[ft].get('columns', [])}
+            if fc not in t_cols:
+                errors.append(f"Orphan: '{ft}.{fc}' column not found")
+        if tt in tables and tc:
+            t_cols = {c.get('name', '') for c in tables[tt].get('columns', [])}
+            if tc not in t_cols:
+                errors.append(f"Orphan: '{tt}.{tc}' column not found")
+
+        # 2. Duplicate check
+        pair = (ft, fc, tt, tc)
+        if pair in seen_pairs:
+            warnings.append(f"Duplicate relationship: {ft}.{fc} → {tt}.{tc}")
+        seen_pairs.add(pair)
+
+        # 3. Self-referencing
+        if ft and ft == tt:
+            warnings.append(f"Self-referencing: '{name}' on table '{ft}'")
+
+        # 4. ManyToMany
+        if (rel.get('fromCardinality') == 'many' and
+                rel.get('toCardinality') == 'many'):
+            m2m_count += 1
+
+        # 5. Inactive
+        if rel.get('isActive') is False:
+            inactive_count += 1
+
+        # 6. BothDirections
+        if rel.get('crossFilteringBehavior') == 'bothDirections':
+            both_dir_count += 1
+
+        # 7. Type mismatch
+        from_type = col_types.get((ft, fc), '')
+        to_type = col_types.get((tt, tc), '')
+        if from_type and to_type and from_type.lower() != to_type.lower():
+            warnings.append(
+                f"Type mismatch: {ft}.{fc} ({from_type}) ↔ "
+                f"{tt}.{tc} ({to_type})")
+
+    # Summary warnings
+    if m2m_count > 0:
+        warnings.append(f"{m2m_count} manyToMany relationship(s) — "
+                        f"consider using --bridge-tables auto")
+    if both_dir_count > 2:
+        warnings.append(f"{both_dir_count} bothDirections relationships — "
+                        f"may cause ambiguous filter propagation")
+
+    if not errors and not warnings:
+        info.append("All relationships are healthy")
+
+    report = {
+        'total': len(rels),
+        'active': len(rels) - inactive_count,
+        'inactive': inactive_count,
+        'manyToMany': m2m_count,
+        'bothDirections': both_dir_count,
+        'bridgeTables': bridge_count,
+        'errors': errors,
+        'warnings': warnings,
+        'info': info,
+        'healthy': len(errors) == 0,
+    }
+
+    # Print summary
+    if errors:
+        for e in errors:
+            print(f"  ✗ {e}")
+    if warnings:
+        for w in warnings:
+            print(f"  ⚠ {w}")
+
+    return report
 
 
 def _fix_related_for_many_to_many(model):

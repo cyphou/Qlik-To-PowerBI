@@ -228,6 +228,15 @@ class PowerBIProjectGenerator:
                 print(f"    - {stats['hierarchies']} hierarchies")
             if stats['roles']:
                 print(f"    - {stats['roles']} RLS roles")
+
+            # Relationship health report (Phase 4)
+            rel_report = stats.get('relationship_report', {})
+            if rel_report.get('manyToMany', 0):
+                print(f"    - {rel_report['manyToMany']} manyToMany relationship(s)")
+            if rel_report.get('inactive', 0):
+                print(f"    - {rel_report['inactive']} inactive relationship(s)")
+            if rel_report.get('bridgeTables', 0):
+                print(f"    - {rel_report['bridgeTables']} bridge table relationship(s)")
             
         except Exception as e:
             print(f"  \u26a0 Error during TMDL generation: {e}")

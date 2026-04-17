@@ -19,6 +19,8 @@ from powerbi_import.tmdl_generator import (
     _build_unique_column_set,
     _set_cardinality,
     _generate_bridge_tables,
+    _optimize_cross_filter_direction,
+    _validate_relationships,
 )
 
 
@@ -778,3 +780,270 @@ class TestBridgeTableGeneration:
             content = f.read()
         assert 'isHidden' in content
         assert 'calculated' in content
+
+
+# ══════════════════════════════════════════════════════════════════
+# 9. Cross-Filter Direction Optimization (Phase 3)
+# ══════════════════════════════════════════════════════════════════
+
+class TestCrossFilterOptimization:
+    """Tests for _optimize_cross_filter_direction."""
+
+    def _make_model(self, rels):
+        return {'model': {'tables': [], 'relationships': rels}}
+
+    def test_downgrades_both_to_one_for_many_to_one(self):
+        """bothDirections on manyToOne should be downgraded to oneDirection."""
+        model = self._make_model([{
+            'fromTable': 'A', 'fromColumn': 'X',
+            'toTable': 'B', 'toColumn': 'X',
+            'fromCardinality': 'many', 'toCardinality': 'one',
+            'crossFilteringBehavior': 'bothDirections',
+        }])
+        changed = _optimize_cross_filter_direction(model)
+        assert changed == 1
+        assert model['model']['relationships'][0]['crossFilteringBehavior'] == 'oneDirection'
+
+    def test_keeps_both_for_m2m(self):
+        """bothDirections on manyToMany must be kept."""
+        model = self._make_model([{
+            'fromTable': 'A', 'fromColumn': 'X',
+            'toTable': 'B', 'toColumn': 'X',
+            'fromCardinality': 'many', 'toCardinality': 'many',
+            'crossFilteringBehavior': 'bothDirections',
+        }])
+        changed = _optimize_cross_filter_direction(model)
+        assert changed == 0
+        assert model['model']['relationships'][0]['crossFilteringBehavior'] == 'bothDirections'
+
+    def test_no_change_when_already_one_direction(self):
+        """oneDirection relationships are not touched."""
+        model = self._make_model([{
+            'fromTable': 'A', 'fromColumn': 'X',
+            'toTable': 'B', 'toColumn': 'X',
+            'fromCardinality': 'many', 'toCardinality': 'one',
+            'crossFilteringBehavior': 'oneDirection',
+        }])
+        changed = _optimize_cross_filter_direction(model)
+        assert changed == 0
+
+    def test_skips_inactive_relationships(self):
+        """Inactive relationships should be skipped."""
+        model = self._make_model([{
+            'fromTable': 'A', 'fromColumn': 'X',
+            'toTable': 'B', 'toColumn': 'X',
+            'fromCardinality': 'many', 'toCardinality': 'one',
+            'crossFilteringBehavior': 'bothDirections',
+            'isActive': False,
+        }])
+        changed = _optimize_cross_filter_direction(model)
+        assert changed == 0
+
+    def test_multiple_rels_mixed(self):
+        """Mixed relationships: only non-M2M bothDirections are changed."""
+        model = self._make_model([
+            {'fromTable': 'A', 'fromColumn': 'X', 'toTable': 'B', 'toColumn': 'X',
+             'fromCardinality': 'many', 'toCardinality': 'one',
+             'crossFilteringBehavior': 'bothDirections'},
+            {'fromTable': 'C', 'fromColumn': 'Y', 'toTable': 'D', 'toColumn': 'Y',
+             'fromCardinality': 'many', 'toCardinality': 'many',
+             'crossFilteringBehavior': 'bothDirections'},
+            {'fromTable': 'E', 'fromColumn': 'Z', 'toTable': 'F', 'toColumn': 'Z',
+             'fromCardinality': 'one', 'toCardinality': 'one',
+             'crossFilteringBehavior': 'bothDirections'},
+        ])
+        changed = _optimize_cross_filter_direction(model)
+        assert changed == 2  # A→B and E→F
+        assert model['model']['relationships'][1]['crossFilteringBehavior'] == 'bothDirections'
+
+
+# ══════════════════════════════════════════════════════════════════
+# 10. Relationship Validation & Reporting (Phase 4)
+# ══════════════════════════════════════════════════════════════════
+
+class TestRelationshipValidation:
+    """Tests for _validate_relationships."""
+
+    def _make_model(self, rels, tables=None):
+        return {'model': {'tables': tables or [], 'relationships': rels}}
+
+    def test_healthy_model(self):
+        """A clean model should report healthy with no errors."""
+        model = self._make_model(
+            rels=[{
+                'name': 'R1',
+                'fromTable': 'Orders', 'fromColumn': 'CustID',
+                'toTable': 'Customers', 'toColumn': 'CustID',
+                'fromCardinality': 'many', 'toCardinality': 'one',
+                'crossFilteringBehavior': 'oneDirection',
+            }],
+            tables=[
+                {'name': 'Orders', 'columns': [{'name': 'CustID', 'dataType': 'Int64'}]},
+                {'name': 'Customers', 'columns': [{'name': 'CustID', 'dataType': 'Int64'}]},
+            ],
+        )
+        report = _validate_relationships(model)
+        assert report['healthy'] is True
+        assert report['total'] == 1
+        assert report['active'] == 1
+        assert len(report['errors']) == 0
+
+    def test_orphan_table_detected(self):
+        """References to non-existent tables should be flagged as errors."""
+        model = self._make_model(
+            rels=[{
+                'name': 'R1',
+                'fromTable': 'Orders', 'fromColumn': 'CustID',
+                'toTable': 'Ghost', 'toColumn': 'CustID',
+            }],
+            tables=[
+                {'name': 'Orders', 'columns': [{'name': 'CustID'}]},
+            ],
+        )
+        report = _validate_relationships(model)
+        assert report['healthy'] is False
+        assert any('Ghost' in e for e in report['errors'])
+
+    def test_orphan_column_detected(self):
+        """References to non-existent columns should be flagged."""
+        model = self._make_model(
+            rels=[{
+                'name': 'R1',
+                'fromTable': 'A', 'fromColumn': 'Missing',
+                'toTable': 'B', 'toColumn': 'ID',
+            }],
+            tables=[
+                {'name': 'A', 'columns': [{'name': 'ID'}]},
+                {'name': 'B', 'columns': [{'name': 'ID'}]},
+            ],
+        )
+        report = _validate_relationships(model)
+        assert any('Missing' in e for e in report['errors'])
+
+    def test_duplicate_relationship_warned(self):
+        """Duplicate relationships should produce a warning."""
+        rel = {'name': 'R1', 'fromTable': 'A', 'fromColumn': 'X',
+               'toTable': 'B', 'toColumn': 'X'}
+        model = self._make_model(rels=[rel, dict(rel, name='R2')])
+        report = _validate_relationships(model)
+        assert any('Duplicate' in w for w in report['warnings'])
+
+    def test_self_reference_warned(self):
+        """Self-referencing relationships should produce a warning."""
+        model = self._make_model(
+            rels=[{
+                'name': 'R1',
+                'fromTable': 'T', 'fromColumn': 'ParentID',
+                'toTable': 'T', 'toColumn': 'ID',
+            }],
+            tables=[{'name': 'T', 'columns': [
+                {'name': 'ID'}, {'name': 'ParentID'}]}],
+        )
+        report = _validate_relationships(model)
+        assert any('Self-referencing' in w for w in report['warnings'])
+
+    def test_m2m_count(self):
+        """ManyToMany relationships should be counted."""
+        model = self._make_model([{
+            'name': 'R1',
+            'fromTable': 'A', 'fromColumn': 'X',
+            'toTable': 'B', 'toColumn': 'X',
+            'fromCardinality': 'many', 'toCardinality': 'many',
+        }])
+        report = _validate_relationships(model)
+        assert report['manyToMany'] == 1
+
+    def test_inactive_count(self):
+        """Inactive relationships should be counted."""
+        model = self._make_model([{
+            'name': 'R1',
+            'fromTable': 'A', 'fromColumn': 'X',
+            'toTable': 'B', 'toColumn': 'X',
+            'isActive': False,
+        }])
+        report = _validate_relationships(model)
+        assert report['inactive'] == 1
+        assert report['active'] == 0
+
+    def test_type_mismatch_warned(self):
+        """Mismatched column types should produce a warning."""
+        model = self._make_model(
+            rels=[{
+                'name': 'R1',
+                'fromTable': 'A', 'fromColumn': 'ID',
+                'toTable': 'B', 'toColumn': 'ID',
+            }],
+            tables=[
+                {'name': 'A', 'columns': [{'name': 'ID', 'dataType': 'Int64'}]},
+                {'name': 'B', 'columns': [{'name': 'ID', 'dataType': 'String'}]},
+            ],
+        )
+        report = _validate_relationships(model)
+        assert any('Type mismatch' in w for w in report['warnings'])
+
+    def test_report_in_generate_tmdl_stats(self, tmp_dir):
+        """generate_tmdl should include relationship_report in stats."""
+        sm_dir = os.path.join(tmp_dir, "ValReport.SemanticModel")
+        stats = generate_tmdl(_simple_ds(), "ValReport", {}, sm_dir)
+        assert 'relationship_report' in stats
+        assert isinstance(stats['relationship_report'], dict)
+        assert 'healthy' in stats['relationship_report']
+
+    def test_bridge_tables_counted(self):
+        """Bridge table relationships should be counted."""
+        model = self._make_model(
+            rels=[{
+                'name': 'R1',
+                'fromTable': 'Orders', 'fromColumn': 'X',
+                'toTable': 'Bridge_Orders_Products', 'toColumn': 'X',
+            }],
+            tables=[
+                {'name': 'Orders', 'columns': [{'name': 'X'}]},
+                {'name': 'Bridge_Orders_Products', 'columns': [{'name': 'X'}]},
+            ],
+        )
+        report = _validate_relationships(model)
+        assert report['bridgeTables'] == 1
+
+
+# ══════════════════════════════════════════════════════════════════
+# 11. Unified Code Paths — RelationshipCardinality Enum (Phase 5)
+# ══════════════════════════════════════════════════════════════════
+
+class TestUnifiedEnums:
+    """Tests that _set_cardinality uses RelationshipCardinality enum."""
+
+    def test_set_cardinality_stores_enum(self):
+        """_set_cardinality should store the enum value in _cardinality_enum."""
+        rel = {}
+        _set_cardinality(rel, 'many', 'one')
+        assert rel['_cardinality_enum'] == 'ManyToOne'
+        assert rel['crossFilteringBehavior'] == 'oneDirection'
+
+    def test_set_cardinality_one_to_one(self):
+        rel = {}
+        _set_cardinality(rel, 'one', 'one')
+        assert rel['_cardinality_enum'] == 'OneToOne'
+        assert rel['crossFilteringBehavior'] == 'oneDirection'
+
+    def test_set_cardinality_one_to_many(self):
+        rel = {}
+        _set_cardinality(rel, 'one', 'many')
+        assert rel['_cardinality_enum'] == 'OneToMany'
+        assert rel['crossFilteringBehavior'] == 'oneDirection'
+
+    def test_set_cardinality_many_to_many(self):
+        rel = {}
+        _set_cardinality(rel, 'many', 'many')
+        assert rel['_cardinality_enum'] == 'ManyToMany'
+        assert rel['crossFilteringBehavior'] == 'bothDirections'
+
+    def test_enum_imported_from_qlik_model_converter(self):
+        """RelationshipCardinality should be importable from qlik_model_converter."""
+        from qlik_export.qlik_model_converter import (
+            RelationshipCardinality,
+            CrossFilterDirection,
+        )
+        assert RelationshipCardinality.MANY_TO_ONE.value == 'ManyToOne'
+        assert CrossFilterDirection.SINGLE.value == 'Single'
+        assert CrossFilterDirection.BOTH.value == 'Both'
