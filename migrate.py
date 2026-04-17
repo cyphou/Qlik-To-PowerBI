@@ -215,7 +215,8 @@ def run_extraction(qlik_file):
 
 def run_generation(report_name=None, output_dir=None, calendar_start=None,
                    calendar_end=None, culture=None, model_mode='import',
-                   output_format='pbip', paginated=False, sample_data=None):
+                   output_format='pbip', paginated=False, sample_data=None,
+                   bridge_tables='none'):
     """Generate Power BI project (.pbip) from extracted Qlik data.
 
     Loads the intermediate JSON from ``qlik_export/``, transforms to
@@ -265,7 +266,8 @@ def run_generation(report_name=None, output_dir=None, calendar_start=None,
         importer.import_all(generate_pbip=True, report_name=report_name, output_dir=output_dir,
                             calendar_start=calendar_start, calendar_end=calendar_end,
                             culture=culture, model_mode=model_mode,
-                            output_format=output_format, sample_data=sample_data)
+                            output_format=output_format, sample_data=sample_data,
+                            bridge_tables=bridge_tables)
 
         # Collect generation stats from the output
         base_dir = output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
@@ -1267,6 +1269,15 @@ def main():
     )
 
     parser.add_argument(
+        '--bridge-tables',
+        metavar='MODE',
+        choices=['auto', 'none'],
+        default='none',
+        help='Bridge table strategy for many-to-many relationships: '
+             'auto (generate junction tables), none (keep native M2M). Default: none'
+    )
+
+    parser.add_argument(
         '--sync',
         action='store_true',
         default=False,
@@ -1739,6 +1750,7 @@ def main():
             output_format=args.output_format,
             paginated=getattr(args, 'paginated', False),
             sample_data=getattr(args, 'sample_data', None),
+            bridge_tables=getattr(args, 'bridge_tables', 'none'),
         )
         if results['generation']:
             progress.complete(f"{_stats.pages_generated} pages, {_stats.visuals_generated} visuals")

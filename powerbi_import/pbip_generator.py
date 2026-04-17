@@ -203,6 +203,7 @@ class PowerBIProjectGenerator:
             'parameters': converted_objects.get('parameters', []),
             'user_filters': converted_objects.get('user_filters', []),
             '_datasources': converted_objects.get('datasources', []),
+            '_bridge_tables': converted_objects.get('_bridge_tables', 'none'),
         }
         
         try:

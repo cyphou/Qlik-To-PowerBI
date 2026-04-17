@@ -832,6 +832,13 @@ def _build_semantic_model(datasources, report_name="Report", extra_objects=None,
     # Phase 10b: Detect cardinality (runs AFTER Phase 10 so inferred rels are included)
     _detect_many_to_many(model, datasources)
 
+    # Phase 10d: Generate bridge tables for manyToMany relationships (opt-in)
+    bridge_mode = extra_objects.get('_bridge_tables', 'none')
+    if bridge_mode == 'auto':
+        n_bridges = _generate_bridge_tables(model)
+        if n_bridges:
+            print(f"  ✓ Generated {n_bridges} bridge table(s) to replace manyToMany")
+
     # Phase 10c: Replace RELATED() with LOOKUPVALUE() for manyToMany
     _fix_related_for_many_to_many(model)
 
@@ -1569,6 +1576,160 @@ def _build_unique_column_set(model, datasources):
                     unique_cols.add((tname, cname))
 
     return unique_cols
+
+
+def _generate_bridge_tables(model):
+    """Replace manyToMany relationships with bridge (junction) tables.
+
+    For each manyToMany relationship between TableA.ColA ↔ TableB.ColB:
+    1. Create a calculated bridge table ``Bridge_TableA_TableB`` with two
+       columns: ColA and ColB populated via
+       ``DISTINCT(SELECTCOLUMNS(CROSSJOIN(VALUES(...), VALUES(...)), ...))``
+    2. Replace the single M2M relationship with two manyToOne relationships:
+       - TableA.ColA → Bridge.ColA  (manyToOne)
+       - TableB.ColB → Bridge.ColB  (manyToOne)
+    3. The bridge table is hidden by default.
+
+    This eliminates symmetric cross-filter ambiguity and improves
+    Power BI performance compared to native manyToMany relationships.
+
+    Returns:
+        int: Number of bridge tables generated.
+    """
+    rels = model['model']['relationships']
+    tables = model['model']['tables']
+
+    m2m_rels = [r for r in rels if
+                r.get('fromCardinality') == 'many' and
+                r.get('toCardinality') == 'many']
+
+    if not m2m_rels:
+        return 0
+
+    existing_table_names = {t.get('name', '') for t in tables}
+    new_tables = []
+    new_rels = []
+    removed_rels = set()
+
+    for rel in m2m_rels:
+        from_table = rel.get('fromTable', '')
+        from_col = rel.get('fromColumn', '')
+        to_table = rel.get('toTable', '')
+        to_col = rel.get('toColumn', '')
+
+        if not from_table or not to_table or not from_col or not to_col:
+            continue
+
+        # Generate unique bridge table name
+        bridge_name = f"Bridge_{from_table}_{to_table}"
+        suffix = 2
+        while bridge_name in existing_table_names:
+            bridge_name = f"Bridge_{from_table}_{to_table}_{suffix}"
+            suffix += 1
+        existing_table_names.add(bridge_name)
+
+        # Determine column data types from source tables
+        from_type = 'string'
+        to_type = 'string'
+        for t in tables:
+            if t.get('name') == from_table:
+                for c in t.get('columns', []):
+                    if c.get('name') == from_col:
+                        from_type = c.get('dataType', 'string')
+                        break
+            if t.get('name') == to_table:
+                for c in t.get('columns', []):
+                    if c.get('name') == to_col:
+                        to_type = c.get('dataType', 'string')
+                        break
+
+        # Build DAX expression for the bridge table partition
+        ft_ref = f"'{from_table}'"
+        tt_ref = f"'{to_table}'"
+        # Use SUMMARIZE to get distinct combinations from both tables
+        # via the existing (soon-to-be-removed) relationship path
+        dax_expr = (
+            f"DISTINCT(\n"
+            f"    SELECTCOLUMNS(\n"
+            f"        CROSSJOIN(\n"
+            f"            VALUES({ft_ref}[{from_col}]),\n"
+            f"            VALUES({tt_ref}[{to_col}])\n"
+            f"        ),\n"
+            f"        \"{from_col}\", {ft_ref}[{from_col}],\n"
+            f"        \"{to_col}\", {tt_ref}[{to_col}]\n"
+            f"    )\n"
+            f")"
+        )
+
+        bridge_table = {
+            'name': bridge_name,
+            'columns': [
+                {
+                    'name': from_col,
+                    'dataType': from_type,
+                    'sourceColumn': from_col,
+                    'isHidden': False,
+                },
+                {
+                    'name': to_col,
+                    'dataType': to_type,
+                    'sourceColumn': to_col,
+                    'isHidden': False,
+                },
+            ],
+            'measures': [],
+            'hierarchies': [],
+            'partitions': [{
+                'name': bridge_name,
+                'mode': 'import',
+                'source': {
+                    'type': 'calculated',
+                    'expression': dax_expr,
+                },
+            }],
+            'isHidden': True,
+        }
+        new_tables.append(bridge_table)
+
+        # Create two manyToOne relationships replacing the M2M
+        rel_from = {
+            'name': f"Bridge-{from_table}-{bridge_name}",
+            'fromTable': from_table,
+            'fromColumn': from_col,
+            'toTable': bridge_name,
+            'toColumn': from_col,
+            'fromCardinality': 'many',
+            'toCardinality': 'one',
+            'crossFilteringBehavior': 'oneDirection',
+        }
+        rel_to = {
+            'name': f"Bridge-{to_table}-{bridge_name}",
+            'fromTable': to_table,
+            'fromColumn': to_col,
+            'toTable': bridge_name,
+            'toColumn': to_col,
+            'fromCardinality': 'many',
+            'toCardinality': 'one',
+            'crossFilteringBehavior': 'oneDirection',
+        }
+        new_rels.append(rel_from)
+        new_rels.append(rel_to)
+
+        # Mark the original M2M relationship for removal
+        removed_rels.add(id(rel))
+
+        print(f"  🔗 Bridge table '{bridge_name}' created for "
+              f"{from_table}.{from_col} ↔ {to_table}.{to_col}")
+
+    # Remove original M2M relationships and add bridge relationships
+    model['model']['relationships'] = [
+        r for r in rels if id(r) not in removed_rels
+    ] + new_rels
+
+    # Add bridge tables to the model
+    model['model']['tables'].extend(new_tables)
+
+    return len(new_tables)
 
 
 def _fix_related_for_many_to_many(model):
@@ -3514,6 +3675,10 @@ def _write_table_tmdl(tables_dir, table):
     lines = []
     lines.append(f"table {tname_quoted}")
     lines.append(f"\tlineageTag: {uuid.uuid4()}")
+
+    if table.get('isHidden', False):
+        lines.append("\tisHidden")
+
     lines.append("")
 
     # Measures (before columns, as in PBI Hero reference)

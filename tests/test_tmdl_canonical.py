@@ -18,6 +18,7 @@ from powerbi_import.tmdl_generator import (
     _detect_many_to_many,
     _build_unique_column_set,
     _set_cardinality,
+    _generate_bridge_tables,
 )
 
 
@@ -490,3 +491,290 @@ class TestTMDLEdgeCases:
         sm_dir = os.path.join(tmp_dir, "Comp.SemanticModel")
         stats = generate_tmdl(_simple_ds(), "Comp", {}, sm_dir, model_mode="composite")
         assert stats["tables"] >= 1
+
+
+# ══════════════════════════════════════════════════════════════════
+# 8. Bridge Table Generation
+# ══════════════════════════════════════════════════════════════════
+
+class TestBridgeTableGeneration:
+    """Tests for _generate_bridge_tables."""
+
+    def _make_model(self, rels, tables=None):
+        return {
+            'model': {
+                'tables': tables or [],
+                'relationships': rels,
+            }
+        }
+
+    def test_no_bridge_when_no_m2m(self):
+        """No bridge tables generated when there are no manyToMany rels."""
+        model = self._make_model([
+            {'fromTable': 'A', 'fromColumn': 'AID',
+             'toTable': 'B', 'toColumn': 'AID',
+             'fromCardinality': 'many', 'toCardinality': 'one',
+             'crossFilteringBehavior': 'oneDirection'},
+        ])
+        count = _generate_bridge_tables(model)
+        assert count == 0
+        assert len(model['model']['tables']) == 0
+
+    def test_bridge_table_created_for_m2m(self):
+        """A bridge table should be created for each manyToMany relationship."""
+        model = self._make_model(
+            rels=[{
+                'fromTable': 'Tags', 'fromColumn': 'TagName',
+                'toTable': 'Articles', 'toColumn': 'TagName',
+                'fromCardinality': 'many', 'toCardinality': 'many',
+                'crossFilteringBehavior': 'bothDirections',
+            }],
+            tables=[
+                {'name': 'Tags', 'columns': [{'name': 'TagName', 'dataType': 'string'}]},
+                {'name': 'Articles', 'columns': [{'name': 'TagName', 'dataType': 'string'}]},
+            ],
+        )
+        count = _generate_bridge_tables(model)
+        assert count == 1
+
+        # Bridge table exists
+        table_names = [t['name'] for t in model['model']['tables']]
+        assert 'Bridge_Tags_Articles' in table_names
+
+        # Bridge table has two columns
+        bridge = [t for t in model['model']['tables'] if t['name'] == 'Bridge_Tags_Articles'][0]
+        col_names = [c['name'] for c in bridge['columns']]
+        assert 'TagName' in col_names
+        assert len(col_names) == 2  # same col name on both sides → still 2 entries
+
+        # Bridge table is hidden
+        assert bridge.get('isHidden') is True
+
+        # Bridge table has a calculated partition
+        assert len(bridge['partitions']) == 1
+        assert bridge['partitions'][0]['source']['type'] == 'calculated'
+
+    def test_m2m_replaced_with_two_many_to_one(self):
+        """The original M2M relationship is replaced with two manyToOne rels."""
+        model = self._make_model(
+            rels=[{
+                'fromTable': 'Products', 'fromColumn': 'Category',
+                'toTable': 'Stores', 'toColumn': 'Category',
+                'fromCardinality': 'many', 'toCardinality': 'many',
+                'crossFilteringBehavior': 'bothDirections',
+            }],
+            tables=[
+                {'name': 'Products', 'columns': [{'name': 'Category', 'dataType': 'string'}]},
+                {'name': 'Stores', 'columns': [{'name': 'Category', 'dataType': 'string'}]},
+            ],
+        )
+        _generate_bridge_tables(model)
+
+        rels = model['model']['relationships']
+        # No manyToMany left
+        m2m = [r for r in rels if
+               r.get('fromCardinality') == 'many' and r.get('toCardinality') == 'many']
+        assert len(m2m) == 0
+
+        # Two new manyToOne relationships through bridge
+        m2o = [r for r in rels if
+               r.get('fromCardinality') == 'many' and r.get('toCardinality') == 'one']
+        assert len(m2o) == 2
+        bridge_targets = {r['toTable'] for r in m2o}
+        assert 'Bridge_Products_Stores' in bridge_targets
+
+    def test_bridge_preserves_non_m2m_rels(self):
+        """Non-M2M relationships should be left untouched."""
+        model = self._make_model(
+            rels=[
+                {'fromTable': 'Orders', 'fromColumn': 'CustID',
+                 'toTable': 'Customers', 'toColumn': 'CustID',
+                 'fromCardinality': 'many', 'toCardinality': 'one',
+                 'crossFilteringBehavior': 'oneDirection'},
+                {'fromTable': 'Tags', 'fromColumn': 'Name',
+                 'toTable': 'Items', 'toColumn': 'Name',
+                 'fromCardinality': 'many', 'toCardinality': 'many',
+                 'crossFilteringBehavior': 'bothDirections'},
+            ],
+            tables=[
+                {'name': 'Orders', 'columns': [{'name': 'CustID'}]},
+                {'name': 'Customers', 'columns': [{'name': 'CustID'}]},
+                {'name': 'Tags', 'columns': [{'name': 'Name'}]},
+                {'name': 'Items', 'columns': [{'name': 'Name'}]},
+            ],
+        )
+        _generate_bridge_tables(model)
+
+        rels = model['model']['relationships']
+        # Original manyToOne preserved
+        orig = [r for r in rels if r.get('fromTable') == 'Orders']
+        assert len(orig) == 1
+        assert orig[0]['toCardinality'] == 'one'
+
+    def test_bridge_column_types_inherited(self):
+        """Bridge table columns inherit data types from source tables."""
+        model = self._make_model(
+            rels=[{
+                'fromTable': 'Sales', 'fromColumn': 'ProductCode',
+                'toTable': 'Returns', 'toColumn': 'ProductCode',
+                'fromCardinality': 'many', 'toCardinality': 'many',
+                'crossFilteringBehavior': 'bothDirections',
+            }],
+            tables=[
+                {'name': 'Sales', 'columns': [
+                    {'name': 'ProductCode', 'dataType': 'Int64'},
+                    {'name': 'Amount', 'dataType': 'Double'},
+                ]},
+                {'name': 'Returns', 'columns': [
+                    {'name': 'ProductCode', 'dataType': 'Int64'},
+                ]},
+            ],
+        )
+        _generate_bridge_tables(model)
+
+        bridge = [t for t in model['model']['tables']
+                  if t['name'].startswith('Bridge_')][0]
+        types = {c['name']: c['dataType'] for c in bridge['columns']}
+        assert types['ProductCode'] == 'Int64'
+
+    def test_bridge_name_dedup(self):
+        """If Bridge_X_Y already exists, a suffix is appended."""
+        model = self._make_model(
+            rels=[{
+                'fromTable': 'A', 'fromColumn': 'X',
+                'toTable': 'B', 'toColumn': 'X',
+                'fromCardinality': 'many', 'toCardinality': 'many',
+                'crossFilteringBehavior': 'bothDirections',
+            }],
+            tables=[
+                {'name': 'A', 'columns': [{'name': 'X'}]},
+                {'name': 'B', 'columns': [{'name': 'X'}]},
+                {'name': 'Bridge_A_B', 'columns': []},  # already exists
+            ],
+        )
+        _generate_bridge_tables(model)
+
+        table_names = [t['name'] for t in model['model']['tables']]
+        assert 'Bridge_A_B' in table_names      # original preserved
+        assert 'Bridge_A_B_2' in table_names     # new one with suffix
+
+    def test_multiple_m2m_rels(self):
+        """Multiple M2M relationships each get their own bridge table."""
+        model = self._make_model(
+            rels=[
+                {'fromTable': 'A', 'fromColumn': 'X',
+                 'toTable': 'B', 'toColumn': 'X',
+                 'fromCardinality': 'many', 'toCardinality': 'many',
+                 'crossFilteringBehavior': 'bothDirections'},
+                {'fromTable': 'C', 'fromColumn': 'Y',
+                 'toTable': 'D', 'toColumn': 'Y',
+                 'fromCardinality': 'many', 'toCardinality': 'many',
+                 'crossFilteringBehavior': 'bothDirections'},
+            ],
+            tables=[
+                {'name': 'A', 'columns': [{'name': 'X'}]},
+                {'name': 'B', 'columns': [{'name': 'X'}]},
+                {'name': 'C', 'columns': [{'name': 'Y'}]},
+                {'name': 'D', 'columns': [{'name': 'Y'}]},
+            ],
+        )
+        count = _generate_bridge_tables(model)
+        assert count == 2
+
+        bridge_names = [t['name'] for t in model['model']['tables']
+                        if t['name'].startswith('Bridge_')]
+        assert 'Bridge_A_B' in bridge_names
+        assert 'Bridge_C_D' in bridge_names
+
+    def test_bridge_dax_expression(self):
+        """Bridge partition DAX expression references source tables."""
+        model = self._make_model(
+            rels=[{
+                'fromTable': 'Fact', 'fromColumn': 'DimKey',
+                'toTable': 'Dim', 'toColumn': 'DimKey',
+                'fromCardinality': 'many', 'toCardinality': 'many',
+                'crossFilteringBehavior': 'bothDirections',
+            }],
+            tables=[
+                {'name': 'Fact', 'columns': [{'name': 'DimKey'}]},
+                {'name': 'Dim', 'columns': [{'name': 'DimKey'}]},
+            ],
+        )
+        _generate_bridge_tables(model)
+
+        bridge = [t for t in model['model']['tables']
+                  if t['name'].startswith('Bridge_')][0]
+        expr = bridge['partitions'][0]['source']['expression']
+        assert "'Fact'" in expr
+        assert "'Dim'" in expr
+        assert 'DimKey' in expr
+        assert 'DISTINCT' in expr
+
+    def test_bridge_via_build_semantic_model(self, tmp_dir):
+        """End-to-end: _bridge_tables='auto' in extra_objects triggers bridge generation."""
+        ds = [{
+            'name': 'DB',
+            'tables': [
+                {'name': 'Orders', 'columns': [
+                    {'name': 'OrderID', 'dataType': 'int64'},
+                    {'name': 'Tag', 'dataType': 'string'},
+                    {'name': 'Amount', 'dataType': 'double'},
+                ]},
+                {'name': 'Tags', 'columns': [
+                    {'name': 'Tag', 'dataType': 'string'},
+                    {'name': 'Label', 'dataType': 'string'},
+                ]},
+            ],
+            'relationships': [
+                {'left': {'table': 'Orders', 'column': 'Tag'},
+                 'right': {'table': 'Tags', 'column': 'Tag'},
+                 'type': 'full'},
+            ],
+        }]
+        extra = {'_bridge_tables': 'auto', '_datasources': ds}
+        model = _build_semantic_model(ds, 'BridgeE2E', extra)
+        table_names = [t['name'] for t in model['model']['tables']]
+        bridge_tables = [n for n in table_names if n.startswith('Bridge_')]
+        assert len(bridge_tables) >= 1
+
+        # No manyToMany rels should remain
+        m2m = [r for r in model['model']['relationships']
+               if r.get('fromCardinality') == 'many' and r.get('toCardinality') == 'many']
+        assert len(m2m) == 0
+
+    def test_bridge_tmdl_output(self, tmp_dir):
+        """Bridge table TMDL file is created with isHidden and calculated partition."""
+        ds = [{
+            'name': 'DB',
+            'tables': [
+                {'name': 'Sales', 'columns': [
+                    {'name': 'SaleID', 'dataType': 'int64'},
+                    {'name': 'Region', 'dataType': 'string'},
+                ]},
+                {'name': 'Regions', 'columns': [
+                    {'name': 'Region', 'dataType': 'string'},
+                    {'name': 'Country', 'dataType': 'string'},
+                ]},
+            ],
+            'relationships': [
+                {'left': {'table': 'Sales', 'column': 'Region'},
+                 'right': {'table': 'Regions', 'column': 'Region'},
+                 'type': 'full'},
+            ],
+        }]
+        sm_dir = os.path.join(tmp_dir, 'BridgeTMDL.SemanticModel')
+        extra = {'_bridge_tables': 'auto', '_datasources': ds}
+        stats = generate_tmdl(ds, 'BridgeTMDL', extra, sm_dir)
+
+        # Check that bridge table TMDL file exists
+        tables_dir = os.path.join(sm_dir, 'definition', 'tables')
+        tmdl_files = os.listdir(tables_dir) if os.path.isdir(tables_dir) else []
+        bridge_files = [f for f in tmdl_files if f.startswith('Bridge_')]
+        assert len(bridge_files) >= 1
+
+        # Read the bridge TMDL and check content
+        bridge_path = os.path.join(tables_dir, bridge_files[0])
+        with open(bridge_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        assert 'isHidden' in content
+        assert 'calculated' in content
