@@ -1,27 +1,27 @@
 [
   {
     "name": "vCurrentYear",
-    "definition": "Year(Today())",
+    "value": "Year(Today())",
     "comment": "Current year"
   },
   {
     "name": "vPriorYear",
-    "definition": "Year(Today()) - 1",
-    "comment": "Prior year"
+    "value": "Year(Today()) - 1",
+    "comment": "Previous year"
   },
   {
-    "name": "vCurrencySymbol",
-    "definition": "'$'",
-    "comment": "Currency symbol"
+    "name": "vTargetGrowth",
+    "value": "0.10",
+    "comment": "10% YoY growth target"
   },
   {
-    "name": "vSalesTarget",
-    "definition": "1000000",
-    "comment": "Annual sales target"
+    "name": "vTop10Customers",
+    "value": "Sum({<CustomerName={\">=$(=Aggr(Sum(Amount), CustomerName)[-10]\"}>} Amount)",
+    "comment": "Sales from top 10 customers"
   },
   {
-    "name": "vTopN",
-    "definition": "10",
-    "comment": "Number of top items to show"
+    "name": "vMarginThreshold",
+    "value": "0.20",
+    "comment": "Minimum acceptable margin (20%)"
   }
 ]

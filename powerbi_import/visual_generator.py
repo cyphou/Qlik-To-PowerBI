@@ -1457,6 +1457,24 @@ def create_visual_container(worksheet, visual_id=None, x=10, y=10,
             "disabled": True,
         }
 
+    # ── Dynamic zone visibility → bookmark toggle groups ──────
+    dz = worksheet.get('dynamicZone', worksheet.get('dynamic_zone', {}))
+    if isinstance(dz, dict) and dz.get('condition'):
+        # Map Qlik show/hide conditions to PBI bookmark-based visibility.
+        # In Power BI, conditional visibility uses a bookmark toggle group.
+        bookmark_id = f"bm_{vid}"
+        container["conditionalVisibility"] = {
+            "bookmarkName": bookmark_id,
+            "show": bool(dz.get('show', True)),
+        }
+        # Store metadata for the pbip_generator to create bookmark entries
+        container["_dynamicZoneMeta"] = {
+            "bookmarkId": bookmark_id,
+            "condition": dz.get('condition', ''),
+            "visualName": visual_name,
+            "show": bool(dz.get('show', True)),
+        }
+
     # Add filters if present (legacy format)
     filters = worksheet.get('filters', [])
     if filters and 'filters' not in visual_obj:

@@ -16,7 +16,7 @@ IMG_MIGRATION_RESULTS = os.path.join(_PROJECT_ROOT, "docs", "images", "migration
 IMG_SHARE_ASSESSMENT = os.path.join(_PROJECT_ROOT, "docs", "images", "share_assessment.png")
 
 # ── Brand colors ──
-Qlik_ORANGE = RGBColor(0xE9, 0x76, 0x27)
+QLIK_GREEN = RGBColor(0x00, 0x98, 0x48)
 PBI_YELLOW = RGBColor(0xF2, 0xC8, 0x11)
 AZURE_BLUE = RGBColor(0x00, 0x78, 0xD4)
 DARK_BG = RGBColor(0x1E, 0x1E, 0x2E)
@@ -170,21 +170,21 @@ def build_presentation():
     slide = prs.slides.add_slide(blank)
     _add_shape_bg(slide, DARK_BG)
     # Gradient accent stripe
-    _add_accent_bar(slide, Qlik_ORANGE, Inches(0), Inches(3.2), Inches(13.333), Inches(0.06))
+    _add_accent_bar(slide, QLIK_GREEN, Inches(0), Inches(3.2), Inches(13.333), Inches(0.06))
     _add_accent_bar(slide, PBI_YELLOW, Inches(0), Inches(3.28), Inches(13.333), Inches(0.06))
     # Title
     _add_textbox(slide, Inches(1), Inches(1.8), Inches(11), Inches(1.0),
                  'Qlik to Power BI Migration Tool', font_size=44, bold=True,
                  color=WHITE, alignment=PP_ALIGN.LEFT)
     _add_textbox(slide, Inches(1), Inches(2.6), Inches(11), Inches(0.5),
-                 'Automated workbook migration — Input, Output & Usage Guide',
+                 'Automated Qlik Sense migration — Input, Output & Usage Guide',
                  font_size=20, color=PBI_YELLOW, alignment=PP_ALIGN.LEFT)
     # Bottom info
     _add_textbox(slide, Inches(1), Inches(5.5), Inches(6), Inches(0.4),
-                 'Python 3.12+ · Zero external dependencies · 6,818+ tests',
+                 'Python 3.12+ · Zero external dependencies · 2,000 tests',
                  font_size=14, color=MID_GRAY)
     _add_textbox(slide, Inches(1), Inches(5.9), Inches(6), Inches(0.4),
-                 'v28.1.1', font_size=14, color=MID_GRAY)
+                 'v9.1.0 — Preceptorship Multi-Agent Model', font_size=14, color=MID_GRAY)
 
     # ══════════════════════════════════════════════════════════════
     # SLIDE 2 — What It Does
@@ -193,21 +193,22 @@ def build_presentation():
     _add_shape_bg(slide, LIGHT_GRAY)
     _section_header(slide, 'What Does This Tool Do?')
     _add_textbox(slide, Inches(1.1), Inches(3.0), Inches(10.5), Inches(0.8),
-                 'Converts Qlik workbooks (.qvf/.qvf) and datasources (.tds/.tdsx) into '
+                 'Converts Qlik Sense applications (.qvf / JSON exports) into '
                  'complete Power BI projects (.pbip) with PBIR v4.0 reports and TMDL semantic models — '
                  'ready to open in Power BI Desktop or deploy to Fabric.',
                  font_size=18, color=DARK_TEXT)
     # 3 value prop cards
     _add_card(slide, Inches(1.1), Inches(4.2), Inches(3.4), Inches(2.2),
               '🔍  Automated Extraction',
-              '17 object types extracted from Qlik XML: worksheets, dashboards, datasources, '
-              'calculations, parameters, filters, stories, actions, sets, groups, bins, hierarchies, '
-              'sort orders, aliases, custom SQL, user filters, hyper files.',
-              Qlik_ORANGE)
+              '11 JSON intermediates extracted from Qlik QVF/JSON: '
+              'app metadata, datasources, dimensions, measures, '
+              'visualizations, sheets, variables, load script, '
+              'associations, bookmarks, master items.',
+              QLIK_GREEN)
     _add_card(slide, Inches(4.9), Inches(4.2), Inches(3.4), Inches(2.2),
               '⚙️  Smart Generation',
-              '180+ DAX formula conversions, 118 visual type mappings, 43 Power Query M transforms, '
-              'auto-Calendar table, RLS roles, hierarchies, themes, conditional formatting.',
+              '175+ DAX formula conversions, 75+ visual type mappings, 40+ Power Query M transforms, '
+              'auto-Calendar table, RLS roles, hierarchies, themes, set analysis → CALCULATE.',
               AZURE_BLUE)
     _add_card(slide, Inches(8.7), Inches(4.2), Inches(3.4), Inches(2.2),
               '🚀  Deploy Anywhere',
@@ -223,22 +224,21 @@ def build_presentation():
     _add_textbox(slide, Inches(0.8), Inches(0.4), Inches(8), Inches(0.7),
                  '2-Step Pipeline Architecture', font_size=32, bold=True, color=DARK_TEXT)
     _add_textbox(slide, Inches(0.8), Inches(1.0), Inches(10), Inches(0.5),
-                 '.qvf → [Extraction] → 17 JSON files → [Generation] → .pbip (PBIR + TMDL)',
+                 '.qvf → [Extraction] → 11 JSON files → [Generation] → .pbip (PBIR + TMDL)',
                  font_size=16, color=MID_GRAY, font_name='Cascadia Code')
 
     # Step 1 box
     _add_card(slide, Inches(0.6), Inches(1.8), Inches(5.5), Inches(4.8),
               'Step 1 — EXTRACT  (qlik_export/)',
-              'Parses Qlik XML into 17 intermediate JSON files.\n\n'
-              '• extract_Qlik_data.py — main orchestrator\n'
-              '• datasource_extractor.py — connections, tables, columns\n'
-              '• dax_converter.py — 180+ formula conversions\n'
-              '• m_query_builder.py — 33 connectors + 43 transforms\n'
-              '• hyper_reader.py — .hyper file data loader\n'
-              '• prep_flow_parser.py — Qlik Prep flows\n'
-              '• server_client.py — Qlik Server REST API\n'
-              '• pulse_extractor.py — Qlik Pulse metrics',
-              Qlik_ORANGE)
+              'Parses Qlik QVF/JSON into 11 intermediate JSON files.\n\n'
+              '• extraction_orchestrator.py — main orchestrator\n'
+              '• qvf_extractor.py — .qvf ZIP reader\n'
+              '• dax_converter.py — 175+ formula conversions\n'
+              '• m_query_builder.py — 25 connectors + 40+ transforms\n'
+              '• qlik_script_converter.py — load script → M\n'
+              '• format_adapter.py — bridge to generation layer\n'
+              '• datasource_extractor.py — type/formula adapters',
+              QLIK_GREEN)
 
     # Arrow
     _add_textbox(slide, Inches(6.2), Inches(3.5), Inches(0.8), Inches(0.6),
@@ -250,11 +250,11 @@ def build_presentation():
               'Converts JSON into a complete .pbip project.\n\n'
               '• tmdl_generator.py — TMDL semantic model\n'
               '• pbip_generator.py — .pbip project structure\n'
-              '• visual_generator.py — 118 visual type mappings\n'
+              '• visual_generator.py — 75+ visual type mappings\n'
               '• api_server.py — REST API server\n'
               '• schema_drift.py — drift detection\n'
               '• assessment.py — readiness scoring\n'
-              '• shared_model.py — multi-workbook merge\n'
+              '• shared_model.py — multi-app merge\n'
               '• deploy/ — Fabric & PBI Service deployment',
               AZURE_BLUE)
 
@@ -266,26 +266,22 @@ def build_presentation():
     _section_header(slide, 'Supported Inputs', 'What you can feed into the tool')
 
     # Input cards
-    _add_card(slide, Inches(0.6), Inches(3.2), Inches(2.8), Inches(3.5),
+    _add_card(slide, Inches(0.6), Inches(3.2), Inches(3.8), Inches(3.5),
               '📄  .qvf',
-              'Qlik Workbook\n(plain XML)\n\nContains worksheets, dashboards, '
-              'calculations, parameters, filters — no embedded data.',
-              Qlik_ORANGE)
-    _add_card(slide, Inches(3.7), Inches(3.2), Inches(2.8), Inches(3.5),
-              '📦  .qvf',
-              'Packaged Workbook\n(ZIP: .qvf + data)\n\nIncludes .hyper data extracts '
-              'that get inlined into M partition expressions.',
-              Qlik_ORANGE)
-    _add_card(slide, Inches(6.8), Inches(3.2), Inches(2.8), Inches(3.5),
-              '🔗  .tds / .tdsx',
-              'Standalone Datasource\n(XML / packaged)\n\nMigrates to SemanticModel-only '
-              '.pbip projects (no Report folder).',
-              Qlik_ORANGE)
-    _add_card(slide, Inches(9.9), Inches(3.2), Inches(2.8), Inches(3.5),
-              '☁️  Qlik Server',
-              'REST API\n(PAT / password auth)\n\nDownload workbooks directly from '
-              'Qlik Server or Qlik Cloud. Batch download supported.',
-              Qlik_ORANGE)
+              'Qlik Sense Application\n(ZIP archive)\n\nContains app metadata, data model, '
+              'sheets, visualizations, variables, load script, bookmarks.',
+              QLIK_GREEN)
+    _add_card(slide, Inches(4.8), Inches(3.2), Inches(3.8), Inches(3.5),
+              '📦  JSON Export',
+              'Engine API Export\n(JSON files)\n\nMetadata exports from Qlik Sense Engine '
+              'API — app properties, dimensions, measures, sheets.',
+              QLIK_GREEN)
+    _add_card(slide, Inches(9.0), Inches(3.2), Inches(3.8), Inches(3.5),
+              '🔄  Two-Step Workflow',
+              'Extract → Generate\n\nExtract once, generate multiple times.\n'
+              'Use --skip-extraction to reuse\npreviously extracted JSON files.\n'
+              'Ideal for iterative tuning.',
+              AZURE_BLUE)
 
     # ══════════════════════════════════════════════════════════════
     # SLIDE 5 — 17 Extracted Objects
@@ -293,32 +289,26 @@ def build_presentation():
     slide = prs.slides.add_slide(blank)
     _add_shape_bg(slide, WHITE)
     _add_textbox(slide, Inches(0.8), Inches(0.4), Inches(8), Inches(0.7),
-                 '17 Extracted Object Types', font_size=32, bold=True, color=DARK_TEXT)
+                 '11 Intermediate JSON Files', font_size=32, bold=True, color=DARK_TEXT)
     _add_textbox(slide, Inches(0.8), Inches(1.0), Inches(10), Inches(0.4),
                  'Each extracted to a structured JSON file for the generation step',
                  font_size=16, color=MID_GRAY)
 
     objects = [
-        ('worksheets', 'Sheets with fields, filters, formatting'),
-        ('dashboards', 'Layout objects (worksheet, text, image, filter_control)'),
-        ('datasources', 'Connections, tables, columns, relationships'),
-        ('calculations', 'Qlik formulas (role, type, formula)'),
-        ('parameters', 'Values, domain_type, allowable_values'),
-        ('filters', 'Global filters with fields and values'),
-        ('stories', 'Story points → PBI bookmarks'),
-        ('actions', 'Filter / highlight / URL / navigate / param / set'),
-        ('sets', 'Set membership → boolean calc columns'),
-        ('groups', 'Manual groups → SWITCH calc columns'),
-        ('bins', 'Intervals → FLOOR calc columns'),
-        ('hierarchies', 'Drill-paths → PBI hierarchies'),
-        ('sort_orders', 'Column sort configurations'),
-        ('aliases', 'Column display aliases'),
-        ('custom_sql', 'Custom SQL queries'),
-        ('user_filters', 'Security rules → PBI RLS roles'),
-        ('hyper_files', 'Embedded .hyper data → M inline tables'),
+        ('app_metadata', 'App name, description, author, dates'),
+        ('datasources', 'Connection strings, tables, columns, types'),
+        ('dimensions', 'Master dimensions (fields, labels, groupings)'),
+        ('measures', 'Master measures (expressions, labels, formats)'),
+        ('visualizations', 'Chart types, dimension/measure bindings'),
+        ('sheets', 'Sheet layouts, cell positions'),
+        ('variables', 'Variables (name, definition, comment)'),
+        ('loadscript', 'Full Qlik load script'),
+        ('associations', 'Table associations / relationships'),
+        ('bookmarks', 'Bookmarks and selections'),
+        ('master_items', 'Master items (combined dim/measure refs)'),
     ]
-    col1 = objects[:9]
-    col2 = objects[9:]
+    col1 = objects[:6]
+    col2 = objects[6:]
     for i, (name, desc) in enumerate(col1):
         y = Inches(1.5) + Inches(i * 0.6)
         _add_textbox(slide, Inches(0.8), y, Inches(2.2), Inches(0.5),
@@ -378,29 +368,29 @@ def build_presentation():
                  'Basic Usage — CLI Commands', font_size=32, bold=True, color=DARK_TEXT)
 
     _add_textbox(slide, Inches(0.8), Inches(1.2), Inches(5), Inches(0.4),
-                 'Single workbook migration', font_size=16, bold=True, color=AZURE_BLUE)
+                 'Single QVF migration', font_size=16, bold=True, color=AZURE_BLUE)
     _add_code_box(slide, Inches(0.8), Inches(1.6), Inches(11.5), Inches(0.6),
-                  'python migrate.py workbook.qvf')
+                  'python migrate.py your_app.qvf')
 
     _add_textbox(slide, Inches(0.8), Inches(2.4), Inches(5), Inches(0.4),
-                 'Custom output directory', font_size=16, bold=True, color=AZURE_BLUE)
+                 'From JSON export', font_size=16, bold=True, color=AZURE_BLUE)
     _add_code_box(slide, Inches(0.8), Inches(2.8), Inches(11.5), Inches(0.6),
-                  'python migrate.py workbook.qvf --output-dir /tmp/pbi_output --verbose')
+                  'python migrate.py export.json --output-dir output/my_project --verbose')
 
     _add_textbox(slide, Inches(0.8), Inches(3.6), Inches(5), Inches(0.4),
-                 'Batch migration (entire folder)', font_size=16, bold=True, color=AZURE_BLUE)
+                 'Two-step (reuse extracted JSON)', font_size=16, bold=True, color=AZURE_BLUE)
     _add_code_box(slide, Inches(0.8), Inches(4.0), Inches(11.5), Inches(0.6),
-                  'python migrate.py --batch examples/Qlik_samples/ --output-dir /tmp/batch')
+                  'python migrate.py app.qvf --skip-extraction --output-dir output/step1')
 
     _add_textbox(slide, Inches(0.8), Inches(4.8), Inches(5), Inches(0.4),
-                 'With Qlik Prep flow', font_size=16, bold=True, color=AZURE_BLUE)
+                 'Interactive wizard', font_size=16, bold=True, color=AZURE_BLUE)
     _add_code_box(slide, Inches(0.8), Inches(5.2), Inches(11.5), Inches(0.6),
-                  'python migrate.py workbook.qvf --prep flow.tfl')
+                  'python migrate.py app.qvf --wizard')
 
     _add_textbox(slide, Inches(0.8), Inches(6.0), Inches(5), Inches(0.4),
                  'Fabric-native output', font_size=16, bold=True, color=AZURE_BLUE)
     _add_code_box(slide, Inches(0.8), Inches(6.4), Inches(11.5), Inches(0.6),
-                  'python migrate.py workbook.qvf --output-format fabric')
+                  'python migrate.py app.qvf --output-format fabric')
 
     # ══════════════════════════════════════════════════════════════
     # SLIDE 8 — Advanced CLI
@@ -413,16 +403,16 @@ def build_presentation():
     flags = [
         ('--assess', 'Run pre-migration readiness assessment'),
         ('--dry-run', 'Preview migration without writing files'),
-        ('--check-drift DIR', 'Detect schema changes vs saved snapshot'),
-        ('--shared-model wb1.qvf wb2.qvf', 'Merge workbooks into shared semantic model'),
-        ('--deploy WORKSPACE_ID', 'Deploy to Fabric workspace'),
+        ('--json', 'Machine-readable JSON output for CI/CD'),
+        ('--merge app1.json app2.json', 'Merge apps into shared semantic model'),
+        ('--deploy WORKSPACE_ID', 'Deploy to Power BI Service'),
         ('--deploy-refresh', 'Trigger dataset refresh after deployment'),
-        ('--multi-tenant tenants.json', 'Deploy to multiple tenants'),
-        ('--languages fr-FR,de-DE,ja-JP', 'Generate multi-language cultures'),
-        ('--goals', 'Convert Qlik Pulse → PBI Goals'),
+        ('--assess-server DIR', 'Portfolio-level server assessment'),
+        ('--output-format fabric', 'Generate Fabric-native artifacts'),
+        ('--plugins module.Class', 'Load custom migration plugins'),
         ('--optimize-dax', 'Run DAX optimizer (IF→SWITCH, COALESCE)'),
-        ('--culture fr-FR', 'Set locale for dates and number formats'),
-        ('--workers N', 'Parallel batch processing'),
+        ('--verbose', 'Detailed logging output'),
+        ('--skip-extraction', 'Reuse previously extracted JSON'),
     ]
     for i, (flag, desc) in enumerate(flags):
         y = Inches(1.2) + Inches(i * 0.48)
@@ -437,23 +427,23 @@ def build_presentation():
     # ══════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(blank)
     _add_shape_bg(slide, LIGHT_GRAY)
-    _section_header(slide, 'Qlik Server Integration',
-                    'Download and migrate directly from Qlik Server / Cloud')
+    _section_header(slide, 'REST API & Docker',
+                    'Headless / programmatic migration via HTTP')
 
     _add_textbox(slide, Inches(1.1), Inches(3.2), Inches(5), Inches(0.4),
-                 'Single workbook from server', font_size=16, bold=True, color=AZURE_BLUE)
+                 'Start the REST API server', font_size=16, bold=True, color=AZURE_BLUE)
     _add_code_box(slide, Inches(1.1), Inches(3.7), Inches(11), Inches(0.9),
-                  'python migrate.py \\\n'
-                  '  --server https://Qlik.company.com \\\n'
-                  '  --workbook "Sales Dashboard" \\\n'
-                  '  --token-name my-pat --token-secret secret')
+                  '# Direct\n'
+                  'python -m powerbi_import.api_server\n\n'
+                  '# Docker\n'
+                  'docker build -t qlik-to-pbi . && docker run -p 8000:8000 qlik-to-pbi')
 
     _add_textbox(slide, Inches(1.1), Inches(4.9), Inches(5), Inches(0.4),
-                 'Batch download from server site', font_size=16, bold=True, color=AZURE_BLUE)
+                 'Upload a QVF for migration', font_size=16, bold=True, color=AZURE_BLUE)
     _add_code_box(slide, Inches(1.1), Inches(5.4), Inches(11), Inches(0.7),
-                  'python migrate.py \\\n'
-                  '  --server https://Qlik.company.com \\\n'
-                  '  --server-batch Marketing --output-dir /tmp/batch')
+                  'curl -X POST -F "file=@app.qvf" http://localhost:8000/migrate\n'
+                  'curl http://localhost:8000/status/{job_id}\n'
+                  'curl -o result.zip http://localhost:8000/download/{job_id}')
 
     # ══════════════════════════════════════════════════════════════
     # SLIDE 10 — REST API
@@ -574,12 +564,12 @@ def build_presentation():
     _add_textbox(slide, Inches(0.8), Inches(4.0), Inches(5), Inches(0.4),
                  'Commands', font_size=16, bold=True, color=AZURE_BLUE)
     _add_code_box(slide, Inches(0.8), Inches(4.4), Inches(11.5), Inches(2.2),
-                  '# Merge workbooks into shared model\n'
-                  'python migrate.py --shared-model wb1.qvf wb2.qvf --model-name "Shared Sales"\n\n'
-                  '# Assess merge feasibility first\n'
-                  'python migrate.py --shared-model wb1.qvf wb2.qvf --assess-merge\n\n'
-                  '# Deploy shared model + thin reports as bundle\n'
-                  'python migrate.py --shared-model wb1.qvf wb2.qvf --deploy-bundle WORKSPACE_ID')
+                  '# Merge apps into shared model\n'
+                  'python migrate.py --merge app1.json app2.json app3.json\n\n'
+                  '# With Fabric-native output\n'
+                  'python migrate.py --merge app1.json app2.json --output-format fabric\n\n'
+                  '# Deploy to Power BI Service\n'
+                  'python migrate.py --merge app1.json app2.json --deploy WORKSPACE_ID')
 
     # Share assessment screenshot
     if os.path.isfile(IMG_SHARE_ASSESSMENT):
@@ -665,7 +655,7 @@ def build_presentation():
               '🔄  Rolling Deploy',
               'Blue/green deployment with canary\nvalidation and auto-rollback.\n\n'
               'deploy_rolling() in pbi_deployer.py',
-              Qlik_ORANGE)
+              QLIK_GREEN)
 
     # ══════════════════════════════════════════════════════════════
     # SLIDE 15 — Key Stats
@@ -676,12 +666,12 @@ def build_presentation():
                  'By the Numbers', font_size=36, bold=True, color=WHITE)
 
     stats = [
-        ('180+', 'DAX\nConversions', Qlik_ORANGE),
-        ('118', 'Visual Type\nMappings', PBI_YELLOW),
-        ('43', 'M Query\nTransforms', AZURE_BLUE),
-        ('33', 'Data Source\nConnectors', GREEN),
-        ('17', 'Extracted\nObject Types', ACCENT_PURPLE),
-        ('6,818+', 'Automated\nTests', RGBColor(0xEF, 0x44, 0x44)),
+        ('175+', 'DAX\nConversions', QLIK_GREEN),
+        ('75+', 'Visual Type\nMappings', PBI_YELLOW),
+        ('40+', 'M Query\nTransforms', AZURE_BLUE),
+        ('25', 'Data Source\nConnectors', GREEN),
+        ('11', 'Intermediate\nJSON Files', ACCENT_PURPLE),
+        ('2,000', 'Automated\nTests', RGBColor(0xEF, 0x44, 0x44)),
     ]
     for i, (num, label, color) in enumerate(stats):
         x = Inches(0.7) + Inches(i * 2.1)
@@ -694,11 +684,11 @@ def build_presentation():
     # Feature highlights
     features = [
         'Auto-generated Calendar table with Date Hierarchy',
-        'Row-Level Security (RLS) role migration',
-        'Conditional formatting preservation',
+        'Row-Level Security (RLS) from Section Access',
+        'Set Analysis → CALCULATE with filter modifiers',
         'Cross-table RELATED() / LOOKUPVALUE() inference',
-        'LOD expression → CALCULATE(AGG, ALLEXCEPT) conversion',
-        'Table calc → RANKX / CALCULATE window patterns',
+        'Aggr() decomposition → SUMX/COUNTX/AVERAGEX iterators',
+        'Inter-record Above/Below/Peek → OFFSET/WINDOW',
     ]
     for i, feat in enumerate(features):
         col = i % 2
@@ -734,7 +724,7 @@ def build_presentation():
               'python migrate.py workbook.qvf --assess\n\n'
               'Output lands in:\n'
               'artifacts/powerbi_projects/',
-              Qlik_ORANGE)
+              QLIK_GREEN)
 
     _add_card(slide, Inches(9.0), Inches(3.2), Inches(3.8), Inches(3.5),
               '3️⃣  Validate & Deploy',
@@ -747,20 +737,67 @@ def build_presentation():
               GREEN)
 
     # ══════════════════════════════════════════════════════════════
-    # SLIDE 17 — Thank You
+    # SLIDE 17 — Multi-Agent Preceptorship Model
+    # ══════════════════════════════════════════════════════════════
+    slide = prs.slides.add_slide(blank)
+    _add_shape_bg(slide, WHITE)
+    _add_textbox(slide, Inches(0.8), Inches(0.4), Inches(8), Inches(0.7),
+                 'Multi-Agent Preceptorship Model', font_size=32, bold=True, color=DARK_TEXT)
+    _add_textbox(slide, Inches(0.8), Inches(1.0), Inches(10), Inches(0.4),
+                 '10 AI agents collaborate following a Plan → Assign → Implement → Review cycle',
+                 font_size=16, color=MID_GRAY)
+
+    # Senior roles
+    _add_card(slide, Inches(2.5), Inches(1.6), Inches(3.8), Inches(1.2),
+              '🏗️  Tech Lead (Orchestrator)',
+              'Architecture, planning, pipeline coordination, task decomposition',
+              AZURE_BLUE)
+    _add_card(slide, Inches(7.0), Inches(1.6), Inches(3.8), Inches(1.2),
+              '🔍  Preceptor (Reviewer)',
+              'Quality review, standards enforcement, pitfall detection, consistency',
+              ACCENT_PURPLE)
+
+    # Specialist agents
+    agents = [
+        ('Extractor', 'QVF/JSON parsing\n→ 11 JSON files', QLIK_GREEN),
+        ('Converter', '175+ DAX conversions\n25 M connectors', QLIK_GREEN),
+        ('Generator', 'TMDL + PBIR\n75+ visuals', AZURE_BLUE),
+        ('Assessor', 'Readiness scoring\nStrategy advising', AZURE_BLUE),
+        ('Merger', 'Multi-app merge\nThin reports', ACCENT_PURPLE),
+        ('Deployer', 'Fabric / PBI Service\nAzure AD auth', GREEN),
+        ('Tester', '2,000 tests\nRegression suites', RGBColor(0xEF, 0x44, 0x44)),
+    ]
+    for i, (name, desc, color) in enumerate(agents):
+        x = Inches(0.4) + Inches(i * 1.8)
+        _add_stat_card(slide, x, Inches(3.2), Inches(1.65), Inches(1.3),
+                       name, '', color)
+        _add_textbox(slide, x, Inches(4.6), Inches(1.65), Inches(1.0),
+                     desc, font_size=11, color=DARK_TEXT, alignment=PP_ALIGN.CENTER)
+
+    # Cycle description
+    _add_textbox(slide, Inches(0.8), Inches(5.8), Inches(11.5), Inches(1.2),
+                 'Each specialist follows the 4-step cycle:\n'
+                 '1. Plan — outline changes, flag risks   '
+                 '2. Assign — confirm ownership, declare handoffs   '
+                 '3. Implement — smallest change that solves the problem   '
+                 '4. Review — self-check: tests pass, contracts preserved, pitfalls avoided',
+                 font_size=14, color=DARK_TEXT)
+
+    # ══════════════════════════════════════════════════════════════
+    # SLIDE 18 — Thank You
     # ══════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(blank)
     _add_shape_bg(slide, DARK_BG)
-    _add_accent_bar(slide, Qlik_ORANGE, Inches(0), Inches(3.2), Inches(13.333), Inches(0.06))
+    _add_accent_bar(slide, QLIK_GREEN, Inches(0), Inches(3.2), Inches(13.333), Inches(0.06))
     _add_accent_bar(slide, PBI_YELLOW, Inches(0), Inches(3.28), Inches(13.333), Inches(0.06))
     _add_textbox(slide, Inches(1), Inches(2.0), Inches(11), Inches(0.8),
                  'Thank You', font_size=48, bold=True, color=WHITE,
                  alignment=PP_ALIGN.CENTER)
     _add_textbox(slide, Inches(1), Inches(4.0), Inches(11), Inches(0.5),
-                 'python migrate.py workbook.qvf', font_size=20,
+                 'python migrate.py your_app.qvf', font_size=20,
                  color=PBI_YELLOW, alignment=PP_ALIGN.CENTER, font_name='Cascadia Code')
     _add_textbox(slide, Inches(1), Inches(5.5), Inches(11), Inches(0.4),
-                 'v28.1.1 · 6,818+ tests · 180+ DAX conversions · 118 visual mappings',
+                 'v9.1.0 · 2,000 tests · 175+ DAX conversions · 75+ visual mappings',
                  font_size=14, color=MID_GRAY, alignment=PP_ALIGN.CENTER)
 
     # ── Save ──

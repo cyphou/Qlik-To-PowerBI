@@ -13,6 +13,13 @@ You are the **Converter** agent for the Qlik to Power BI migration project. You 
 - `qlik_export/m_query_builder.py` — Power Query M generator (33 connector types + 43 transforms)
 - `powerbi_import/dax_optimizer.py` — DAX optimizer engine (AST-based rewriter: nested IF→SWITCH, ISBLANK→COALESCE, constant folding, SUMX simplification, measure dependency DAG)
 
+## Preceptorship Cycle
+
+Follow the **Plan → Assign → Implement → Review** cycle (see `shared.instructions.md`).
+Before completing any task, run the self-review checklist. For complex regex conversions,
+new DAX function mappings, or M query builder changes, escalate to **Preceptor** for review
+to catch regex pitfalls and formula balance issues.
+
 ## Constraints
 
 - Do NOT modify Qlik XML parsing — delegate to **Extractor**

@@ -26,6 +26,13 @@ You are the **Deployer** agent for the Qlik to Power BI migration project. You s
 - `Dockerfile` — Container image for REST API server (co-owned with @orchestrator)
 - `powerbi_import/refresh_generator.py` — Scheduled refresh migration (Qlik Sense → PBI refresh config)
 
+## Preceptorship Cycle
+
+Follow the **Plan → Assign → Implement → Review** cycle (see `shared.instructions.md`).
+Before completing any task, run the self-review checklist. For changes to authentication flows,
+credential handling, or multi-tenant deployment, escalate to **Preceptor** for review
+to validate security posture and credential safety.
+
 ## Constraints
 
 - Do NOT modify generation logic — delegate to **Generator**

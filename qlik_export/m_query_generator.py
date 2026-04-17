@@ -1,13 +1,16 @@
 """
-Power Query M Generator — 25 connector types
+Power Query M Generator — 42 connector types
 
 Generates Power Query M queries from Qlik datasource metadata.
 Dispatches by connection type to produce complete `let ... in Result` M queries.
 
 Supported connectors:
   Excel, CSV, SQL Server, PostgreSQL, BigQuery, Oracle, MySQL, Snowflake,
-  Teradata, SAP HANA, Redshift, Databricks, Spark, Azure SQL, Azure Synapse,
-  Google Sheets, SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB
+  Teradata, SAP HANA, SAP BW, Redshift, Databricks, Spark, Azure SQL,
+  Azure Synapse, Google Sheets, Google Analytics, SharePoint, JSON, XML, PDF,
+  Salesforce, Web, QVD, ODBC, OLE DB, OData, Azure Blob/ADLS, Vertica,
+  Impala, Hadoop Hive/HDInsight, Presto/Trino, Fabric Lakehouse, Dataverse,
+  MongoDB, Cosmos DB, Amazon Athena, IBM DB2, GeoJSON, Custom SQL
 """
 
 import logging
@@ -497,6 +500,254 @@ def _gen_m_oledb(ds: Dict) -> str:
     ])
 
 
+def _gen_m_odata(ds: Dict) -> str:
+    """Generate M query for OData source."""
+    conn = ds.get("connection", {})
+    url = conn.get("url", conn.get("server", "https://services.odata.org/V4/Northwind/Northwind.svc"))
+    table = ds.get("tableName", "Table1")
+    return "\n".join([
+        "let",
+        f'    Source = OData.Feed("{url}"),',
+        f'    Table = Source{{[Name="{table}"]}}[Data]',
+        "in",
+        "    Table",
+    ])
+
+
+def _gen_m_google_analytics(ds: Dict) -> str:
+    """Generate M query for Google Analytics source."""
+    conn = ds.get("connection", {})
+    view_id = conn.get("viewId", conn.get("view_id", "123456789"))
+    return "\n".join([
+        "let",
+        f'    // Google Analytics View: {view_id}',
+        f'    Source = GoogleAnalytics.Accounts(),',
+        f'    // TODO: Navigate to the correct property and view',
+        f'    Data = Source{{0}}[Data]',
+        "in",
+        "    Data",
+    ])
+
+
+def _gen_m_azure_blob(ds: Dict) -> str:
+    """Generate M query for Azure Blob Storage / ADLS source."""
+    conn = ds.get("connection", {})
+    account = conn.get("account", conn.get("server", "mystorageaccount"))
+    container = conn.get("container", conn.get("database", "data"))
+    path = conn.get("path", "")
+    return "\n".join([
+        "let",
+        f'    Source = AzureStorage.Blobs("https://{account}.blob.core.windows.net/{container}"),',
+        f'    // TODO: Filter to specific path: {path}' if path else '    // TODO: Filter to specific file',
+        f'    Data = Source{{0}}[Content]',
+        "in",
+        "    Data",
+    ])
+
+
+def _gen_m_vertica(ds: Dict) -> str:
+    """Generate M query for Vertica source."""
+    conn = ds.get("connection", {})
+    server = conn.get("server", conn.get("host", "vertica-server"))
+    database = conn.get("database", "analytics")
+    table = ds.get("tableName", "table1")
+    schema = conn.get("schema", "public")
+    return "\n".join([
+        "let",
+        f'    Source = Odbc.DataSource("Driver={{Vertica}};Server={server};Database={database}"),',
+        f'    Table = Source{{[Schema="{schema}", Name="{table}"]}}[Data]',
+        "in",
+        "    Table",
+    ])
+
+
+def _gen_m_impala(ds: Dict) -> str:
+    """Generate M query for Apache Impala source."""
+    conn = ds.get("connection", {})
+    server = conn.get("server", conn.get("host", "impala-server"))
+    port = conn.get("port", "21050")
+    table = ds.get("tableName", "table1")
+    database = conn.get("database", "default")
+    return "\n".join([
+        "let",
+        f'    Source = Odbc.DataSource("Driver={{Cloudera ODBC Driver for Impala}};Host={server};Port={port}"),',
+        f'    DB = Source{{[Name="{database}"]}}[Data],',
+        f'    Table = DB{{[Name="{table}"]}}[Data]',
+        "in",
+        "    Table",
+    ])
+
+
+def _gen_m_hadoop_hive(ds: Dict) -> str:
+    """Generate M query for Hadoop Hive / HDInsight source."""
+    conn = ds.get("connection", {})
+    server = conn.get("server", conn.get("host", "hive-server"))
+    database = conn.get("database", "default")
+    table = ds.get("tableName", "table1")
+    return "\n".join([
+        "let",
+        f'    Source = Odbc.DataSource("Driver={{Microsoft Hive ODBC Driver}};Host={server};Database={database}"),',
+        f'    Table = Source{{[Name="{table}"]}}[Data]',
+        "in",
+        "    Table",
+    ])
+
+
+def _gen_m_presto(ds: Dict) -> str:
+    """Generate M query for Presto / Trino source."""
+    conn = ds.get("connection", {})
+    server = conn.get("server", conn.get("host", "presto-server"))
+    port = conn.get("port", "8080")
+    catalog = conn.get("catalog", conn.get("database", "hive"))
+    schema = conn.get("schema", "default")
+    table = ds.get("tableName", "table1")
+    return "\n".join([
+        "let",
+        f'    Source = Odbc.DataSource("Driver={{Presto ODBC Driver}};Host={server};Port={port};Catalog={catalog};Schema={schema}"),',
+        f'    Table = Source{{[Name="{table}"]}}[Data]',
+        "in",
+        "    Table",
+    ])
+
+
+def _gen_m_fabric_lakehouse(ds: Dict) -> str:
+    """Generate M query for Microsoft Fabric Lakehouse source."""
+    conn = ds.get("connection", {})
+    workspace = conn.get("workspace", conn.get("workspaceId", "workspace-guid"))
+    lakehouse = conn.get("lakehouse", conn.get("database", "MyLakehouse"))
+    table = ds.get("tableName", "table1")
+    return "\n".join([
+        "let",
+        f'    Source = Lakehouse.Contents(null, "{workspace}", "{lakehouse}"),',
+        f'    Table = Source{{[Name="{table}"]}}[Data]',
+        "in",
+        "    Table",
+    ])
+
+
+def _gen_m_dataverse(ds: Dict) -> str:
+    """Generate M query for Dataverse / Common Data Service source."""
+    conn = ds.get("connection", {})
+    org_url = conn.get("url", conn.get("server", "https://org.crm.dynamics.com"))
+    table = ds.get("tableName", "account")
+    return "\n".join([
+        "let",
+        f'    Source = CommonDataService.Database("{org_url}"),',
+        f'    Table = Source{{[Name="{table}"]}}[Data]',
+        "in",
+        "    Table",
+    ])
+
+
+def _gen_m_mongodb(ds: Dict) -> str:
+    """Generate M query for MongoDB / MongoDB Atlas source."""
+    conn = ds.get("connection", {})
+    server = conn.get("server", conn.get("host", "mongodb-server"))
+    database = conn.get("database", "mydb")
+    collection = ds.get("tableName", conn.get("collection", "collection1"))
+    return "\n".join([
+        "let",
+        f'    Source = MongoDB.Database("{server}", "{database}"),',
+        f'    Collection = Source{{[Name="{collection}"]}}[Data]',
+        "in",
+        "    Collection",
+    ])
+
+
+def _gen_m_cosmosdb(ds: Dict) -> str:
+    """Generate M query for Azure Cosmos DB source."""
+    conn = ds.get("connection", {})
+    endpoint = conn.get("url", conn.get("server", "https://myaccount.documents.azure.com:443/"))
+    database = conn.get("database", "mydb")
+    container = ds.get("tableName", conn.get("container", "container1"))
+    return "\n".join([
+        "let",
+        f'    Source = DocumentDB.Contents("{endpoint}"),',
+        f'    DB = Source{{[Name="{database}"]}}[Data],',
+        f'    Container = DB{{[Name="{container}"]}}[Data]',
+        "in",
+        "    Container",
+    ])
+
+
+def _gen_m_athena(ds: Dict) -> str:
+    """Generate M query for Amazon Athena source."""
+    conn = ds.get("connection", {})
+    region = conn.get("region", "us-east-1")
+    catalog = conn.get("catalog", conn.get("database", "AwsDataCatalog"))
+    schema = conn.get("schema", "default")
+    table = ds.get("tableName", "table1")
+    s3_output = conn.get("s3OutputLocation", "s3://athena-results/")
+    return "\n".join([
+        "let",
+        f'    Source = Odbc.DataSource("Driver={{Simba Athena ODBC Driver}};AwsRegion={region};S3OutputLocation={s3_output};AuthenticationType=IAM Credentials"),',
+        f'    Table = Source{{[Schema="{schema}", Name="{table}"]}}[Data]',
+        "in",
+        "    Table",
+    ])
+
+
+def _gen_m_db2(ds: Dict) -> str:
+    """Generate M query for IBM DB2 source."""
+    conn = ds.get("connection", {})
+    server = conn.get("server", conn.get("host", "db2-server"))
+    database = conn.get("database", "SAMPLE")
+    table = ds.get("tableName", "table1")
+    schema = conn.get("schema", "DB2INST1")
+    return "\n".join([
+        "let",
+        f'    Source = DB2.Database("{server}", "{database}"),',
+        f'    Table = Source{{[Schema="{schema}", Name="{table}"]}}[Data]',
+        "in",
+        "    Table",
+    ])
+
+
+def _gen_m_geojson(ds: Dict) -> str:
+    """Generate M query for GeoJSON source."""
+    conn = ds.get("connection", {})
+    path = conn.get("path", conn.get("url", "data.geojson"))
+    return "\n".join([
+        "let",
+        f'    Source = Json.Document(File.Contents("{path}")),',
+        f'    Features = Source[features],',
+        f'    Table = Table.FromList(Features, Splitter.SplitByNothing())',
+        "in",
+        "    Table",
+    ])
+
+
+def _gen_m_sap_bw(ds: Dict) -> str:
+    """Generate M query for SAP BW source."""
+    conn = ds.get("connection", {})
+    server = conn.get("server", conn.get("host", "sap-bw-server"))
+    system_id = conn.get("systemId", conn.get("sid", "BWP"))
+    cube = ds.get("tableName", conn.get("cube", "ZCUBE_SALES"))
+    return "\n".join([
+        "let",
+        f'    Source = SapBusinessWarehouse.Cubes("{server}", "{system_id}"),',
+        f'    Cube = Source{{[Name="{cube}"]}}[Data]',
+        "in",
+        "    Cube",
+    ])
+
+
+def _gen_m_custom_sql(ds: Dict) -> str:
+    """Generate M query from custom SQL statement."""
+    conn = ds.get("connection", {})
+    server = conn.get("server", conn.get("host", "sql-server"))
+    database = conn.get("database", "mydb")
+    sql = ds.get("customSql", ds.get("query", conn.get("query", "SELECT * FROM table1")))
+    return "\n".join([
+        "let",
+        f'    Source = Sql.Database("{server}", "{database}", [Query="',
+        f'        {sql}',
+        '    "])',
+        "in",
+        "    Source",
+    ])
+
+
 def _gen_m_sample(ds: Dict) -> str:
     """Generate sample/fallback M query with inline data."""
     table = ds.get("tableName", ds.get("table", "SampleData"))
@@ -565,6 +816,41 @@ _M_GENERATORS: Dict[str, Any] = {
     "odbc": _gen_m_odbc,
     "oledb": _gen_m_oledb,
     "ole_db": _gen_m_oledb,
+    # ── Additional connectors (v10) ───────────────────────────
+    "odata": _gen_m_odata,
+    "google_analytics": _gen_m_google_analytics,
+    "googleanalytics": _gen_m_google_analytics,
+    "azure_blob": _gen_m_azure_blob,
+    "azureblob": _gen_m_azure_blob,
+    "adls": _gen_m_azure_blob,
+    "azure_data_lake": _gen_m_azure_blob,
+    "vertica": _gen_m_vertica,
+    "impala": _gen_m_impala,
+    "hive": _gen_m_hadoop_hive,
+    "hadoop_hive": _gen_m_hadoop_hive,
+    "hdinsight": _gen_m_hadoop_hive,
+    "presto": _gen_m_presto,
+    "trino": _gen_m_presto,
+    "fabric_lakehouse": _gen_m_fabric_lakehouse,
+    "lakehouse": _gen_m_fabric_lakehouse,
+    "dataverse": _gen_m_dataverse,
+    "cds": _gen_m_dataverse,
+    "common_data_service": _gen_m_dataverse,
+    "mongodb": _gen_m_mongodb,
+    "mongodb_atlas": _gen_m_mongodb,
+    "cosmosdb": _gen_m_cosmosdb,
+    "cosmos_db": _gen_m_cosmosdb,
+    "azure_cosmos_db": _gen_m_cosmosdb,
+    "documentdb": _gen_m_cosmosdb,
+    "athena": _gen_m_athena,
+    "amazon_athena": _gen_m_athena,
+    "db2": _gen_m_db2,
+    "ibm_db2": _gen_m_db2,
+    "geojson": _gen_m_geojson,
+    "sap_bw": _gen_m_sap_bw,
+    "sapbw": _gen_m_sap_bw,
+    "custom_sql": _gen_m_custom_sql,
+    "customsql": _gen_m_custom_sql,
 }
 
 

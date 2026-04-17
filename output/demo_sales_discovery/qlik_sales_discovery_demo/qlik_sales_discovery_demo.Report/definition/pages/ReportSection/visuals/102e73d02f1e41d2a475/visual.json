@@ -1,0 +1,56 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "102e73d02f1e41d2a475",
+  "position": {
+    "x": 10,
+    "y": 1550,
+    "z": 28000,
+    "height": 200,
+    "width": 300,
+    "tabOrder": 28000
+  },
+  "visual": {
+    "visualType": "boxAndWhisker",
+    "drillFilterOtherVisuals": true,
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Products"
+                    }
+                  },
+                  "Property": "Category"
+                }
+              },
+              "queryRef": "Products.Category",
+              "active": true
+            }
+          ]
+        },
+        "Value": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Sales"
+                    }
+                  },
+                  "Property": "Avg Discount"
+                }
+              },
+              "queryRef": "Sales.Avg Discount",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

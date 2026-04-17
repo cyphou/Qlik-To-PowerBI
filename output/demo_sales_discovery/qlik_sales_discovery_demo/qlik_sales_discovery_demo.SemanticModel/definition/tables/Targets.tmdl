@@ -1,0 +1,58 @@
+table Targets
+	lineageTag: d4068ca5-5fe4-4a0d-af60-637612893b55
+
+	column Year
+		dataType: int64
+		lineageTag: 6f710de1-d2b6-41c0-9277-1c7e8d6e7f0b
+		summarizeBy: sum
+		sourceColumn: Year
+
+		annotation SummarizationSetBy = Automatic
+
+	column Month
+		dataType: int64
+		lineageTag: c249659d-ef44-4319-9450-418556caf540
+		summarizeBy: sum
+		sourceColumn: Month
+
+		annotation SummarizationSetBy = Automatic
+
+	column Region
+		dataType: string
+		lineageTag: 02959390-0ee0-41cf-997b-f08b0f883e16
+		summarizeBy: none
+		sourceColumn: Region
+		dataCategory: StateOrProvince
+
+		annotation SummarizationSetBy = Automatic
+
+	column TargetAmount
+		dataType: decimal
+		lineageTag: 1eff26f2-9759-4580-9230-4d5d66413e83
+		summarizeBy: none
+		sourceColumn: TargetAmount
+
+		annotation SummarizationSetBy = Automatic
+
+	column TargetQuantity
+		dataType: int64
+		lineageTag: 4554ee09-b582-4263-ac37-131813decf3d
+		summarizeBy: sum
+		sourceColumn: TargetQuantity
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Targets-88fec0d9-dbc4-43f0-8f7c-9b6f18d665e3' = m
+		mode: import
+		source =
+				let
+				    Source = Excel.Workbook(File.Contents("data/Targets.xlsx"), null, true),
+				    Sheet1 = Source{{[Item="Sheet1",Kind="Sheet"]}}[Data],
+				    PromotedHeaders = Table.PromoteHeaders(Sheet1, [PromoteAllScalars=true])
+				,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"Year", "Month", "Region", "TargetAmount", "TargetQuantity"})
+				
+				in
+				    SelectedColumns
+
+	annotation PBI_ResultType = Table
+

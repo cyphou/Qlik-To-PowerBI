@@ -1,6 +1,18 @@
 {
-  "name": "Enterprise Sales Analytics",
-  "description": "",
-  "source_file": "examples\\qlik\\test_samples\\large\\large_enterprise_sales.json",
-  "extracted_at": "2026-04-03T12:08:35.431166"
+  "name": "Sales Discovery Demo",
+  "description": "Qlik Sense demo app based on the Beginner's Tutorial Sales Discovery pattern. Multi-table star schema with Set Analysis, Aggr(), Section Access, and 6 sheet types.",
+  "author": "Qlik Demo Team",
+  "created": "2025-06-15",
+  "modified": "2026-01-20",
+  "theme": {
+    "colors": [
+      "#4477AA",
+      "#EE6677",
+      "#228833",
+      "#CCBB44",
+      "#66CCEE",
+      "#AA3377",
+      "#BBBBBB"
+    ]
+  }
 }

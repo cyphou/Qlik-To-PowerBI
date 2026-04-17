@@ -1,0 +1,108 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "776358bab28e4dc58d14",
+  "position": {
+    "x": 970,
+    "y": 1550,
+    "z": 31000,
+    "height": 200,
+    "width": 300,
+    "tabOrder": 31000
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "drillFilterOtherVisuals": true,
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "SalesReps"
+                    }
+                  },
+                  "Property": "SalesRepName"
+                }
+              },
+              "queryRef": "SalesReps.SalesRepName",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Table"
+                    }
+                  },
+                  "Property": "Sales"
+                }
+              },
+              "queryRef": "Table.Sales",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Sales"
+                    }
+                  },
+                  "Property": "Profit"
+                }
+              },
+              "queryRef": "Sales.Profit",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Sales"
+                    }
+                  },
+                  "Property": "Margin %"
+                }
+              },
+              "queryRef": "Sales.Margin %",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Sales"
+                    }
+                  },
+                  "Property": "Orders"
+                }
+              },
+              "queryRef": "Sales.Orders",
+              "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Sales"
+                    }
+                  },
+                  "Property": "Rank"
+                }
+              },
+              "queryRef": "Sales.Rank",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

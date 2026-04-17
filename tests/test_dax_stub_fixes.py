@@ -55,7 +55,8 @@ class TestNetWorkDaysStub:
 class TestKeepCharStub:
     def test_keepchar_documented(self):
         result = convert_qlik_expression_to_dax("KeepChar(Name, 'abc')")
-        assert "no DAX equivalent" in result
+        assert "SUBSTITUTE" in result
+        assert "approximate" in result.lower() or "KeepChar" in result
 
 
 class TestSubFieldStub:
@@ -73,7 +74,7 @@ class TestMapSubstringStub:
     def test_mapsubstring_uses_substitute(self):
         result = convert_qlik_expression_to_dax("MapSubstring('map', Text)")
         assert "SUBSTITUTE" in result
-        assert "partial" in result.lower()
+        assert "MapSubstring" in result or "lookup" in result.lower()
 
 
 class TestAtan2Stub:

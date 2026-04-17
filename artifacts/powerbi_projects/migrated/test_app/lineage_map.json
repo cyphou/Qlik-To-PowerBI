@@ -1,0 +1,679 @@
+{
+  "app_name": "test_app",
+  "created_at": "2026-04-17T13:02:55.583156",
+  "total_entries": 86,
+  "by_source_type": {
+    "datasource": 6,
+    "measure": 18,
+    "dimension": 10,
+    "variable": 5,
+    "visualization": 32,
+    "sheet": 6,
+    "association": 5,
+    "bookmark": 4
+  },
+  "entries": [
+    {
+      "source_type": "datasource",
+      "source_name": "Sales",
+      "target_type": "table",
+      "target_name": "Sales",
+      "status": "exact"
+    },
+    {
+      "source_type": "datasource",
+      "source_name": "Customers",
+      "target_type": "table",
+      "target_name": "Customers",
+      "status": "exact"
+    },
+    {
+      "source_type": "datasource",
+      "source_name": "Products",
+      "target_type": "table",
+      "target_name": "Products",
+      "status": "exact"
+    },
+    {
+      "source_type": "datasource",
+      "source_name": "SalesReps",
+      "target_type": "table",
+      "target_name": "SalesReps",
+      "status": "exact"
+    },
+    {
+      "source_type": "datasource",
+      "source_name": "Targets",
+      "target_type": "table",
+      "target_name": "Targets",
+      "status": "exact"
+    },
+    {
+      "source_type": "datasource",
+      "source_name": "Returns",
+      "target_type": "table",
+      "target_name": "Returns",
+      "status": "exact"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Total Sales",
+      "target_type": "dax_measure",
+      "target_name": "Total Sales",
+      "status": "exact",
+      "source_expression": "Sum(Amount)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Total Quantity",
+      "target_type": "dax_measure",
+      "target_name": "Total Quantity",
+      "status": "exact",
+      "source_expression": "Sum(Quantity)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Total Cost",
+      "target_type": "dax_measure",
+      "target_name": "Total Cost",
+      "status": "exact",
+      "source_expression": "Sum(Cost)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Gross Profit",
+      "target_type": "dax_measure",
+      "target_name": "Gross Profit",
+      "status": "exact",
+      "source_expression": "Sum(Amount) - Sum(Cost)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Profit Margin",
+      "target_type": "dax_measure",
+      "target_name": "Profit Margin",
+      "status": "exact",
+      "source_expression": "(Sum(Amount) - Sum(Cost)) / Sum(Amount)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Avg Order Value",
+      "target_type": "dax_measure",
+      "target_name": "Avg Order Value",
+      "status": "exact",
+      "source_expression": "Avg(Amount)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Distinct Customers",
+      "target_type": "dax_measure",
+      "target_name": "Distinct Customers",
+      "status": "exact",
+      "source_expression": "Count(DISTINCT CustomerID)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Orders Count",
+      "target_type": "dax_measure",
+      "target_name": "Orders Count",
+      "status": "exact",
+      "source_expression": "Count(DISTINCT OrderID)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "YTD Sales",
+      "target_type": "dax_measure",
+      "target_name": "YTD Sales",
+      "status": "exact",
+      "source_expression": "Sum({<OrderDate={'>=$(=YearStart(Today()))<=$(=Today())'}>} Amount)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Prior Year Sales",
+      "target_type": "dax_measure",
+      "target_name": "Prior Year Sales",
+      "status": "exact",
+      "source_expression": "Sum({<Year={$(=Year(Today())-1)}>} Amount)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "YoY Growth",
+      "target_type": "dax_measure",
+      "target_name": "YoY Growth",
+      "status": "exact",
+      "source_expression": "(Sum(Amount) - Sum({<Year={$(=Year(Today())-1)}>} Amount)) / Sum({<Year={$(=Year(Today())-1)}>} Amount)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Sales vs Target",
+      "target_type": "dax_measure",
+      "target_name": "Sales vs Target",
+      "status": "exact",
+      "source_expression": "Sum(Amount) / Sum(TargetAmount)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Return Rate",
+      "target_type": "dax_measure",
+      "target_name": "Return Rate",
+      "status": "exact",
+      "source_expression": "Count(DISTINCT ReturnID) / Count(DISTINCT OrderID)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Avg Discount",
+      "target_type": "dax_measure",
+      "target_name": "Avg Discount",
+      "status": "exact",
+      "source_expression": "Avg(Discount)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Top Category Sales",
+      "target_type": "dax_measure",
+      "target_name": "Top Category Sales",
+      "status": "exact",
+      "source_expression": "Aggr(Sum(Amount), Category)"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Running Total",
+      "target_type": "dax_measure",
+      "target_name": "Running Total",
+      "status": "exact",
+      "source_expression": "RangeSum(Above(Sum(Amount), 0, RowNo()))"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Rank by Sales",
+      "target_type": "dax_measure",
+      "target_name": "Rank by Sales",
+      "status": "exact",
+      "source_expression": "Rank(Sum(Amount))"
+    },
+    {
+      "source_type": "measure",
+      "source_name": "Previous Month Sales",
+      "target_type": "dax_measure",
+      "target_name": "Previous Month Sales",
+      "status": "exact",
+      "source_expression": "Above(Sum(Amount))"
+    },
+    {
+      "source_type": "dimension",
+      "source_name": "Customer Name",
+      "target_type": "column",
+      "target_name": "Customer Name",
+      "status": "exact",
+      "source_expression": "CustomerName"
+    },
+    {
+      "source_type": "dimension",
+      "source_name": "Product Category",
+      "target_type": "column",
+      "target_name": "Product Category",
+      "status": "exact",
+      "source_expression": "Category"
+    },
+    {
+      "source_type": "dimension",
+      "source_name": "Sub-Category",
+      "target_type": "column",
+      "target_name": "Sub-Category",
+      "status": "exact",
+      "source_expression": "SubCategory"
+    },
+    {
+      "source_type": "dimension",
+      "source_name": "Region",
+      "target_type": "column",
+      "target_name": "Region",
+      "status": "exact",
+      "source_expression": "Region"
+    },
+    {
+      "source_type": "dimension",
+      "source_name": "Sales Rep",
+      "target_type": "column",
+      "target_name": "Sales Rep",
+      "status": "exact",
+      "source_expression": "SalesRepName"
+    },
+    {
+      "source_type": "dimension",
+      "source_name": "Customer Segment",
+      "target_type": "column",
+      "target_name": "Customer Segment",
+      "status": "exact",
+      "source_expression": "Segment"
+    },
+    {
+      "source_type": "dimension",
+      "source_name": "Ship Mode",
+      "target_type": "column",
+      "target_name": "Ship Mode",
+      "status": "exact",
+      "source_expression": "ShipMode"
+    },
+    {
+      "source_type": "dimension",
+      "source_name": "Product",
+      "target_type": "column",
+      "target_name": "Product",
+      "status": "exact",
+      "source_expression": "ProductName"
+    },
+    {
+      "source_type": "dimension",
+      "source_name": "Country",
+      "target_type": "column",
+      "target_name": "Country",
+      "status": "exact",
+      "source_expression": "Country"
+    },
+    {
+      "source_type": "dimension",
+      "source_name": "Year-Month",
+      "target_type": "column",
+      "target_name": "Year-Month",
+      "status": "exact",
+      "source_expression": "=Year(OrderDate) & '-' & Num(Month(OrderDate), '00')"
+    },
+    {
+      "source_type": "variable",
+      "source_name": "vCurrentYear",
+      "target_type": "parameter",
+      "target_name": "vCurrentYear",
+      "status": "exact"
+    },
+    {
+      "source_type": "variable",
+      "source_name": "vPriorYear",
+      "target_type": "parameter",
+      "target_name": "vPriorYear",
+      "status": "exact"
+    },
+    {
+      "source_type": "variable",
+      "source_name": "vTargetGrowth",
+      "target_type": "parameter",
+      "target_name": "vTargetGrowth",
+      "status": "exact"
+    },
+    {
+      "source_type": "variable",
+      "source_name": "vTop10Customers",
+      "target_type": "parameter",
+      "target_name": "vTop10Customers",
+      "status": "exact"
+    },
+    {
+      "source_type": "variable",
+      "source_name": "vMarginThreshold",
+      "target_type": "parameter",
+      "target_name": "vMarginThreshold",
+      "status": "exact"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Total Sales",
+      "target_type": "visual",
+      "target_name": "kpi → visual",
+      "status": "exact",
+      "source_expression": "kpi"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Gross Profit",
+      "target_type": "visual",
+      "target_name": "kpi → visual",
+      "status": "exact",
+      "source_expression": "kpi"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Profit Margin",
+      "target_type": "visual",
+      "target_name": "kpi → visual",
+      "status": "exact",
+      "source_expression": "kpi"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Total Orders",
+      "target_type": "visual",
+      "target_name": "kpi → visual",
+      "status": "exact",
+      "source_expression": "kpi"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales Trend",
+      "target_type": "visual",
+      "target_name": "linechart → visual",
+      "status": "exact",
+      "source_expression": "linechart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales by Region",
+      "target_type": "visual",
+      "target_name": "barchart → visual",
+      "status": "exact",
+      "source_expression": "barchart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales by Category",
+      "target_type": "visual",
+      "target_name": "piechart → visual",
+      "status": "exact",
+      "source_expression": "piechart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales by Segment",
+      "target_type": "visual",
+      "target_name": "donut → visual",
+      "status": "exact",
+      "source_expression": "donut"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales vs Target",
+      "target_type": "visual",
+      "target_name": "gauge → visual",
+      "status": "exact",
+      "source_expression": "gauge"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Region Filter",
+      "target_type": "visual",
+      "target_name": "filterpane → visual",
+      "status": "exact",
+      "source_expression": "filterpane"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Category Filter",
+      "target_type": "visual",
+      "target_name": "filterpane → visual",
+      "status": "exact",
+      "source_expression": "filterpane"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Segment Filter",
+      "target_type": "visual",
+      "target_name": "filterpane → visual",
+      "status": "exact",
+      "source_expression": "filterpane"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales by Sub-Category",
+      "target_type": "visual",
+      "target_name": "barchart → visual",
+      "status": "exact",
+      "source_expression": "barchart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales vs Margin by Product",
+      "target_type": "visual",
+      "target_name": "scatter → visual",
+      "status": "exact",
+      "source_expression": "scatter"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales & Profit Trend",
+      "target_type": "visual",
+      "target_name": "combochart → visual",
+      "status": "exact",
+      "source_expression": "combochart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales Detail",
+      "target_type": "visual",
+      "target_name": "table → visual",
+      "status": "exact",
+      "source_expression": "table"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Distinct Customers",
+      "target_type": "visual",
+      "target_name": "kpi → visual",
+      "status": "exact",
+      "source_expression": "kpi"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Avg Order Value",
+      "target_type": "visual",
+      "target_name": "kpi → visual",
+      "status": "exact",
+      "source_expression": "kpi"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Return Rate",
+      "target_type": "visual",
+      "target_name": "kpi → visual",
+      "status": "exact",
+      "source_expression": "kpi"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Customer Treemap",
+      "target_type": "visual",
+      "target_name": "treemap → visual",
+      "status": "exact",
+      "source_expression": "treemap"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales & Customers by Segment",
+      "target_type": "visual",
+      "target_name": "barchart → visual",
+      "status": "exact",
+      "source_expression": "barchart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Customer Pivot",
+      "target_type": "visual",
+      "target_name": "pivot-table → visual",
+      "status": "exact",
+      "source_expression": "pivot-table"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales by Country",
+      "target_type": "visual",
+      "target_name": "map → visual",
+      "status": "exact",
+      "source_expression": "map"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Profit by Region",
+      "target_type": "visual",
+      "target_name": "waterfallchart → visual",
+      "status": "exact",
+      "source_expression": "waterfallchart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Geographic Summary",
+      "target_type": "visual",
+      "target_name": "table → visual",
+      "status": "exact",
+      "source_expression": "table"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Category Breakdown",
+      "target_type": "visual",
+      "target_name": "stackedbarchart → visual",
+      "status": "exact",
+      "source_expression": "stackedbarchart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Product Cloud",
+      "target_type": "visual",
+      "target_name": "wordcloud → visual",
+      "status": "exact",
+      "source_expression": "wordcloud"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Return Rate by Category",
+      "target_type": "visual",
+      "target_name": "barchart → visual",
+      "status": "exact",
+      "source_expression": "barchart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Discount Distribution",
+      "target_type": "visual",
+      "target_name": "boxplot → visual",
+      "status": "exact",
+      "source_expression": "boxplot"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales by Rep",
+      "target_type": "visual",
+      "target_name": "barchart → visual",
+      "status": "exact",
+      "source_expression": "barchart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Orders by Rep",
+      "target_type": "visual",
+      "target_name": "funnelchart → visual",
+      "status": "exact",
+      "source_expression": "funnelchart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales Rep Scorecard",
+      "target_type": "visual",
+      "target_name": "table → visual",
+      "status": "exact",
+      "source_expression": "table"
+    },
+    {
+      "source_type": "sheet",
+      "source_name": "Executive Dashboard",
+      "target_type": "report_page",
+      "target_name": "Executive Dashboard",
+      "status": "exact"
+    },
+    {
+      "source_type": "sheet",
+      "source_name": "Sales Analysis",
+      "target_type": "report_page",
+      "target_name": "Sales Analysis",
+      "status": "exact"
+    },
+    {
+      "source_type": "sheet",
+      "source_name": "Customer Insights",
+      "target_type": "report_page",
+      "target_name": "Customer Insights",
+      "status": "exact"
+    },
+    {
+      "source_type": "sheet",
+      "source_name": "Geographic Analysis",
+      "target_type": "report_page",
+      "target_name": "Geographic Analysis",
+      "status": "exact"
+    },
+    {
+      "source_type": "sheet",
+      "source_name": "Product Performance",
+      "target_type": "report_page",
+      "target_name": "Product Performance",
+      "status": "exact"
+    },
+    {
+      "source_type": "sheet",
+      "source_name": "Sales Rep Leaderboard",
+      "target_type": "report_page",
+      "target_name": "Sales Rep Leaderboard",
+      "status": "exact"
+    },
+    {
+      "source_type": "association",
+      "source_name": "Sales. → Customers.",
+      "target_type": "relationship",
+      "target_name": "Sales. → Customers.",
+      "status": "exact"
+    },
+    {
+      "source_type": "association",
+      "source_name": "Sales. → Products.",
+      "target_type": "relationship",
+      "target_name": "Sales. → Products.",
+      "status": "exact"
+    },
+    {
+      "source_type": "association",
+      "source_name": "Sales. → SalesReps.",
+      "target_type": "relationship",
+      "target_name": "Sales. → SalesReps.",
+      "status": "exact"
+    },
+    {
+      "source_type": "association",
+      "source_name": "Sales. → Returns.",
+      "target_type": "relationship",
+      "target_name": "Sales. → Returns.",
+      "status": "exact"
+    },
+    {
+      "source_type": "association",
+      "source_name": "Sales. → Targets.",
+      "target_type": "relationship",
+      "target_name": "Sales. → Targets.",
+      "status": "exact"
+    },
+    {
+      "source_type": "bookmark",
+      "source_name": "High Margin Products",
+      "target_type": "pbi_bookmark",
+      "target_name": "High Margin Products",
+      "status": "exact"
+    },
+    {
+      "source_type": "bookmark",
+      "source_name": "West Region Focus",
+      "target_type": "pbi_bookmark",
+      "target_name": "West Region Focus",
+      "status": "exact"
+    },
+    {
+      "source_type": "bookmark",
+      "source_name": "Current Year",
+      "target_type": "pbi_bookmark",
+      "target_name": "Current Year",
+      "status": "exact"
+    },
+    {
+      "source_type": "bookmark",
+      "source_name": "Enterprise Segment",
+      "target_type": "pbi_bookmark",
+      "target_name": "Enterprise Segment",
+      "status": "exact"
+    }
+  ]
+}

@@ -1,252 +1,482 @@
 [
   {
-    "qProperty": {
-      "qInfo": {
-        "qId": "sheet_exec",
-        "qType": "sheet"
-      },
-      "qMetaDef": {
-        "title": "Executive Summary",
-        "description": "High-level KPIs"
-      }
-    },
+    "name": "Executive Dashboard",
+    "description": "High-level KPIs and trends for leadership",
+    "id": "sheet-001",
     "cells": [
       {
-        "name": "viz_sales_kpi",
+        "name": "KPI-Sales",
         "type": "kpi",
-        "title": "Total Sales",
-        "properties": {
-          "fontSize": "large"
-        }
+        "col": 0,
+        "row": 0,
+        "colspan": 3,
+        "rowspan": 1,
+        "measures": [
+          "mea-001"
+        ]
       },
       {
-        "name": "viz_profit_kpi",
+        "name": "KPI-Profit",
         "type": "kpi",
-        "title": "Total Profit",
-        "properties": {
-          "fontSize": "large"
-        }
+        "col": 3,
+        "row": 0,
+        "colspan": 3,
+        "rowspan": 1,
+        "measures": [
+          "mea-004"
+        ]
       },
       {
-        "name": "viz_orders_kpi",
+        "name": "KPI-Margin",
         "type": "kpi",
-        "title": "Order Count",
-        "properties": {
-          "fontSize": "large"
-        }
+        "col": 6,
+        "row": 0,
+        "colspan": 3,
+        "rowspan": 1,
+        "measures": [
+          "mea-005"
+        ]
       },
       {
-        "name": "viz_customers_kpi",
+        "name": "KPI-Orders",
         "type": "kpi",
-        "title": "Customers",
-        "properties": {
-          "fontSize": "large"
-        }
+        "col": 9,
+        "row": 0,
+        "colspan": 3,
+        "rowspan": 1,
+        "measures": [
+          "mea-008"
+        ]
       },
       {
-        "name": "viz_sales_trend",
+        "name": "Sales-Trend",
         "type": "linechart",
-        "title": "Sales Trend",
-        "properties": {
-          "dataPoints": true
-        }
+        "col": 0,
+        "row": 1,
+        "colspan": 8,
+        "rowspan": 3,
+        "measures": [
+          "mea-001"
+        ],
+        "dimensions": [
+          "dim-010"
+        ]
       },
       {
-        "name": "viz_profit_bar",
+        "name": "Region-Bar",
         "type": "barchart",
-        "title": "Profit by Category",
-        "properties": {
-          "orientation": "horizontal"
-        }
+        "col": 8,
+        "row": 1,
+        "colspan": 4,
+        "rowspan": 3,
+        "measures": [
+          "mea-001"
+        ],
+        "dimensions": [
+          "dim-004"
+        ]
       },
       {
-        "name": "viz_region_map",
-        "type": "map",
-        "title": "Sales by Region",
-        "properties": {}
-      }
-    ],
-    "id": "sheet_exec",
-    "title": "Executive Summary"
-  },
-  {
-    "qProperty": {
-      "qInfo": {
-        "qId": "sheet_product",
-        "qType": "sheet"
-      },
-      "qMetaDef": {
-        "title": "Product Analysis",
-        "description": "Product performance"
-      }
-    },
-    "cells": [
-      {
-        "name": "viz_cat_bar",
-        "type": "barchart",
-        "title": "Sales by Category",
-        "properties": {
-          "orientation": "vertical"
-        }
-      },
-      {
-        "name": "viz_sub_tree",
-        "type": "treemap",
-        "title": "SubCategory Treemap",
-        "properties": {
-          "showLabels": true
-        }
-      },
-      {
-        "name": "viz_product_table",
-        "type": "table",
-        "title": "Product Detail",
-        "properties": {
-          "pagination": true
-        }
-      },
-      {
-        "name": "viz_product_waterfall",
-        "type": "waterfall",
-        "title": "Profit Waterfall by Sub-Category",
-        "properties": {}
-      },
-      {
-        "name": "viz_discount_scatter",
-        "type": "scatterplot",
-        "title": "Discount vs Profit Margin",
-        "properties": {
-          "showTrendLine": true
-        }
-      }
-    ],
-    "id": "sheet_product",
-    "title": "Product Analysis"
-  },
-  {
-    "qProperty": {
-      "qInfo": {
-        "qId": "sheet_customer",
-        "qType": "sheet"
-      },
-      "qMetaDef": {
-        "title": "Customer Analysis",
-        "description": "Customer insights"
-      }
-    },
-    "cells": [
-      {
-        "name": "viz_segment_pie",
+        "name": "Category-Pie",
         "type": "piechart",
-        "title": "Sales by Segment",
-        "properties": {
-          "showLabels": true
-        }
+        "col": 0,
+        "row": 4,
+        "colspan": 4,
+        "rowspan": 3,
+        "measures": [
+          "mea-001"
+        ],
+        "dimensions": [
+          "dim-002"
+        ]
       },
       {
-        "name": "viz_customer_scatter",
-        "type": "scatterplot",
-        "title": "Customer Sales vs Profit",
-        "properties": {}
+        "name": "Segment-Donut",
+        "type": "donut",
+        "col": 4,
+        "row": 4,
+        "colspan": 4,
+        "rowspan": 3,
+        "measures": [
+          "mea-001"
+        ],
+        "dimensions": [
+          "dim-006"
+        ]
       },
       {
-        "name": "viz_customer_pivot",
-        "type": "pivot-table",
-        "title": "Customer Pivot",
-        "properties": {}
-      },
-      {
-        "name": "viz_top_customers",
-        "type": "barchart",
-        "title": "Top 10 Customers",
-        "properties": {
-          "orientation": "horizontal"
-        }
-      }
-    ],
-    "id": "sheet_customer",
-    "title": "Customer Analysis"
-  },
-  {
-    "qProperty": {
-      "qInfo": {
-        "qId": "sheet_geo",
-        "qType": "sheet"
-      },
-      "qMetaDef": {
-        "title": "Geographic Analysis",
-        "description": "Regional performance"
-      }
-    },
-    "cells": [
-      {
-        "name": "viz_geo_map",
-        "type": "map",
-        "title": "Sales Heat Map",
-        "properties": {}
-      },
-      {
-        "name": "viz_region_combo",
-        "type": "combo",
-        "title": "Sales & Profit by Region",
-        "properties": {}
-      },
-      {
-        "name": "viz_city_bar",
-        "type": "barchart",
-        "title": "Top Cities",
-        "properties": {
-          "orientation": "horizontal"
-        }
-      }
-    ],
-    "id": "sheet_geo",
-    "title": "Geographic Analysis"
-  },
-  {
-    "qProperty": {
-      "qInfo": {
-        "qId": "sheet_operations",
-        "qType": "sheet"
-      },
-      "qMetaDef": {
-        "title": "Operations",
-        "description": "Shipping & returns"
-      }
-    },
-    "cells": [
-      {
-        "name": "viz_ship_gauge",
+        "name": "Target-Gauge",
         "type": "gauge",
-        "title": "Avg Days to Ship",
-        "properties": {
-          "min": 0,
-          "max": 10
-        }
-      },
-      {
-        "name": "viz_ship_mode_pie",
-        "type": "piechart",
-        "title": "Orders by Ship Mode",
-        "properties": {}
-      },
-      {
-        "name": "viz_return_combo",
-        "type": "combo",
-        "title": "Return Rate by Category",
-        "properties": {}
-      },
-      {
-        "name": "viz_orders_detail",
-        "type": "table",
-        "title": "Order Detail",
-        "properties": {
-          "pagination": true,
-          "rowsPerPage": 25
-        }
+        "col": 8,
+        "row": 4,
+        "colspan": 4,
+        "rowspan": 3,
+        "measures": [
+          "mea-012"
+        ]
       }
-    ],
-    "id": "sheet_operations",
-    "title": "Operations"
+    ]
+  },
+  {
+    "name": "Sales Analysis",
+    "description": "Detailed sales breakdown by product and region",
+    "id": "sheet-002",
+    "cells": [
+      {
+        "name": "Filter-Region",
+        "type": "filterpane",
+        "col": 0,
+        "row": 0,
+        "colspan": 2,
+        "rowspan": 2,
+        "dimensions": [
+          "dim-004"
+        ]
+      },
+      {
+        "name": "Filter-Category",
+        "type": "filterpane",
+        "col": 2,
+        "row": 0,
+        "colspan": 2,
+        "rowspan": 2,
+        "dimensions": [
+          "dim-002"
+        ]
+      },
+      {
+        "name": "Filter-Segment",
+        "type": "filterpane",
+        "col": 4,
+        "row": 0,
+        "colspan": 2,
+        "rowspan": 2,
+        "dimensions": [
+          "dim-006"
+        ]
+      },
+      {
+        "name": "Sales-by-SubCat",
+        "type": "barchart",
+        "col": 0,
+        "row": 2,
+        "colspan": 6,
+        "rowspan": 4,
+        "measures": [
+          "mea-001",
+          "mea-004"
+        ],
+        "dimensions": [
+          "dim-003"
+        ]
+      },
+      {
+        "name": "Scatter-Profit",
+        "type": "scatter",
+        "col": 6,
+        "row": 0,
+        "colspan": 6,
+        "rowspan": 3,
+        "measures": [
+          "mea-001",
+          "mea-005"
+        ],
+        "dimensions": [
+          "dim-008"
+        ]
+      },
+      {
+        "name": "Combo-Trend",
+        "type": "combochart",
+        "col": 6,
+        "row": 3,
+        "colspan": 6,
+        "rowspan": 3,
+        "measures": [
+          "mea-001",
+          "mea-004"
+        ],
+        "dimensions": [
+          "dim-010"
+        ]
+      },
+      {
+        "name": "Sales-Table",
+        "type": "table",
+        "col": 0,
+        "row": 6,
+        "colspan": 12,
+        "rowspan": 4,
+        "measures": [
+          "mea-001",
+          "mea-002",
+          "mea-004",
+          "mea-005"
+        ],
+        "dimensions": [
+          "dim-008",
+          "dim-002",
+          "dim-004"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Customer Insights",
+    "description": "Customer segmentation and behavior",
+    "id": "sheet-003",
+    "cells": [
+      {
+        "name": "KPI-Customers",
+        "type": "kpi",
+        "col": 0,
+        "row": 0,
+        "colspan": 4,
+        "rowspan": 1,
+        "measures": [
+          "mea-007"
+        ]
+      },
+      {
+        "name": "KPI-AOV",
+        "type": "kpi",
+        "col": 4,
+        "row": 0,
+        "colspan": 4,
+        "rowspan": 1,
+        "measures": [
+          "mea-006"
+        ]
+      },
+      {
+        "name": "KPI-ReturnRate",
+        "type": "kpi",
+        "col": 8,
+        "row": 0,
+        "colspan": 4,
+        "rowspan": 1,
+        "measures": [
+          "mea-013"
+        ]
+      },
+      {
+        "name": "Treemap-Customer",
+        "type": "treemap",
+        "col": 0,
+        "row": 1,
+        "colspan": 6,
+        "rowspan": 4,
+        "measures": [
+          "mea-001"
+        ],
+        "dimensions": [
+          "dim-006",
+          "dim-001"
+        ]
+      },
+      {
+        "name": "Segment-Bar",
+        "type": "barchart",
+        "col": 6,
+        "row": 1,
+        "colspan": 6,
+        "rowspan": 4,
+        "measures": [
+          "mea-001",
+          "mea-007"
+        ],
+        "dimensions": [
+          "dim-006"
+        ]
+      },
+      {
+        "name": "Customer-Pivot",
+        "type": "pivot-table",
+        "col": 0,
+        "row": 5,
+        "colspan": 12,
+        "rowspan": 4,
+        "measures": [
+          "mea-001",
+          "mea-002",
+          "mea-006"
+        ],
+        "dimensions": [
+          "dim-009",
+          "dim-006",
+          "dim-001"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Geographic Analysis",
+    "description": "Sales by geography with map visualization",
+    "id": "sheet-004",
+    "cells": [
+      {
+        "name": "Sales-Map",
+        "type": "map",
+        "col": 0,
+        "row": 0,
+        "colspan": 8,
+        "rowspan": 5,
+        "measures": [
+          "mea-001"
+        ],
+        "dimensions": [
+          "dim-009"
+        ]
+      },
+      {
+        "name": "Region-Waterfall",
+        "type": "waterfallchart",
+        "col": 8,
+        "row": 0,
+        "colspan": 4,
+        "rowspan": 5,
+        "measures": [
+          "mea-004"
+        ],
+        "dimensions": [
+          "dim-004"
+        ]
+      },
+      {
+        "name": "Geo-Table",
+        "type": "table",
+        "col": 0,
+        "row": 5,
+        "colspan": 12,
+        "rowspan": 4,
+        "measures": [
+          "mea-001",
+          "mea-004",
+          "mea-005",
+          "mea-007"
+        ],
+        "dimensions": [
+          "dim-009",
+          "dim-004"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Product Performance",
+    "description": "Product mix, brands, and returns analysis",
+    "id": "sheet-005",
+    "cells": [
+      {
+        "name": "Category-Stacked",
+        "type": "stackedbarchart",
+        "col": 0,
+        "row": 0,
+        "colspan": 6,
+        "rowspan": 4,
+        "measures": [
+          "mea-001"
+        ],
+        "dimensions": [
+          "dim-002",
+          "dim-003"
+        ]
+      },
+      {
+        "name": "Brand-Word",
+        "type": "wordcloud",
+        "col": 6,
+        "row": 0,
+        "colspan": 6,
+        "rowspan": 4,
+        "measures": [
+          "mea-001"
+        ],
+        "dimensions": [
+          "dim-008"
+        ]
+      },
+      {
+        "name": "Returns-Bar",
+        "type": "barchart",
+        "col": 0,
+        "row": 4,
+        "colspan": 6,
+        "rowspan": 3,
+        "measures": [
+          "mea-013"
+        ],
+        "dimensions": [
+          "dim-002"
+        ]
+      },
+      {
+        "name": "Discount-Box",
+        "type": "boxplot",
+        "col": 6,
+        "row": 4,
+        "colspan": 6,
+        "rowspan": 3,
+        "measures": [
+          "mea-014"
+        ],
+        "dimensions": [
+          "dim-002"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Sales Rep Leaderboard",
+    "description": "Individual sales rep performance and rankings",
+    "id": "sheet-006",
+    "cells": [
+      {
+        "name": "Rep-Bar",
+        "type": "barchart",
+        "col": 0,
+        "row": 0,
+        "colspan": 8,
+        "rowspan": 4,
+        "measures": [
+          "mea-001"
+        ],
+        "dimensions": [
+          "dim-005"
+        ]
+      },
+      {
+        "name": "Rep-Funnel",
+        "type": "funnelchart",
+        "col": 8,
+        "row": 0,
+        "colspan": 4,
+        "rowspan": 4,
+        "measures": [
+          "mea-008"
+        ],
+        "dimensions": [
+          "dim-005"
+        ]
+      },
+      {
+        "name": "Rep-Table",
+        "type": "table",
+        "col": 0,
+        "row": 4,
+        "colspan": 12,
+        "rowspan": 5,
+        "measures": [
+          "mea-001",
+          "mea-004",
+          "mea-005",
+          "mea-008",
+          "mea-017"
+        ],
+        "dimensions": [
+          "dim-005"
+        ]
+      }
+    ]
   }
 ]

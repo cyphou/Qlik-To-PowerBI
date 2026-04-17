@@ -38,7 +38,7 @@ python migrate.py app.qvf --verbose        # Detailed logging
 │   ├── extraction_orchestrator.py     # QVF/JSON → 11 intermediate JSON files
 │   ├── format_adapter.py             # Qlik 11-key → generation-layer bridge
 │   ├── datasource_extractor.py       # API bridge (type/formula/M adapters)
-│   ├── m_query_generator.py          # 25 connector types → Power Query M
+│   ├── m_query_generator.py          # 42 connector types → Power Query M
 │   ├── m_query_builder.py            # 40+ chainable M transforms + inject_m_steps
 │   ├── qlik_migrator.py              # QlikApp → Power BI converter
 │   ├── qlik_model_converter.py
@@ -60,6 +60,8 @@ python migrate.py app.qvf --verbose        # Detailed logging
 │   ├── security_validator.py         # Path/ZIP slip/XXE protection
 │   ├── monitoring.py                 # Metrics export (Azure Monitor, Prometheus, JSON)
 │   ├── alerts_generator.py           # Threshold-based PBI alert rules
+│   ├── lineage_map.py                # Source-to-target provenance tracking
+│   ├── qa_pipeline.py                # Full QA pipeline (17 auto-fix patterns)
 │   ├── recovery_report.py            # Self-healing recovery tracking
 │   ├── sla_tracker.py                # Per-app SLA compliance
 │   ├── schema_drift.py               # Column/formula change detection
@@ -140,11 +142,14 @@ python migrate.py app.qvf --verbose        # Detailed logging
 | Security | 3 | OSUser→USERPRINCIPALNAME |
 | Advanced | 38 | Aggr→SUMMARIZE/SUMX, Dual→VALUE, Class→INT/DIVIDE |
 
-## Power Query M — 25 Connector Types
+## Power Query M — 42 Connector Types
 
 Excel, CSV, SQL Server, PostgreSQL, BigQuery, Oracle, MySQL, Snowflake, Teradata,
 SAP HANA, Redshift, Databricks, Spark, Azure SQL, Azure Synapse, Google Sheets,
-SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB
+SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB, OData,
+Google Analytics, Azure Blob, Vertica, Impala, Hadoop Hive, Presto,
+Fabric Lakehouse, Dataverse, MongoDB, Cosmos DB, Athena, DB2, GeoJSON,
+SAP BW, Custom SQL
 
 ## Power Query M — 40+ Transform Generators
 
@@ -206,17 +211,42 @@ SharePoint, JSON, XML, PDF, Salesforce, Web, QVD, ODBC, OLE DB
 - P()/E() set analysis → ALL/EXCEPT
 - Dollar-sign expression expansion `$(=expr)` with Qlik→DAX conversion
 
-## Current Stats (v9.0.0)
+## Current Stats (v10.0.0)
 
-- **2000 tests** across 44 test files
-- **55 powerbi_import modules** (was 20 in v8)
+- **2,213 tests** across 60 test files
+- **57 powerbi_import modules** (including lineage_map, qa_pipeline)
+- **42 data connectors** in M query generator (was 25 in v9)
+- **~85 CLI flags** (was 25 in v9)
 - **164 entries** in `_SIMPLE_FUNCTION_MAP`
+- **4 DAX stubs remaining** (Skew, Hash128/160/256, Evaluate — truly unsupported)
 - **5/6 sample migrations** pass at 100% fidelity
 - **Plugin system** with 7 hook points (`--plugins` CLI flag)
 - **JSON output** for CI/CD (`--json` CLI flag)
 - **Progress callbacks** for pipeline visibility
-- **9 agent definitions** for multi-agent Copilot workflows
+- **10 agent definitions** for multi-agent Copilot workflows (preceptorship model)
 - **5 CI workflows** (lint, test, deploy, gh-pages, publish)
+- **Lineage map** for full source-to-target provenance tracking
+- **QA pipeline** with 17 auto-fix patterns for Qlik→DAX leaks
+
+## Multi-Agent Preceptorship Model
+
+```
+Tech Lead (Orchestrator) ← architecture, planning
+Preceptor               ← quality review, standards
+Specialists             ← Plan → Assign → Implement → Review
+```
+
+- **Orchestrator** (Tech Lead): pipeline coordination, CLI, cross-agent planning
+- **Preceptor**: quality review, cross-agent consistency, pitfall detection
+- **Extractor**: Qlik QVF/JSON parsing → 11 intermediate JSON
+- **Converter**: 175+ DAX conversions, 42 M connectors, 40+ transforms
+- **Generator**: TMDL, PBIR, 75+ visual types, Fabric-native output
+- **Assessor**: readiness scoring, strategy advising, visual diff
+- **Merger**: multi-app merge, fingerprint matching, thin reports
+- **Deployer**: PBI Service / Fabric deployment, Azure AD auth
+- **Tester**: 2,000 tests, regression suites
+
+See `.github/agents/` for full agent definitions.
 
 ## v9 — Enterprise Features (ported from TableauToPowerBI)
 

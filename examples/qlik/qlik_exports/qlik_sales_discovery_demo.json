@@ -1,0 +1,279 @@
+{
+  "app_metadata": {
+    "name": "Sales Discovery Demo",
+    "description": "Qlik Sense demo app based on the Beginner's Tutorial Sales Discovery pattern. Multi-table star schema with Set Analysis, Aggr(), Section Access, and 6 sheet types.",
+    "author": "Qlik Demo Team",
+    "created": "2025-06-15",
+    "modified": "2026-01-20",
+    "theme": {
+      "colors": ["#4477AA", "#EE6677", "#228833", "#CCBB44", "#66CCEE", "#AA3377", "#BBBBBB"]
+    }
+  },
+  "datasources": [
+    {
+      "name": "Sales",
+      "tableName": "Sales",
+      "connectionType": "csv",
+      "connection": { "path": "data/Sales.csv", "delimiter": "," },
+      "columns": [
+        { "name": "OrderID", "type": "integer" },
+        { "name": "OrderDate", "type": "date" },
+        { "name": "CustomerID", "type": "integer" },
+        { "name": "ProductID", "type": "integer" },
+        { "name": "SalesRepID", "type": "integer" },
+        { "name": "Quantity", "type": "integer" },
+        { "name": "UnitPrice", "type": "decimal" },
+        { "name": "Discount", "type": "decimal" },
+        { "name": "Amount", "type": "decimal" },
+        { "name": "Cost", "type": "decimal" },
+        { "name": "ShipDate", "type": "date" },
+        { "name": "ShipMode", "type": "string" },
+        { "name": "Region", "type": "string" }
+      ]
+    },
+    {
+      "name": "Customers",
+      "tableName": "Customers",
+      "connectionType": "excel",
+      "connection": { "path": "data/Customers.xlsx" },
+      "columns": [
+        { "name": "CustomerID", "type": "integer" },
+        { "name": "CustomerName", "type": "string" },
+        { "name": "Segment", "type": "string" },
+        { "name": "Country", "type": "string" },
+        { "name": "State", "type": "string" },
+        { "name": "City", "type": "string" },
+        { "name": "PostalCode", "type": "string" },
+        { "name": "Phone", "type": "string" },
+        { "name": "Email", "type": "string" }
+      ]
+    },
+    {
+      "name": "Products",
+      "tableName": "Products",
+      "connectionType": "sqlserver",
+      "connection": { "server": "sql-prod-01", "database": "ProductCatalog" },
+      "columns": [
+        { "name": "ProductID", "type": "integer" },
+        { "name": "ProductName", "type": "string" },
+        { "name": "Category", "type": "string" },
+        { "name": "SubCategory", "type": "string" },
+        { "name": "Brand", "type": "string" },
+        { "name": "UnitCost", "type": "decimal" },
+        { "name": "ListPrice", "type": "decimal" }
+      ]
+    },
+    {
+      "name": "SalesReps",
+      "tableName": "SalesReps",
+      "connectionType": "csv",
+      "connection": { "path": "data/SalesReps.csv", "delimiter": "," },
+      "columns": [
+        { "name": "SalesRepID", "type": "integer" },
+        { "name": "SalesRepName", "type": "string" },
+        { "name": "Team", "type": "string" },
+        { "name": "HireDate", "type": "date" },
+        { "name": "ManagerName", "type": "string" }
+      ]
+    },
+    {
+      "name": "Targets",
+      "tableName": "Targets",
+      "connectionType": "excel",
+      "connection": { "path": "data/Targets.xlsx" },
+      "columns": [
+        { "name": "Year", "type": "integer" },
+        { "name": "Month", "type": "integer" },
+        { "name": "Region", "type": "string" },
+        { "name": "TargetAmount", "type": "decimal" },
+        { "name": "TargetQuantity", "type": "integer" }
+      ]
+    },
+    {
+      "name": "Returns",
+      "tableName": "Returns",
+      "connectionType": "csv",
+      "connection": { "path": "data/Returns.csv", "delimiter": "," },
+      "columns": [
+        { "name": "ReturnID", "type": "integer" },
+        { "name": "OrderID", "type": "integer" },
+        { "name": "ReturnDate", "type": "date" },
+        { "name": "ReturnReason", "type": "string" },
+        { "name": "RefundAmount", "type": "decimal" }
+      ]
+    }
+  ],
+  "dimensions": [
+    { "name": "Customer Name", "field": "CustomerName", "label": "Customer", "id": "dim-001" },
+    { "name": "Product Category", "field": "Category", "label": "Category", "id": "dim-002" },
+    { "name": "Sub-Category", "field": "SubCategory", "label": "Sub-Category", "id": "dim-003" },
+    { "name": "Region", "field": "Region", "label": "Region", "id": "dim-004" },
+    { "name": "Sales Rep", "field": "SalesRepName", "label": "Sales Rep", "id": "dim-005" },
+    { "name": "Customer Segment", "field": "Segment", "label": "Segment", "id": "dim-006" },
+    { "name": "Ship Mode", "field": "ShipMode", "label": "Ship Mode", "id": "dim-007" },
+    { "name": "Product", "field": "ProductName", "label": "Product", "id": "dim-008" },
+    { "name": "Country", "field": "Country", "label": "Country", "id": "dim-009" },
+    { "name": "Year-Month", "field": "=Year(OrderDate) & '-' & Num(Month(OrderDate), '00')", "label": "Period", "id": "dim-010",
+      "drillDown": ["Year(OrderDate)", "Month(OrderDate)", "Day(OrderDate)"]
+    }
+  ],
+  "measures": [
+    { "name": "Total Sales", "expression": "Sum(Amount)", "label": "Total Sales", "format": "$#,##0", "id": "mea-001" },
+    { "name": "Total Quantity", "expression": "Sum(Quantity)", "label": "Qty", "format": "#,##0", "id": "mea-002" },
+    { "name": "Total Cost", "expression": "Sum(Cost)", "label": "Cost", "format": "$#,##0", "id": "mea-003" },
+    { "name": "Gross Profit", "expression": "Sum(Amount) - Sum(Cost)", "label": "Profit", "format": "$#,##0", "id": "mea-004" },
+    { "name": "Profit Margin", "expression": "(Sum(Amount) - Sum(Cost)) / Sum(Amount)", "label": "Margin %", "format": "0.0%", "id": "mea-005" },
+    { "name": "Avg Order Value", "expression": "Avg(Amount)", "label": "AOV", "format": "$#,##0.00", "id": "mea-006" },
+    { "name": "Distinct Customers", "expression": "Count(DISTINCT CustomerID)", "label": "Customers", "format": "#,##0", "id": "mea-007" },
+    { "name": "Orders Count", "expression": "Count(DISTINCT OrderID)", "label": "Orders", "format": "#,##0", "id": "mea-008" },
+    { "name": "YTD Sales", "expression": "Sum({<OrderDate={'>=$(=YearStart(Today()))<=$(=Today())'}>} Amount)", "label": "YTD Sales", "format": "$#,##0", "id": "mea-009" },
+    { "name": "Prior Year Sales", "expression": "Sum({<Year={$(=Year(Today())-1)}>} Amount)", "label": "PY Sales", "format": "$#,##0", "id": "mea-010" },
+    { "name": "YoY Growth", "expression": "(Sum(Amount) - Sum({<Year={$(=Year(Today())-1)}>} Amount)) / Sum({<Year={$(=Year(Today())-1)}>} Amount)", "label": "YoY %", "format": "0.0%", "id": "mea-011" },
+    { "name": "Sales vs Target", "expression": "Sum(Amount) / Sum(TargetAmount)", "label": "% Target", "format": "0.0%", "id": "mea-012" },
+    { "name": "Return Rate", "expression": "Count(DISTINCT ReturnID) / Count(DISTINCT OrderID)", "label": "Return Rate", "format": "0.0%", "id": "mea-013" },
+    { "name": "Avg Discount", "expression": "Avg(Discount)", "label": "Avg Discount", "format": "0.0%", "id": "mea-014" },
+    { "name": "Top Category Sales", "expression": "Aggr(Sum(Amount), Category)", "label": "Category Total", "format": "$#,##0", "id": "mea-015" },
+    { "name": "Running Total", "expression": "RangeSum(Above(Sum(Amount), 0, RowNo()))", "label": "Running Total", "format": "$#,##0", "id": "mea-016" },
+    { "name": "Rank by Sales", "expression": "Rank(Sum(Amount))", "label": "Rank", "format": "#,##0", "id": "mea-017" },
+    { "name": "Previous Month Sales", "expression": "Above(Sum(Amount))", "label": "Prev Month", "format": "$#,##0", "id": "mea-018" }
+  ],
+  "sheets": [
+    {
+      "name": "Executive Dashboard",
+      "description": "High-level KPIs and trends for leadership",
+      "id": "sheet-001",
+      "cells": [
+        { "name": "KPI-Sales", "type": "kpi", "col": 0, "row": 0, "colspan": 3, "rowspan": 1, "measures": ["mea-001"] },
+        { "name": "KPI-Profit", "type": "kpi", "col": 3, "row": 0, "colspan": 3, "rowspan": 1, "measures": ["mea-004"] },
+        { "name": "KPI-Margin", "type": "kpi", "col": 6, "row": 0, "colspan": 3, "rowspan": 1, "measures": ["mea-005"] },
+        { "name": "KPI-Orders", "type": "kpi", "col": 9, "row": 0, "colspan": 3, "rowspan": 1, "measures": ["mea-008"] },
+        { "name": "Sales-Trend", "type": "linechart", "col": 0, "row": 1, "colspan": 8, "rowspan": 3, "measures": ["mea-001"], "dimensions": ["dim-010"] },
+        { "name": "Region-Bar", "type": "barchart", "col": 8, "row": 1, "colspan": 4, "rowspan": 3, "measures": ["mea-001"], "dimensions": ["dim-004"] },
+        { "name": "Category-Pie", "type": "piechart", "col": 0, "row": 4, "colspan": 4, "rowspan": 3, "measures": ["mea-001"], "dimensions": ["dim-002"] },
+        { "name": "Segment-Donut", "type": "donut", "col": 4, "row": 4, "colspan": 4, "rowspan": 3, "measures": ["mea-001"], "dimensions": ["dim-006"] },
+        { "name": "Target-Gauge", "type": "gauge", "col": 8, "row": 4, "colspan": 4, "rowspan": 3, "measures": ["mea-012"] }
+      ]
+    },
+    {
+      "name": "Sales Analysis",
+      "description": "Detailed sales breakdown by product and region",
+      "id": "sheet-002",
+      "cells": [
+        { "name": "Filter-Region", "type": "filterpane", "col": 0, "row": 0, "colspan": 2, "rowspan": 2, "dimensions": ["dim-004"] },
+        { "name": "Filter-Category", "type": "filterpane", "col": 2, "row": 0, "colspan": 2, "rowspan": 2, "dimensions": ["dim-002"] },
+        { "name": "Filter-Segment", "type": "filterpane", "col": 4, "row": 0, "colspan": 2, "rowspan": 2, "dimensions": ["dim-006"] },
+        { "name": "Sales-by-SubCat", "type": "barchart", "col": 0, "row": 2, "colspan": 6, "rowspan": 4, "measures": ["mea-001", "mea-004"], "dimensions": ["dim-003"] },
+        { "name": "Scatter-Profit", "type": "scatter", "col": 6, "row": 0, "colspan": 6, "rowspan": 3, "measures": ["mea-001", "mea-005"], "dimensions": ["dim-008"] },
+        { "name": "Combo-Trend", "type": "combochart", "col": 6, "row": 3, "colspan": 6, "rowspan": 3, "measures": ["mea-001", "mea-004"], "dimensions": ["dim-010"] },
+        { "name": "Sales-Table", "type": "table", "col": 0, "row": 6, "colspan": 12, "rowspan": 4, "measures": ["mea-001", "mea-002", "mea-004", "mea-005"], "dimensions": ["dim-008", "dim-002", "dim-004"] }
+      ]
+    },
+    {
+      "name": "Customer Insights",
+      "description": "Customer segmentation and behavior",
+      "id": "sheet-003",
+      "cells": [
+        { "name": "KPI-Customers", "type": "kpi", "col": 0, "row": 0, "colspan": 4, "rowspan": 1, "measures": ["mea-007"] },
+        { "name": "KPI-AOV", "type": "kpi", "col": 4, "row": 0, "colspan": 4, "rowspan": 1, "measures": ["mea-006"] },
+        { "name": "KPI-ReturnRate", "type": "kpi", "col": 8, "row": 0, "colspan": 4, "rowspan": 1, "measures": ["mea-013"] },
+        { "name": "Treemap-Customer", "type": "treemap", "col": 0, "row": 1, "colspan": 6, "rowspan": 4, "measures": ["mea-001"], "dimensions": ["dim-006", "dim-001"] },
+        { "name": "Segment-Bar", "type": "barchart", "col": 6, "row": 1, "colspan": 6, "rowspan": 4, "measures": ["mea-001", "mea-007"], "dimensions": ["dim-006"] },
+        { "name": "Customer-Pivot", "type": "pivot-table", "col": 0, "row": 5, "colspan": 12, "rowspan": 4, "measures": ["mea-001", "mea-002", "mea-006"], "dimensions": ["dim-009", "dim-006", "dim-001"] }
+      ]
+    },
+    {
+      "name": "Geographic Analysis",
+      "description": "Sales by geography with map visualization",
+      "id": "sheet-004",
+      "cells": [
+        { "name": "Sales-Map", "type": "map", "col": 0, "row": 0, "colspan": 8, "rowspan": 5, "measures": ["mea-001"], "dimensions": ["dim-009"] },
+        { "name": "Region-Waterfall", "type": "waterfallchart", "col": 8, "row": 0, "colspan": 4, "rowspan": 5, "measures": ["mea-004"], "dimensions": ["dim-004"] },
+        { "name": "Geo-Table", "type": "table", "col": 0, "row": 5, "colspan": 12, "rowspan": 4, "measures": ["mea-001", "mea-004", "mea-005", "mea-007"], "dimensions": ["dim-009", "dim-004"] }
+      ]
+    },
+    {
+      "name": "Product Performance",
+      "description": "Product mix, brands, and returns analysis",
+      "id": "sheet-005",
+      "cells": [
+        { "name": "Category-Stacked", "type": "stackedbarchart", "col": 0, "row": 0, "colspan": 6, "rowspan": 4, "measures": ["mea-001"], "dimensions": ["dim-002", "dim-003"] },
+        { "name": "Brand-Word", "type": "wordcloud", "col": 6, "row": 0, "colspan": 6, "rowspan": 4, "measures": ["mea-001"], "dimensions": ["dim-008"] },
+        { "name": "Returns-Bar", "type": "barchart", "col": 0, "row": 4, "colspan": 6, "rowspan": 3, "measures": ["mea-013"], "dimensions": ["dim-002"] },
+        { "name": "Discount-Box", "type": "boxplot", "col": 6, "row": 4, "colspan": 6, "rowspan": 3, "measures": ["mea-014"], "dimensions": ["dim-002"] }
+      ]
+    },
+    {
+      "name": "Sales Rep Leaderboard",
+      "description": "Individual sales rep performance and rankings",
+      "id": "sheet-006",
+      "cells": [
+        { "name": "Rep-Bar", "type": "barchart", "col": 0, "row": 0, "colspan": 8, "rowspan": 4, "measures": ["mea-001"], "dimensions": ["dim-005"] },
+        { "name": "Rep-Funnel", "type": "funnelchart", "col": 8, "row": 0, "colspan": 4, "rowspan": 4, "measures": ["mea-008"], "dimensions": ["dim-005"] },
+        { "name": "Rep-Table", "type": "table", "col": 0, "row": 4, "colspan": 12, "rowspan": 5, "measures": ["mea-001", "mea-004", "mea-005", "mea-008", "mea-017"], "dimensions": ["dim-005"] }
+      ]
+    }
+  ],
+  "visualizations": [
+    { "id": "KPI-Sales", "type": "kpi", "title": "Total Sales", "measures": [{"expression": "Sum(Amount)", "label": "Total Sales", "format": "$#,##0"}], "dimensions": [] },
+    { "id": "KPI-Profit", "type": "kpi", "title": "Gross Profit", "measures": [{"expression": "Sum(Amount) - Sum(Cost)", "label": "Profit", "format": "$#,##0"}], "dimensions": [] },
+    { "id": "KPI-Margin", "type": "kpi", "title": "Profit Margin", "measures": [{"expression": "(Sum(Amount) - Sum(Cost)) / Sum(Amount)", "label": "Margin", "format": "0.0%"}], "dimensions": [] },
+    { "id": "KPI-Orders", "type": "kpi", "title": "Total Orders", "measures": [{"expression": "Count(DISTINCT OrderID)", "label": "Orders", "format": "#,##0"}], "dimensions": [] },
+    { "id": "Sales-Trend", "type": "linechart", "title": "Sales Trend", "measures": [{"expression": "Sum(Amount)", "label": "Sales", "format": "$#,##0"}], "dimensions": [{"field": "=Year(OrderDate) & '-' & Num(Month(OrderDate), '00')", "label": "Period"}] },
+    { "id": "Region-Bar", "type": "barchart", "title": "Sales by Region", "measures": [{"expression": "Sum(Amount)", "label": "Sales", "format": "$#,##0"}], "dimensions": [{"field": "Region", "label": "Region"}] },
+    { "id": "Category-Pie", "type": "piechart", "title": "Sales by Category", "measures": [{"expression": "Sum(Amount)", "label": "Sales", "format": "$#,##0"}], "dimensions": [{"field": "Category", "label": "Category"}] },
+    { "id": "Segment-Donut", "type": "donut", "title": "Sales by Segment", "measures": [{"expression": "Sum(Amount)", "label": "Sales", "format": "$#,##0"}], "dimensions": [{"field": "Segment", "label": "Segment"}] },
+    { "id": "Target-Gauge", "type": "gauge", "title": "Sales vs Target", "measures": [{"expression": "Sum(Amount) / Sum(TargetAmount)", "label": "% Target", "format": "0.0%"}], "dimensions": [] },
+    { "id": "Filter-Region", "type": "filterpane", "title": "Region Filter", "measures": [], "dimensions": [{"field": "Region", "label": "Region"}] },
+    { "id": "Filter-Category", "type": "filterpane", "title": "Category Filter", "measures": [], "dimensions": [{"field": "Category", "label": "Category"}] },
+    { "id": "Filter-Segment", "type": "filterpane", "title": "Segment Filter", "measures": [], "dimensions": [{"field": "Segment", "label": "Segment"}] },
+    { "id": "Sales-by-SubCat", "type": "barchart", "title": "Sales by Sub-Category", "measures": [{"expression": "Sum(Amount)", "label": "Sales", "format": "$#,##0"}, {"expression": "Sum(Amount) - Sum(Cost)", "label": "Profit", "format": "$#,##0"}], "dimensions": [{"field": "SubCategory", "label": "Sub-Category"}] },
+    { "id": "Scatter-Profit", "type": "scatter", "title": "Sales vs Margin by Product", "measures": [{"expression": "Sum(Amount)", "label": "Sales"}, {"expression": "(Sum(Amount) - Sum(Cost)) / Sum(Amount)", "label": "Margin %"}], "dimensions": [{"field": "ProductName", "label": "Product"}] },
+    { "id": "Combo-Trend", "type": "combochart", "title": "Sales & Profit Trend", "measures": [{"expression": "Sum(Amount)", "label": "Sales", "format": "$#,##0"}, {"expression": "Sum(Amount) - Sum(Cost)", "label": "Profit", "format": "$#,##0"}], "dimensions": [{"field": "=Year(OrderDate) & '-' & Num(Month(OrderDate), '00')", "label": "Period"}] },
+    { "id": "Sales-Table", "type": "table", "title": "Sales Detail", "measures": [{"expression": "Sum(Amount)", "label": "Sales"}, {"expression": "Sum(Quantity)", "label": "Qty"}, {"expression": "Sum(Amount) - Sum(Cost)", "label": "Profit"}, {"expression": "(Sum(Amount) - Sum(Cost)) / Sum(Amount)", "label": "Margin %"}], "dimensions": [{"field": "ProductName", "label": "Product"}, {"field": "Category", "label": "Category"}, {"field": "Region", "label": "Region"}] },
+    { "id": "KPI-Customers", "type": "kpi", "title": "Distinct Customers", "measures": [{"expression": "Count(DISTINCT CustomerID)", "label": "Customers", "format": "#,##0"}], "dimensions": [] },
+    { "id": "KPI-AOV", "type": "kpi", "title": "Avg Order Value", "measures": [{"expression": "Avg(Amount)", "label": "AOV", "format": "$#,##0.00"}], "dimensions": [] },
+    { "id": "KPI-ReturnRate", "type": "kpi", "title": "Return Rate", "measures": [{"expression": "Count(DISTINCT ReturnID) / Count(DISTINCT OrderID)", "label": "Return Rate", "format": "0.0%"}], "dimensions": [] },
+    { "id": "Treemap-Customer", "type": "treemap", "title": "Customer Treemap", "measures": [{"expression": "Sum(Amount)", "label": "Sales"}], "dimensions": [{"field": "Segment", "label": "Segment"}, {"field": "CustomerName", "label": "Customer"}] },
+    { "id": "Segment-Bar", "type": "barchart", "title": "Sales & Customers by Segment", "measures": [{"expression": "Sum(Amount)", "label": "Sales"}, {"expression": "Count(DISTINCT CustomerID)", "label": "Customers"}], "dimensions": [{"field": "Segment", "label": "Segment"}] },
+    { "id": "Customer-Pivot", "type": "pivot-table", "title": "Customer Pivot", "measures": [{"expression": "Sum(Amount)", "label": "Sales"}, {"expression": "Sum(Quantity)", "label": "Qty"}, {"expression": "Avg(Amount)", "label": "AOV"}], "dimensions": [{"field": "Country", "label": "Country"}, {"field": "Segment", "label": "Segment"}, {"field": "CustomerName", "label": "Customer"}] },
+    { "id": "Sales-Map", "type": "map", "title": "Sales by Country", "measures": [{"expression": "Sum(Amount)", "label": "Sales"}], "dimensions": [{"field": "Country", "label": "Country"}] },
+    { "id": "Region-Waterfall", "type": "waterfallchart", "title": "Profit by Region", "measures": [{"expression": "Sum(Amount) - Sum(Cost)", "label": "Profit"}], "dimensions": [{"field": "Region", "label": "Region"}] },
+    { "id": "Geo-Table", "type": "table", "title": "Geographic Summary", "measures": [{"expression": "Sum(Amount)", "label": "Sales"}, {"expression": "Sum(Amount) - Sum(Cost)", "label": "Profit"}, {"expression": "(Sum(Amount) - Sum(Cost)) / Sum(Amount)", "label": "Margin %"}, {"expression": "Count(DISTINCT CustomerID)", "label": "Customers"}], "dimensions": [{"field": "Country", "label": "Country"}, {"field": "Region", "label": "Region"}] },
+    { "id": "Category-Stacked", "type": "stackedbarchart", "title": "Category Breakdown", "measures": [{"expression": "Sum(Amount)", "label": "Sales"}], "dimensions": [{"field": "Category", "label": "Category"}, {"field": "SubCategory", "label": "Sub-Category"}] },
+    { "id": "Brand-Word", "type": "wordcloud", "title": "Product Cloud", "measures": [{"expression": "Sum(Amount)", "label": "Sales"}], "dimensions": [{"field": "ProductName", "label": "Product"}] },
+    { "id": "Returns-Bar", "type": "barchart", "title": "Return Rate by Category", "measures": [{"expression": "Count(DISTINCT ReturnID) / Count(DISTINCT OrderID)", "label": "Return Rate"}], "dimensions": [{"field": "Category", "label": "Category"}] },
+    { "id": "Discount-Box", "type": "boxplot", "title": "Discount Distribution", "measures": [{"expression": "Avg(Discount)", "label": "Avg Discount"}], "dimensions": [{"field": "Category", "label": "Category"}] },
+    { "id": "Rep-Bar", "type": "barchart", "title": "Sales by Rep", "measures": [{"expression": "Sum(Amount)", "label": "Sales"}], "dimensions": [{"field": "SalesRepName", "label": "Sales Rep"}] },
+    { "id": "Rep-Funnel", "type": "funnelchart", "title": "Orders by Rep", "measures": [{"expression": "Count(DISTINCT OrderID)", "label": "Orders"}], "dimensions": [{"field": "SalesRepName", "label": "Sales Rep"}] },
+    { "id": "Rep-Table", "type": "table", "title": "Sales Rep Scorecard", "measures": [{"expression": "Sum(Amount)", "label": "Sales"}, {"expression": "Sum(Amount) - Sum(Cost)", "label": "Profit"}, {"expression": "(Sum(Amount) - Sum(Cost)) / Sum(Amount)", "label": "Margin %"}, {"expression": "Count(DISTINCT OrderID)", "label": "Orders"}, {"expression": "Rank(Sum(Amount))", "label": "Rank"}], "dimensions": [{"field": "SalesRepName", "label": "Sales Rep"}] }
+  ],
+  "associations": [
+    { "table1": "Sales", "field1": "CustomerID", "table2": "Customers", "field2": "CustomerID" },
+    { "table1": "Sales", "field1": "ProductID", "table2": "Products", "field2": "ProductID" },
+    { "table1": "Sales", "field1": "SalesRepID", "table2": "SalesReps", "field2": "SalesRepID" },
+    { "table1": "Sales", "field1": "OrderID", "table2": "Returns", "field2": "OrderID" },
+    { "table1": "Sales", "field1": "Region", "table2": "Targets", "field2": "Region" }
+  ],
+  "variables": [
+    { "name": "vCurrentYear", "value": "Year(Today())", "comment": "Current year" },
+    { "name": "vPriorYear", "value": "Year(Today()) - 1", "comment": "Previous year" },
+    { "name": "vTargetGrowth", "value": "0.10", "comment": "10% YoY growth target" },
+    { "name": "vTop10Customers", "value": "Sum({<CustomerName={\">=$(=Aggr(Sum(Amount), CustomerName)[-10]\"}>} Amount)", "comment": "Sales from top 10 customers" },
+    { "name": "vMarginThreshold", "value": "0.20", "comment": "Minimum acceptable margin (20%)" }
+  ],
+  "bookmarks": [
+    { "name": "High Margin Products", "id": "bm-001", "selections": [{"field": "Category", "values": ["Electronics", "Technology"]}] },
+    { "name": "West Region Focus", "id": "bm-002", "selections": [{"field": "Region", "values": ["West"]}] },
+    { "name": "Current Year", "id": "bm-003", "selections": [{"field": "Year", "values": ["2025"]}] },
+    { "name": "Enterprise Segment", "id": "bm-004", "selections": [{"field": "Segment", "values": ["Enterprise"]}] }
+  ],
+  "master_items": [
+    { "name": "Revenue KPI", "type": "measure", "expression": "Sum(Amount)", "id": "mi-001" },
+    { "name": "Profit KPI", "type": "measure", "expression": "Sum(Amount) - Sum(Cost)", "id": "mi-002" },
+    { "name": "Customer Dim", "type": "dimension", "field": "CustomerName", "id": "mi-003" },
+    { "name": "Product Dim", "type": "dimension", "field": "ProductName", "id": "mi-004" }
+  ],
+  "loadscript": {
+    "script": "SET ThousandSep=',';\nSET DecimalSep='.';\nSET MoneyFormat='$#,##0.00';\nSET DateFormat='MM/DD/YYYY';\nSET TimeFormat='hh:mm:ss';\n\n// ========== Section Access (RLS) ==========\nSection Access;\nLOAD * INLINE [\n  ACCESS, USERID, REGION\n  USER, admin@company.com, *\n  USER, east_mgr@company.com, East\n  USER, west_mgr@company.com, West\n  USER, central_mgr@company.com, Central\n  USER, south_mgr@company.com, South\n];\nSection Application;\n\n// ========== Calendar Table ==========\nCalendar:\nLOAD\n  Date,\n  Year(Date) as Year,\n  Month(Date) as Month,\n  Day(Date) as Day,\n  WeekDay(Date) as DayOfWeek,\n  'Q' & Ceil(Month(Date)/3) as Quarter,\n  Year(Date) & '-' & Num(Month(Date), '00') as YearMonth\n;\nLOAD\n  Date(MakeDate(2020) + IterNo() - 1) as Date\nAUTOGENERATE 2192;\n\n// ========== Sales ==========\nSales:\nLOAD\n  OrderID, OrderDate, CustomerID, ProductID, SalesRepID,\n  Quantity, UnitPrice, Discount, Amount, Cost,\n  ShipDate, ShipMode, Region\nFROM [data/Sales.csv] (txt, codepage is 1252, embedded labels, delimiter is ',');\n\n// ========== Customers ==========\nCustomers:\nLOAD\n  CustomerID, CustomerName, Segment, Country, State, City, PostalCode, Phone, Email\nFROM [data/Customers.xlsx] (ooxml, embedded labels, table is Customers);\n\n// ========== Products ==========\nProducts:\nSQL SELECT ProductID, ProductName, Category, SubCategory, Brand, UnitCost, ListPrice\nFROM ProductCatalog.dbo.Products;\n\n// ========== Sales Reps ==========\nSalesReps:\nLOAD SalesRepID, SalesRepName, Team, HireDate, ManagerName\nFROM [data/SalesReps.csv] (txt, codepage is 1252, embedded labels, delimiter is ',');\n\n// ========== Targets ==========\nTargets:\nLOAD Year, Month, Region, TargetAmount, TargetQuantity\nFROM [data/Targets.xlsx] (ooxml, embedded labels, table is Targets);\n\n// ========== Returns ==========\nReturns:\nLOAD ReturnID, OrderID, ReturnDate, ReturnReason, RefundAmount\nFROM [data/Returns.csv] (txt, codepage is 1252, embedded labels, delimiter is ',');\n\n// ========== Mapping Table for Ship Mode ==========\nShipModeMap:\nMAPPING LOAD * INLINE [\n  QlikMode, PBIMode\n  First Class, Priority\n  Second Class, Standard\n  Same Day, Express\n  Standard Class, Economy\n];\n\n// Apply mapping\nLET vShipMapped = ApplyMap('ShipModeMap', ShipMode, 'Unknown');"
+  }
+}

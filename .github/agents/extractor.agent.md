@@ -16,6 +16,12 @@ You are the **Extractor** agent for the Qlik to Power BI migration project. You 
 - `qlik_export/prep_flow_parser.py` — Prep flow parser (.tfl/.tflx → Power Query M)
 - `qlik_export/server_client.py` — Qlik Sense/Cloud REST API client
 
+## Preceptorship Cycle
+
+Follow the **Plan → Assign → Implement → Review** cycle (see `shared.instructions.md`).
+Before completing any task, run the self-review checklist. For complex XML parsing changes
+or security-sensitive work (ZIP handling, XXE), escalate to **Preceptor** for review.
+
 ## Constraints
 
 - Do NOT modify DAX conversion logic — that's `dax_converter.py` (owned by **Converter**)

@@ -126,14 +126,14 @@ class TestPhase5Documentation:
 
     def test_readme_updated_version(self, project_root_dir):
         content = (project_root_dir / "README.md").read_text("utf-8")
-        assert "9.0.0" in content, "README should reference v9.0.0"
+        assert "10.0.0" in content, "README should reference v10.0.0"
 
     def test_copilot_instructions_updated(self, project_root_dir):
         f = project_root_dir / ".github" / "copilot-instructions.md"
         assert f.exists()
         content = f.read_text("utf-8")
-        assert "2000" in content or "2,000" in content, "copilot-instructions should have updated test count"
-        assert "9.0.0" in content
+        assert "2,213" in content or "2213" in content, "copilot-instructions should have updated test count"
+        assert "10.0.0" in content
 
     def test_faq_has_v8_entries(self, project_root_dir):
         content = (project_root_dir / "docs" / "FAQ.md").read_text("utf-8")
@@ -176,4 +176,4 @@ class TestPhase6Housekeeping:
 
     def test_pyproject_version_9(self, project_root_dir):
         content = (project_root_dir / "pyproject.toml").read_text("utf-8")
-        assert '9.0.0' in content
+        assert '10.0.0' in content

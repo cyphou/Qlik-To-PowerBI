@@ -805,10 +805,19 @@ class PowerBIProjectGenerator:
 
         # Wire bookmarks from stories into report.json
         stories = converted_objects.get('stories', [])
+        all_bookmarks = []
         if stories:
-            bookmarks = self._create_bookmarks(stories)
-            if bookmarks:
-                report_json["bookmarks"] = bookmarks
+            story_bookmarks = self._create_bookmarks(stories)
+            all_bookmarks.extend(story_bookmarks)
+
+        # Wire dynamic zone visibility bookmarks from worksheets
+        dz_bookmarks = self._create_dynamic_zone_bookmarks(
+            converted_objects.get('worksheets', [])
+        )
+        all_bookmarks.extend(dz_bookmarks)
+
+        if all_bookmarks:
+            report_json["bookmarks"] = all_bookmarks
         
         _write_json(os.path.join(def_dir, 'report.json'), report_json)
         
@@ -1548,6 +1557,42 @@ class PowerBIProjectGenerator:
                     if filters:
                         bookmark["explorationState"]["filters"] = filters
                 bookmarks.append(bookmark)
+        return bookmarks
+
+    def _create_dynamic_zone_bookmarks(self, worksheets):
+        """Create bookmarks for Qlik dynamic zone visibility conditions.
+
+        In Qlik, dynamic zones show/hide visuals based on expression conditions.
+        In Power BI, this maps to bookmark toggle groups where each bookmark
+        controls which visuals are visible.
+
+        Returns:
+            List of bookmark dicts for report.json.
+        """
+        bookmarks = []
+        for ws in worksheets:
+            dz = ws.get('dynamicZone', ws.get('dynamic_zone', {}))
+            if not isinstance(dz, dict) or not dz.get('condition'):
+                continue
+            ws_name = ws.get('name', 'Visual')
+            condition = dz.get('condition', '')
+            show = dz.get('show', True)
+            bookmark = {
+                "name": f"bm_{uuid.uuid4().hex[:12]}",
+                "displayName": f"Toggle: {ws_name}",
+                "explorationState": {
+                    "version": "1.0",
+                },
+                "options": {
+                    "targetVisualType": "toggleVisibility",
+                },
+            }
+            # Store condition as annotation for documentation
+            bookmark["explorationState"]["annotation"] = (
+                f"Qlik dynamic zone condition: {condition} "
+                f"(show={show})"
+            )
+            bookmarks.append(bookmark)
         return bookmarks
     
     def _create_report_filters(self, converted_objects):

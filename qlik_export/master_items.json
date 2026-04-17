@@ -1,22 +1,26 @@
 [
   {
-    "id": "mi_sales",
+    "name": "Revenue KPI",
     "type": "measure",
-    "title": "Sales",
-    "expression": "Sum(Sales)",
-    "format": "#,##0.00"
+    "expression": "Sum(Amount)",
+    "id": "mi-001"
   },
   {
-    "id": "mi_profit",
+    "name": "Profit KPI",
     "type": "measure",
-    "title": "Profit",
-    "expression": "Sum(Profit)",
-    "format": "#,##0.00"
+    "expression": "Sum(Amount) - Sum(Cost)",
+    "id": "mi-002"
   },
   {
-    "id": "mi_product_cat",
+    "name": "Customer Dim",
     "type": "dimension",
-    "title": "Product Category",
-    "field": "Category"
+    "field": "CustomerName",
+    "id": "mi-003"
+  },
+  {
+    "name": "Product Dim",
+    "type": "dimension",
+    "field": "ProductName",
+    "id": "mi-004"
   }
 ]

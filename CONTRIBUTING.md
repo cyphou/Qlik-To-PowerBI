@@ -40,12 +40,13 @@ python -m unittest discover -s tests -v
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a detailed architecture overview.
 
 ```
-qlik_export/   → Extraction layer (Qlik XML → JSON)
-powerbi_import/   → Generation layer (JSON → .pbip project)
-tests/            → Unit and integration tests (6,831 tests across 141 files)
+qlik_export/      → Extraction layer (Qlik QVF/JSON → 11 intermediate JSON)
+powerbi_import/   → Generation layer (JSON → .pbip project, 55 modules)
+tests/            → Unit and integration tests (2,000 tests across 44 files)
 docs/             → Documentation
 examples/         → Sample Qlik apps
 artifacts/        → Migration output
+.github/agents/   → 10 AI agent definitions (preceptorship model)
 ```
 
 ## Coding Standards
@@ -112,7 +113,7 @@ python -m pytest tests/test_dax_converter.py::TestDaxConverter::test_isnull_to_i
 | `test_non_regression.py` | Per-sample project regression |
 | `test_integration.py` | End-to-end pipeline tests |
 | `test_assessment.py` | Pre-migration assessment |
-| ... | 141 test files total — see [README](README.md) for full list |
+| ... | 44 test files total — see [README](README.md) for full list |
 
 ### Writing Tests
 
@@ -155,6 +156,24 @@ python migrate.py --batch examples/Qlik_samples/ --output-dir /tmp/test_output
 - Provide a clear description of the change
 - Reference any related issues
 - Include before/after screenshots for visual changes
+
+## Multi-Agent Development Model
+
+This project uses a **Preceptorship Model** with 10 AI agents. When contributing, be aware of file ownership:
+
+| Agent | Owns |
+|-------|------|
+| Orchestrator (Tech Lead) | `migrate.py`, `import_to_powerbi.py`, `wizard.py`, `plugins.py` |
+| Extractor | `qlik_export/*.py` (except `dax_converter.py`, `m_query_builder.py`) |
+| Converter | `dax_converter.py`, `m_query_builder.py`, `dax_optimizer.py` |
+| Generator | `tmdl_generator.py`, `pbip_generator.py`, `visual_generator.py`, Fabric generators |
+| Assessor | `assessment.py`, `server_assessment.py`, `validator.py` |
+| Merger | `shared_model.py`, `merge_config.py` |
+| Deployer | `deploy/` subpackage, `telemetry.py`, `gateway_config.py` |
+| Tester | `tests/*.py` |
+| Preceptor | Reviews all — read-only access, delegates fixes |
+
+Each change follows **Plan → Assign → Implement → Review**. See `.github/agents/` for full definitions.
 
 ## Areas for Contribution
 

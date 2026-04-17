@@ -9,13 +9,13 @@
 Migrate your Qlik Sense applications to Power BI in seconds — fully automated, zero
 manual rework.
 
-![Tests](https://img.shields.io/badge/tests-2%2C000%20passed-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-2%2C213%20passed-brightgreen?style=flat-square)
 ![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen?style=flat-square)
-![Version](https://img.shields.io/badge/version-9.0.0-blue?style=flat-square)
-![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
+![Version](https://img.shields.io/badge/version-10.0.0-blue?style=flat-square)
+![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)
 
-[Quick Start](#-quick-start) • [Features](#-key-features) • [How It Works](#-how-it-works) • [DAX Mappings](#-dax-conversions-175-functions) • [Deployment](#-deployment) • [Docs](#-documentation)
+[Quick Start](#-quick-start) • [Features](#-key-features) • [How It Works](#-how-it-works) • [DAX Mappings](#-dax-conversions-175-functions) • [Deployment](#-deployment) • [Multi-Agent](#-multi-agent-architecture) • [Docs](#-documentation)
 
 </div>
 
@@ -81,6 +81,27 @@ python migrate.py --merge app1.json app2.json app3.json
 
 # 📊 Portfolio-level server assessment
 python migrate.py --assess-server exports/
+
+# 🔗 Shared semantic model (multiple apps → one model)
+python migrate.py --shared-model app1.qvf app2.qvf --model-name SharedSales
+
+# ✅ Full QA pipeline (validate → auto-fix → governance → compare)
+python migrate.py "MonApp.qvf" --qa
+
+# 📋 Generate lineage map + manifest
+python migrate.py "MonApp.qvf" --manifest
+
+# 🤖 LLM-assisted DAX refinement
+python migrate.py "MonApp.qvf" --llm-refine --llm-provider openai --llm-model gpt-4
+
+# 📈 Schema drift detection
+python migrate.py "MonApp.qvf" --check-drift /path/to/snapshots
+
+# 🌐 Launch web migration wizard
+python migrate.py --web-ui --web-port 8501
+
+# ⚡ Parallel batch migration
+python migrate.py "MonApp.qvf" --batch exports/ --workers 4
 ```
 
 ---
@@ -91,9 +112,9 @@ python migrate.py --assess-server exports/
 | :--- | :--- |
 | Translates Qlik expressions to DAX: Set Analysis → CALCULATE, Aggr → SUMMARIZE/SUMX iterators, If/Match → IF/SWITCH, inter-record functions → OFFSET/WINDOW/RANKX, dollar-sign expansion `$(=expr)`, cross-table RELATED/LOOKUPVALUE, RLS security. **v9:** AST-based DAX optimizer (IF→SWITCH, COALESCE, constant folding, VAR extraction, Time Intelligence auto-injection). | Maps every Qlik visual to Power BI: bar, line, pie, scatter, map, treemap, waterfall, KPI, gauge, table, pivot-table, boxplot, histogram, combo, mekko, bullet, wordcloud, filterpane, container, sankey, chord, sunburst, decomposition tree, shape map, and 50+ more |
 
-| 🔌 **25 Data Connectors** | 🧠 **Smart Semantic Model** |
+| 🔌 **42 Data Connectors** | 🧠 **Smart Semantic Model** |
 | :--- | :--- |
-| Generates Power Query M for: SQL Server, PostgreSQL, BigQuery, Snowflake, Oracle, MySQL, Databricks, SAP HANA, Excel, CSV, SharePoint, Salesforce, Web, Azure SQL, Azure Synapse, Redshift, Teradata, Spark, Google Sheets, JSON, XML, PDF, QVD, ODBC, OLE DB | Auto-generates Calendar table, date hierarchies, calculation groups, field parameters, RLS roles from Section Access, display folders, geographic dataCategory, number formats, perspectives, multi-language cultures |
+| Generates Power Query M for: SQL Server, PostgreSQL, BigQuery, Snowflake, Oracle, MySQL, Databricks, SAP HANA, Excel, CSV, SharePoint, Salesforce, Web, Azure SQL, Azure Synapse, Redshift, Teradata, Spark, Google Sheets, JSON, XML, PDF, QVD, ODBC, OLE DB, OData, Google Analytics, Azure Blob, Vertica, Impala, Hadoop Hive, Presto, Fabric Lakehouse, Dataverse, MongoDB, Cosmos DB, Athena, DB2, GeoJSON, SAP BW, Custom SQL | Auto-generates Calendar table, date hierarchies, calculation groups, field parameters, RLS roles from Section Access, display folders, geographic dataCategory, number formats, perspectives, multi-language cultures |
 
 | 🛡️ **Security & Governance** | 🚀 **Deploy Anywhere** |
 | :--- | :--- |
@@ -139,7 +160,7 @@ flowchart LR
     subgraph GENERATE["⚙️ Step 2 — Generate"]
         direction TB
         DAX["dax_converter.py<br/>175+ functions"]
-        MQ["m_query_generator.py<br/>25 connectors"]
+        MQ["m_query_generator.py<br/>42 connectors"]
         SC["qlik_script_converter.py<br/>LOAD → M"]
         TMDL["tmdl_generator.py<br/>Semantic Model"]
         VG["visual_generator.py<br/>75+ visual types"]
@@ -270,7 +291,7 @@ graph TD
 │   └── deploy/                       #   Azure Fabric deployment
 ├── tools/migration/                   # 28 standalone migration scripts
 ├── tools/analysis/                    # Diagnostic tools
-├── tests/                            # 1,892 pytest tests (41 test files)
+├── tests/                            # 2,000 pytest tests (44 test files)
 ├── examples/                         # Usage examples, marketplace, plugins
 └── docs/                             # Guides, references, reports
 ```
@@ -653,6 +674,38 @@ m_query = generate_m_query({
 | 📋 | [Qlik Objects Coverage](docs/technical/QLIK_OBJECTS_COVERAGE.md) | 72 Qlik objects — 100% coverage |
 | ❓ | [FAQ](docs/FAQ.md) | Frequently asked questions |
 | 📝 | [Changelog](CHANGELOG.md) | Release history |
+
+---
+
+## 🤖 Multi-Agent Architecture
+
+The project uses a **Preceptorship Model** with 10 AI agents for development assistance:
+
+```
+              ┌────────────┐     ┌────────────┐
+              │  Tech Lead │     │ Preceptor  │
+              │(Orchestrator)    │ (Reviewer)  │
+              └──────┬─────┘     └──────┬─────┘
+                     │                   │
+          ┌──────────┼──────────┬────────┼────────┐
+          ▼          ▼          ▼        ▼        ▼
+      Extractor  Converter  Generator  Deployer  ...
+       Plan→Assign→Implement→Review (each agent)
+```
+
+| Agent | Domain |
+|:------|:-------|
+| **Orchestrator** (Tech Lead) | Pipeline coordination, CLI, architectural decisions |
+| **Preceptor** | Quality review, cross-agent consistency, pitfall detection |
+| **Extractor** | Qlik QVF/JSON parsing, 11 JSON intermediate files |
+| **Converter** | 175+ DAX conversions, 25 M connectors, 40+ transforms |
+| **Generator** | TMDL semantic model, PBIR report, 75+ visual types, Fabric |
+| **Assessor** | Migration readiness, complexity scoring, strategy advising |
+| **Merger** | Multi-app shared model, fingerprint matching, thin reports |
+| **Deployer** | Fabric/PBI Service deployment, Azure AD auth |
+| **Tester** | 2,000 tests, regression suites, coverage monitoring |
+
+Each specialist follows a **Plan → Assign → Implement → Review** cycle with oversight from the Tech Lead (architecture) and Preceptor (quality). See [`.github/agents/`](.github/agents/) for full agent definitions.
 
 ---
 

@@ -23,6 +23,13 @@ You are the **Assessor** agent for the Qlik to Power BI migration project. You s
 - `powerbi_import/schema_drift.py` — Schema drift detection (compare extraction snapshots, 7 categories: tables, columns, calculations, worksheets, relationships, parameters, filters)
 - `powerbi_import/validator.py` — Artifact validator (.pbip projects: JSON, TMDL structure, M if/else balance check)
 
+## Preceptorship Cycle
+
+Follow the **Plan → Assign → Implement → Review** cycle (see `shared.instructions.md`).
+Before completing any task, run the self-review checklist. For changes to scoring algorithms
+or new assessment categories, escalate to **Preceptor** for review to ensure consistency
+with existing scoring scales.
+
 ## Constraints
 
 - Do NOT modify conversion or generation logic — read-only access to those files for analysis

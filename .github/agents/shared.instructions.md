@@ -46,6 +46,52 @@ All agents MUST follow these rules. They apply to every file in the project.
 - Calendar `Date.MonthName()`/`Date.DayOfWeekName()` must pass explicit culture parameter
 - Connection string values must be escaped with `_m_escape_string()` before M injection
 
+## Preceptorship Model
+
+This project uses a **Preceptorship** workflow inspired by medical training.
+Each task follows a structured **Plan → Assign → Implement → Review** cycle
+supervised by two senior roles:
+
+```
+              ┌────────────┐     ┌────────────┐
+              │  Tech Lead │     │ Preceptor  │
+              │(Orchestrator)    │ (Reviewer)  │
+              └──────┬─────┘     └──────┬─────┘
+                     │   architectural    │  quality
+                     │   oversight        │  review
+          ┌──────────┼──────────┬────────┼────────┐
+          ▼          ▼          ▼        ▼        ▼
+      ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ...
+      │Extractor│ │Converter│ │Generator│ │Deployer│
+      └────────┘ └────────┘ └────────┘ └────────┘
+       Plan→Assign→Implement→Review (each agent)
+```
+
+### Roles
+
+| Role | Agent | Responsibility |
+|------|-------|---------------|
+| **Tech Lead** | Orchestrator | Architectural decisions, cross-agent planning, pipeline coordination, breaking tasks into assignments |
+| **Preceptor** | Preceptor | Quality review, code standards enforcement, cross-agent consistency, pitfall detection, test adequacy validation |
+| **Specialist** | Extractor, Converter, Generator, Assessor, Merger, Deployer, Tester | Domain-specific implementation following the 4-step cycle |
+
+### The 4-Step Cycle (Every Specialist Agent)
+
+1. **Plan** — Before writing code, outline what changes are needed, which files are affected, and what the expected outcome is. Use `manage_todo_list` to track steps. Flag risks or unknowns.
+2. **Assign** — Confirm ownership. If parts of the task cross into another agent's domain, state the handoff explicitly (files, functions, data structures). Do NOT touch files you don't own.
+3. **Implement** — Make the smallest change that solves the problem. Follow all Hard Constraints. Write code, not comments about code.
+4. **Review** — Self-check before completion:
+   - [ ] Tests pass (`pytest tests/ --tb=short -q`)
+   - [ ] No regressions in adjacent modules
+   - [ ] Cross-agent contracts preserved (function signatures, JSON schemas, dict keys)
+   - [ ] Pitfalls from "Learned Pitfalls" section avoided
+   - [ ] Handoff notes written if follow-up work is needed
+
+### When to Escalate
+
+- **To Tech Lead (Orchestrator)**: Architectural questions, new CLI flags, pipeline flow changes, cross-cutting concerns affecting 3+ agents
+- **To Preceptor**: Unsure about code quality, need review of complex DAX/M/TMDL output, want validation of a non-obvious approach, merge conflict between agent domains
+
 ## Cross-Agent Handoff Protocol
 
 When your task requires work outside your domain:

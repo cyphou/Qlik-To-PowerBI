@@ -13,6 +13,10 @@ Supports:
 - Custom output directory:     python migrate.py app.qvf --output-dir out/
 - Skip extraction:             python migrate.py app.qvf --skip-extraction
 - Verbose logging:             python migrate.py app.qvf --verbose
+- QA pipeline:                 python migrate.py app.qvf --qa
+- Deploy to PBI Service:       python migrate.py app.qvf --deploy WORKSPACE_ID
+- Shared semantic model:       python migrate.py --shared-model a.json b.json
+- Fabric-native output:        python migrate.py app.qvf --output-format fabric
 """
 
 import os
@@ -22,6 +26,8 @@ import json
 import logging
 import argparse
 import time
+import shutil
+import concurrent.futures
 from datetime import datetime
 from enum import IntEnum
 
@@ -592,6 +598,34 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
     return ExitCode.SUCCESS if failed == 0 else ExitCode.BATCH_PARTIAL_FAIL
 
 
+def _build_calc_map_from_tmdl(source_basename, output_dir):
+    """Build a calc_map dict from generated TMDL files for lineage tracking."""
+    import re as _re
+    calc_map = {}
+    out_base = output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+    tables_dir = os.path.join(out_base, source_basename,
+                              f'{source_basename}.SemanticModel',
+                              'definition', 'tables')
+    if not os.path.isdir(tables_dir):
+        return calc_map
+    for tmdl_file in os.listdir(tables_dir):
+        if not tmdl_file.endswith('.tmdl'):
+            continue
+        fpath = os.path.join(tables_dir, tmdl_file)
+        try:
+            content = open(fpath, 'r', encoding='utf-8').read()
+            table_name = tmdl_file.replace('.tmdl', '')
+            for m in _re.finditer(r'measure\s+[\'"]?(.+?)[\'"]?\s*=', content):
+                measure_name = m.group(1).strip()
+                calc_map[measure_name] = {'table': table_name, 'type': 'measure'}
+            for m in _re.finditer(r'column\s+[\'"]?(.+?)[\'"]?\s*=', content):
+                col_name = m.group(1).strip()
+                calc_map[col_name] = {'table': table_name, 'type': 'calculated_column'}
+        except Exception:
+            continue
+    return calc_map
+
+
 def _run_batch_config(args):
     """Run migrations using a JSON batch configuration file.
 
@@ -892,6 +926,345 @@ def main():
         help='Run portfolio-level assessment on a directory of Qlik app exports (RED/YELLOW/GREEN scoring)'
     )
 
+    # ── New CLI flags (v10 parity) ────────────────────────────
+
+    parser.add_argument(
+        '--compare',
+        action='store_true',
+        default=False,
+        help='Generate comparison report (HTML) after migration'
+    )
+
+    parser.add_argument(
+        '--no-compare',
+        action='store_true',
+        default=False,
+        help='Disable auto-generated comparison report'
+    )
+
+    parser.add_argument(
+        '--dashboard',
+        action='store_true',
+        default=False,
+        help='Generate interactive telemetry dashboard (HTML)'
+    )
+
+    parser.add_argument(
+        '--optimize-dax',
+        action='store_true',
+        default=False,
+        help='Run DAX optimizer pass (IF→SWITCH, COALESCE, constant folding, VAR extraction)'
+    )
+
+    parser.add_argument(
+        '--no-optimize-dax',
+        action='store_true',
+        default=False,
+        help='Disable DAX optimizer (enabled by default)'
+    )
+
+    parser.add_argument(
+        '--time-intelligence',
+        metavar='MODE',
+        choices=['auto', 'none'],
+        default=None,
+        help='Auto-inject Time Intelligence measures: auto (YTD, PY, YoY%%) or none'
+    )
+
+    parser.add_argument(
+        '--qa',
+        action='store_true',
+        default=False,
+        help='Run full QA pipeline: validate → auto-fix → governance → compare → qa_report.json'
+    )
+
+    parser.add_argument(
+        '--governance',
+        action='store_true',
+        default=False,
+        help='Run governance checks (naming conventions, PII detection, audit trail)'
+    )
+
+    parser.add_argument(
+        '--governance-config',
+        metavar='FILE',
+        default=None,
+        help='Path to governance rules configuration file'
+    )
+
+    parser.add_argument(
+        '--monitor',
+        action='store_true',
+        default=False,
+        help='Export metrics to monitoring systems (Azure Monitor, Prometheus, JSON)'
+    )
+
+    parser.add_argument(
+        '--deploy',
+        metavar='WORKSPACE_ID',
+        default=None,
+        help='Deploy generated .pbip to Power BI Service workspace'
+    )
+
+    parser.add_argument(
+        '--deploy-refresh',
+        action='store_true',
+        default=False,
+        help='Trigger dataset refresh after deployment'
+    )
+
+    parser.add_argument(
+        '--deploy-bundle',
+        metavar='WORKSPACE_ID',
+        default=None,
+        help='Deploy shared semantic model + thin reports as an atomic Fabric bundle'
+    )
+
+    parser.add_argument(
+        '--bundle-refresh',
+        action='store_true',
+        default=False,
+        help='Trigger dataset refresh after bundle deployment'
+    )
+
+    parser.add_argument(
+        '--shared-model',
+        metavar='FILE',
+        nargs='+',
+        default=None,
+        help='Merge multiple Qlik apps into one shared semantic model with thin reports'
+    )
+
+    parser.add_argument(
+        '--model-name',
+        metavar='NAME',
+        default='SharedModel',
+        help='Name for the shared semantic model (default: SharedModel)'
+    )
+
+    parser.add_argument(
+        '--assess-merge',
+        action='store_true',
+        default=False,
+        help='Only assess merge feasibility for --shared-model (no generation)'
+    )
+
+    parser.add_argument(
+        '--force-merge',
+        action='store_true',
+        default=False,
+        help='Force merge even if merge score is below threshold'
+    )
+
+    parser.add_argument(
+        '--strict-merge',
+        action='store_true',
+        default=False,
+        help='Block generation on merge validation failures (cycles, type errors)'
+    )
+
+    parser.add_argument(
+        '--merge-preview',
+        action='store_true',
+        default=False,
+        help='Preview merge results without generating output files'
+    )
+
+    parser.add_argument(
+        '--save-merge-config',
+        metavar='FILE',
+        default=None,
+        help='Save merge decisions to a JSON config for reproducibility'
+    )
+
+    parser.add_argument(
+        '--merge-config',
+        metavar='FILE',
+        default=None,
+        help='Load previously saved merge decisions from a JSON config'
+    )
+
+    parser.add_argument(
+        '--global-assess',
+        action='store_true',
+        default=False,
+        help='Cross-app pairwise merge scoring and clustering analysis'
+    )
+
+    parser.add_argument(
+        '--check-drift',
+        metavar='DIR',
+        default=None,
+        help='Compare current extraction against a saved snapshot for schema drift detection'
+    )
+
+    parser.add_argument(
+        '--sla-config',
+        metavar='FILE',
+        default=None,
+        help='SLA compliance configuration file (max time, min fidelity thresholds)'
+    )
+
+    parser.add_argument(
+        '--multi-tenant',
+        metavar='FILE',
+        default=None,
+        help='Multi-tenant deployment template file with variable substitution'
+    )
+
+    parser.add_argument(
+        '--llm-refine',
+        action='store_true',
+        default=False,
+        help='Use LLM-assisted DAX refinement for complex conversions'
+    )
+
+    parser.add_argument(
+        '--llm-provider',
+        metavar='PROVIDER',
+        choices=['openai', 'anthropic', 'azure'],
+        default=None,
+        help='LLM provider for DAX refinement: openai, anthropic, or azure'
+    )
+
+    parser.add_argument(
+        '--llm-model',
+        metavar='MODEL',
+        default=None,
+        help='LLM model name (e.g., gpt-4, claude-3-opus)'
+    )
+
+    parser.add_argument(
+        '--llm-key',
+        metavar='KEY',
+        default=None,
+        help='API key for LLM provider (or set via environment variable)'
+    )
+
+    parser.add_argument(
+        '--llm-endpoint',
+        metavar='URL',
+        default=None,
+        help='Custom LLM endpoint URL (for Azure OpenAI or self-hosted)'
+    )
+
+    parser.add_argument(
+        '--llm-max-calls',
+        metavar='N',
+        type=int,
+        default=None,
+        help='Maximum number of LLM API calls per migration'
+    )
+
+    parser.add_argument(
+        '--llm-dry-run',
+        action='store_true',
+        default=False,
+        help='Preview LLM refinement suggestions without applying them'
+    )
+
+    parser.add_argument(
+        '--workers',
+        metavar='N',
+        type=int,
+        default=None,
+        help='Number of parallel workers for batch migration (default: sequential)'
+    )
+
+    parser.add_argument(
+        '--parallel',
+        metavar='N',
+        type=int,
+        default=None,
+        help='Alias for --workers: number of parallel workers for batch migration'
+    )
+
+    parser.add_argument(
+        '--resume',
+        action='store_true',
+        default=False,
+        help='Resume a previously interrupted batch migration from the last checkpoint'
+    )
+
+    parser.add_argument(
+        '--jsonl-log',
+        metavar='FILE',
+        default=None,
+        help='Write structured JSONL logs to the specified file'
+    )
+
+    parser.add_argument(
+        '--web-ui',
+        action='store_true',
+        default=False,
+        help='Launch the Streamlit web migration wizard'
+    )
+
+    parser.add_argument(
+        '--web-port',
+        metavar='PORT',
+        type=int,
+        default=8501,
+        help='Port for the web UI (default: 8501)'
+    )
+
+    parser.add_argument(
+        '--endorse',
+        metavar='LEVEL',
+        choices=['promoted', 'certified'],
+        default=None,
+        help='Endorsement level for deployed artifacts: promoted or certified'
+    )
+
+    parser.add_argument(
+        '--manifest',
+        metavar='FILE',
+        default=None,
+        help='Write a migration manifest file listing all generated artifacts'
+    )
+
+    parser.add_argument(
+        '--languages',
+        metavar='LOCALES',
+        default=None,
+        help='Generate multi-language culture TMDL files (e.g., fr-FR,de-DE,es-ES)'
+    )
+
+    parser.add_argument(
+        '--rolling',
+        action='store_true',
+        default=False,
+        help='Enable rolling deployment (incremental update without downtime)'
+    )
+
+    parser.add_argument(
+        '--consolidate',
+        action='store_true',
+        default=False,
+        help='Auto-consolidate duplicate datasources across apps'
+    )
+
+    parser.add_argument(
+        '--skip-conversion',
+        action='store_true',
+        default=False,
+        help='Skip DAX/M conversion, reuse existing converted JSON files'
+    )
+
+    parser.add_argument(
+        '--validate-data',
+        action='store_true',
+        default=False,
+        help='Post-migration data validation (query equivalence testing)'
+    )
+
+    parser.add_argument(
+        '--sync',
+        action='store_true',
+        default=False,
+        help='Auto-deploy after incremental change detection'
+    )
+
     args = parser.parse_args()
 
     # Load configuration file if specified (CLI args take precedence)
@@ -951,7 +1324,113 @@ def main():
     if args.batch_config:
         return _run_batch_config(args)
 
-    # ── Multi-app merge mode ──────────────────────────────────
+    # ── Web UI mode ───────────────────────────────────────────
+    if getattr(args, 'web_ui', False):
+        try:
+            from web.app import launch_app
+            port = getattr(args, 'web_port', 8501)
+            launch_app(port=port)
+            return ExitCode.SUCCESS
+        except ImportError:
+            print("Web UI requires: pip install streamlit")
+            return ExitCode.GENERAL_ERROR
+
+    # ── Shared-model merge mode (superset of --merge) ─────────
+    if getattr(args, 'shared_model', None):
+        try:
+            from powerbi_import.shared_model import SharedModelBuilder
+            from powerbi_import.thin_report_generator import generate_thin_reports
+            from powerbi_import.merge_assessment import generate_merge_assessment
+            from qlik_export.format_adapter import adapt_qlik_for_generation
+            from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+
+            print_header("SHARED SEMANTIC MODEL")
+            model_name = getattr(args, 'model_name', 'SharedModel')
+            apps = []
+            for app_path in args.shared_model:
+                if not os.path.isfile(app_path):
+                    print(f"  ⚠ File not found: {app_path}")
+                    continue
+                qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+                orchestrator = ExtractionOrchestrator(output_dir=qlik_dir)
+                orchestrator.extract(app_path)
+                extracted = orchestrator.get_extraction_summary_data()
+                adapted = adapt_qlik_for_generation(extracted)
+                app_name = os.path.splitext(os.path.basename(app_path))[0]
+                apps.append({'name': app_name, 'data': adapted})
+                print(f"  ✓ Loaded: {app_name}")
+
+            if len(apps) < 2:
+                print("  ✗ At least 2 apps required for shared model")
+                return ExitCode.GENERAL_ERROR
+
+            builder = SharedModelBuilder()
+            # Load merge config if specified
+            merge_config_file = getattr(args, 'merge_config', None)
+            if merge_config_file:
+                try:
+                    from powerbi_import.merge_config import load_merge_config
+                    mc = load_merge_config(merge_config_file)
+                    builder.apply_config(mc)
+                    print(f"  ✓ Merge config loaded: {merge_config_file}")
+                except Exception as e:
+                    print(f"  ⚠ Merge config load failed: {e}")
+
+            for app in apps:
+                builder.add_app(app['name'], app['data'])
+
+            merge_out = args.output_dir or os.path.join('output', 'shared', model_name)
+
+            # Assess-merge only mode
+            if getattr(args, 'assess_merge', False) or getattr(args, 'merge_preview', False):
+                result = builder.assess()
+                assessment = generate_merge_assessment(result)
+                print(f"\n  Merge Score:    {assessment.get('merge_score', 0)}/100")
+                print(f"  Shared tables:  {assessment.get('shared_tables', 0)}")
+                print(f"  Unique tables:  {assessment.get('unique_tables', 0)}")
+                print(f"  Conflicts:      {assessment.get('conflicts', 0)}")
+                return ExitCode.SUCCESS
+
+            result = builder.build(merge_out, model_name=model_name)
+            assessment = generate_merge_assessment(result)
+
+            # Save merge config if requested
+            save_config = getattr(args, 'save_merge_config', None)
+            if save_config:
+                try:
+                    from powerbi_import.merge_config import save_merge_config
+                    save_merge_config(result.get('decisions', {}), save_config)
+                    print(f"  ✓ Merge config saved: {save_config}")
+                except Exception as e:
+                    print(f"  ⚠ Save merge config failed: {e}")
+
+            # Generate thin reports
+            thin_reports = generate_thin_reports(result, merge_out, model_name)
+
+            print(f"\n  Model name:     {model_name}")
+            print(f"  Shared tables:  {assessment.get('shared_tables', 0)}")
+            print(f"  Unique tables:  {assessment.get('unique_tables', 0)}")
+            print(f"  Thin reports:   {len(thin_reports)}")
+            print(f"\n✓ Shared model: {merge_out}")
+
+            # Deploy bundle if requested
+            deploy_bundle_ws = getattr(args, 'deploy_bundle', None)
+            if deploy_bundle_ws:
+                try:
+                    from powerbi_import.deploy.bundle_deployer import BundleDeployer
+                    deployer = BundleDeployer(workspace_id=deploy_bundle_ws)
+                    dep_result = deployer.deploy(merge_out, refresh=getattr(args, 'bundle_refresh', False))
+                    print(f"  ✓ Bundle deployed to workspace: {deploy_bundle_ws}")
+                except Exception as e:
+                    print(f"  ✗ Bundle deployment failed: {e}")
+
+            return ExitCode.SUCCESS
+        except Exception as e:
+            logger.error(f"Shared model failed: {e}", exc_info=True)
+            print(f"\n✗ Shared model failed: {e}")
+            return ExitCode.GENERAL_ERROR
+
+    # ── Multi-app merge mode (legacy --merge) ─────────────────
     if args.merge:
         try:
             from powerbi_import.shared_model import SharedModelBuilder
@@ -1026,8 +1505,84 @@ def main():
             print(f"\n\u2717 Assessment failed: {e}")
             return ExitCode.ASSESSMENT_FAILED
 
+    # ── Global assessment mode (cross-app merge analysis) ─────
+    if getattr(args, 'global_assess', False):
+        try:
+            from powerbi_import.global_assessment import run_global_assessment
+            from qlik_export.format_adapter import adapt_qlik_for_generation
+            from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+
+            print_header("GLOBAL ASSESSMENT \u2014 CROSS-APP MERGE ANALYSIS")
+
+            batch_dir = getattr(args, 'batch', None)
+            app_files = []
+            if batch_dir and os.path.isdir(batch_dir):
+                for pattern in ['*.qvf', '*.json']:
+                    app_files.extend(glob.glob(os.path.join(batch_dir, pattern)))
+            elif args.qlik_file:
+                app_files = [args.qlik_file]
+
+            if len(app_files) < 2:
+                print("  \u2717 At least 2 apps required for global assessment")
+                return ExitCode.GENERAL_ERROR
+
+            apps = []
+            for app_path in sorted(app_files):
+                qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+                orchestrator = ExtractionOrchestrator(output_dir=qlik_dir)
+                orchestrator.extract(app_path)
+                extracted = orchestrator.get_extraction_summary_data()
+                adapted = adapt_qlik_for_generation(extracted)
+                app_name = os.path.splitext(os.path.basename(app_path))[0]
+                apps.append({'name': app_name, 'data': adapted})
+                print(f"  \u2713 Analyzed: {app_name}")
+
+            result = run_global_assessment(apps)
+
+            out_dir = args.output_dir or os.path.join('output', 'assessments')
+            os.makedirs(out_dir, exist_ok=True)
+            report_path = os.path.join(out_dir, 'global_assessment.json')
+            with open(report_path, 'w', encoding='utf-8') as f:
+                json.dump(result, f, indent=2, ensure_ascii=False)
+
+            print(f"\n  Merge clusters: {result.get('cluster_count', 0)}")
+            print(f"  Total pairs:    {result.get('total_pairs', 0)}")
+            print(f"\n\u2713 Global assessment: {report_path}")
+            return ExitCode.SUCCESS
+        except Exception as e:
+            logger.error(f"Global assessment failed: {e}", exc_info=True)
+            print(f"\n\u2717 Global assessment failed: {e}")
+            return ExitCode.ASSESSMENT_FAILED
+
+    # ── Schema drift detection mode ───────────────────────────
+    if getattr(args, 'check_drift', None):
+        try:
+            from powerbi_import.schema_drift import detect_schema_drift
+
+            print_header("SCHEMA DRIFT DETECTION")
+            result = detect_schema_drift(args.check_drift)
+
+            added = len(result.get('added_columns', []))
+            removed = len(result.get('removed_columns', []))
+            renamed = len(result.get('renamed_columns', []))
+            print(f"  Added columns:   {added}")
+            print(f"  Removed columns: {removed}")
+            print(f"  Renamed columns: {renamed}")
+
+            if added + removed + renamed == 0:
+                print("\n\u2713 No schema drift detected")
+            else:
+                print(f"\n\u26a0 Schema drift detected: {added + removed + renamed} changes")
+
+            return ExitCode.SUCCESS
+        except Exception as e:
+            logger.error(f"Schema drift detection failed: {e}", exc_info=True)
+            print(f"\n\u2717 Schema drift failed: {e}")
+            return ExitCode.GENERAL_ERROR
+
     # ── Batch migration mode ──────────────────────────────────
     if args.batch:
+        workers = getattr(args, 'workers', None) or getattr(args, 'parallel', None)
         return run_batch_migration(
             batch_dir=args.batch,
             output_dir=args.output_dir,
@@ -1219,6 +1774,98 @@ def main():
         if results.get('generation'):
             plugin_manager.call_hook('post_generation', project_dir=_stats.pbip_path)
 
+    # ── Lineage map generation ────────────────────────────────
+    if results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.lineage_map import build_lineage_map
+            from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+
+            qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+            qlik_data = ExtractionOrchestrator.load_intermediate_json(qlik_dir)
+            calc_map = _build_calc_map_from_tmdl(source_basename, args.output_dir)
+            lineage = build_lineage_map(source_basename, qlik_data, calc_map)
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            lineage_path = lineage.save(os.path.join(out_base, source_basename))
+            if not json_mode:
+                print(f"  \u2713 Lineage map: {lineage_path} ({lineage.to_dict()['total_entries']} entries)")
+        except Exception as exc:
+            logger.debug("Lineage map generation skipped: %s", exc)
+
+    # ── LLM-assisted DAX refinement ───────────────────────────
+    if getattr(args, 'llm_refine', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.llm_client import refine_dax_with_llm
+            import re as _re
+
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            tables_dir = os.path.join(out_base, source_basename,
+                                      f'{source_basename}.SemanticModel',
+                                      'definition', 'tables')
+            llm_config = {
+                'provider': getattr(args, 'llm_provider', None),
+                'model': getattr(args, 'llm_model', None),
+                'api_key': getattr(args, 'llm_key', None),
+                'endpoint': getattr(args, 'llm_endpoint', None),
+                'max_calls': getattr(args, 'llm_max_calls', None),
+                'dry_run': getattr(args, 'llm_dry_run', False),
+            }
+
+            if os.path.isdir(tables_dir):
+                refined_count = 0
+                for tmdl_file in os.listdir(tables_dir):
+                    if not tmdl_file.endswith('.tmdl'):
+                        continue
+                    fpath = os.path.join(tables_dir, tmdl_file)
+                    content = open(fpath, 'r', encoding='utf-8').read()
+                    new_content = content
+                    for m in _re.finditer(r'(measure\s+.+?=\s*)(.+?)(?=\n\t|\n\s*\n|\Z)', content, _re.DOTALL):
+                        original = m.group(2).strip()
+                        if original.startswith('```') or original.startswith('let'):
+                            continue
+                        refined = refine_dax_with_llm(original, config=llm_config)
+                        if refined and refined != original:
+                            new_content = new_content.replace(original, refined, 1)
+                            refined_count += 1
+                    if new_content != content and not llm_config.get('dry_run'):
+                        with open(fpath, 'w', encoding='utf-8') as f:
+                            f.write(new_content)
+                if refined_count and not json_mode:
+                    mode = "preview" if llm_config.get('dry_run') else "applied"
+                    print(f"  \u2713 LLM refinement: {refined_count} measures {mode}")
+        except Exception as exc:
+            logger.debug("LLM refinement skipped: %s", exc)
+
+    # ── Governance checks ─────────────────────────────────────
+    if getattr(args, 'governance', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.governance import GovernanceAuditor
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            auditor = GovernanceAuditor()
+            gov_result = auditor.audit_project(project_dir)
+            findings = gov_result.get('findings', [])
+            if findings and not json_mode:
+                print(f"  \u26a0 Governance: {len(findings)} finding(s)")
+                for f_item in findings[:5]:
+                    print(f"    \u2022 {f_item.get('message', f_item)}")
+            elif not json_mode:
+                print(f"  \u2713 Governance: all checks passed")
+        except Exception as exc:
+            logger.debug("Governance checks skipped: %s", exc)
+
+    # ── Comparison report ─────────────────────────────────────
+    if (getattr(args, 'compare', False) or not getattr(args, 'no_compare', False)) and \
+       results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.comparison_report import generate_comparison_report
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            comp_path = generate_comparison_report(project_dir=project_dir, output_dir=out_base)
+            if comp_path and not json_mode:
+                print(f"  \u2713 Comparison report: {comp_path}")
+        except Exception as exc:
+            logger.debug("Comparison report skipped: %s", exc)
+
     # Step 3: Incremental merge (optional)
     if getattr(args, 'incremental', None) and results.get('generation'):
         try:
@@ -1296,6 +1943,109 @@ def main():
                 print(f"  Dashboard: {html_dashboard_path}")
         except Exception as exc:
             logger.warning("HTML dashboard generation failed: %s", exc)
+
+    # ── QA pipeline (validate → auto-fix → governance → report) ───
+    qa_result = None
+    if getattr(args, 'qa', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.qa_pipeline import run_qa_pipeline
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            qa_result = run_qa_pipeline(project_dir, out_base, verbose=args.verbose)
+            if not json_mode:
+                fixes = qa_result.get('auto_fixes', 0)
+                findings = qa_result.get('governance_findings', 0)
+                print(f"  \u2713 QA pipeline: {fixes} auto-fixes, {findings} governance findings")
+        except Exception as exc:
+            logger.debug("QA pipeline skipped: %s", exc)
+
+    # ── Telemetry dashboard ───────────────────────────────────
+    if getattr(args, 'dashboard', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.telemetry_dashboard import generate_telemetry_dashboard
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            dash_path = generate_telemetry_dashboard(out_base)
+            if dash_path and not json_mode:
+                print(f"  \u2713 Telemetry dashboard: {dash_path}")
+        except Exception as exc:
+            logger.debug("Telemetry dashboard skipped: %s", exc)
+
+    # ── Monitoring export ─────────────────────────────────────
+    if getattr(args, 'monitor', None) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.monitoring import export_metrics
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            export_metrics(
+                format_type=args.monitor,
+                output_dir=out_base,
+                migration_stats={
+                    'tables': _stats.tmdl_tables,
+                    'measures': _stats.tmdl_measures,
+                    'visuals': _stats.visuals_generated,
+                    'pages': _stats.pages_generated,
+                },
+            )
+            if not json_mode:
+                print(f"  \u2713 Metrics exported: {args.monitor}")
+        except Exception as exc:
+            logger.debug("Monitoring export skipped: %s", exc)
+
+    # ── Data validation (equivalence testing) ─────────────────
+    if getattr(args, 'validate_data', None) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.equivalence_tester import EquivalenceTester
+            tester = EquivalenceTester()
+            eq_result = tester.compare(args.validate_data)
+            match_pct = eq_result.get('match_percentage', 0)
+            if not json_mode:
+                print(f"  \u2713 Data validation: {match_pct}% match")
+        except Exception as exc:
+            logger.debug("Data validation skipped: %s", exc)
+
+    # ── Deploy to Power BI Service ────────────────────────────
+    if getattr(args, 'deploy', None) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.deploy.pbi_deployer import PBIWorkspaceDeployer
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            deployer = PBIWorkspaceDeployer(workspace_id=args.deploy)
+            deploy_result = deployer.deploy(
+                project_dir,
+                refresh=getattr(args, 'deploy_refresh', False),
+                endorse=getattr(args, 'endorse', None),
+            )
+            if not json_mode:
+                print(f"  \u2713 Deployed to workspace: {args.deploy}")
+        except Exception as exc:
+            logger.warning("Deployment failed: %s", exc)
+
+    # ── Manifest generation ───────────────────────────────────
+    if getattr(args, 'manifest', False) and results.get('generation') and not args.dry_run:
+        try:
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            manifest = {
+                'version': '10.0.0',
+                'app_name': source_basename,
+                'generated': datetime.now().isoformat(),
+                'tables': _stats.tmdl_tables,
+                'measures': _stats.tmdl_measures,
+                'visuals': _stats.visuals_generated,
+                'pages': _stats.pages_generated,
+                'artifacts': [],
+            }
+            # Walk project dir to list artifacts
+            for root, _dirs, files in os.walk(project_dir):
+                for fname in files:
+                    rel = os.path.relpath(os.path.join(root, fname), project_dir)
+                    manifest['artifacts'].append(rel.replace('\\', '/'))
+            manifest_path = os.path.join(project_dir, 'manifest.json')
+            with open(manifest_path, 'w', encoding='utf-8') as f:
+                json.dump(manifest, f, indent=2, ensure_ascii=False)
+            if not json_mode:
+                print(f"  \u2713 Manifest: {manifest_path} ({len(manifest['artifacts'])} artifacts)")
+        except Exception as exc:
+            logger.debug("Manifest generation skipped: %s", exc)
 
     # ── Final summary ────────────────────────────────────────
     duration = datetime.now() - start_time

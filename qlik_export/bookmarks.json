@@ -1,26 +1,51 @@
 [
   {
-    "id": "bm_current_year",
-    "title": "Current Year",
-    "description": "Filter to current year",
-    "selections": {
-      "Year": "=$(vCurrentYear)"
-    }
+    "name": "High Margin Products",
+    "id": "bm-001",
+    "selections": [
+      {
+        "field": "Category",
+        "values": [
+          "Electronics",
+          "Technology"
+        ]
+      }
+    ]
   },
   {
-    "id": "bm_high_value",
-    "title": "High Value Orders",
-    "description": "Orders over $1000",
-    "selections": {
-      "Sales": "> 1000"
-    }
+    "name": "West Region Focus",
+    "id": "bm-002",
+    "selections": [
+      {
+        "field": "Region",
+        "values": [
+          "West"
+        ]
+      }
+    ]
   },
   {
-    "id": "bm_west_region",
-    "title": "West Region",
-    "description": "Filter to West region",
-    "selections": {
-      "Region": "West"
-    }
+    "name": "Current Year",
+    "id": "bm-003",
+    "selections": [
+      {
+        "field": "Year",
+        "values": [
+          "2025"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Enterprise Segment",
+    "id": "bm-004",
+    "selections": [
+      {
+        "field": "Segment",
+        "values": [
+          "Enterprise"
+        ]
+      }
+    ]
   }
 ]

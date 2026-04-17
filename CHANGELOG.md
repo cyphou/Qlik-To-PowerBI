@@ -1,5 +1,101 @@
 # Changelog
 
+## v10.0.0 — Full Parity with TableauToPowerBI
+
+### New CLI Flags (~60 new flags)
+- **`--qa`**: Full QA pipeline (validate → auto-fix → governance → comparison → qa_report.json)
+- **`--governance`**: Run governance checks (naming conventions, PII detection)
+- **`--compare` / `--no-compare`**: Generate comparison report after migration
+- **`--dashboard`**: Generate telemetry dashboard HTML
+- **`--optimize-dax`**: Enable DAX optimizer pass
+- **`--time-intelligence`**: Auto-inject time intelligence measures
+- **`--monitor`**: Export metrics (json/prometheus/azure)
+- **`--deploy WORKSPACE`**: Deploy to Power BI Service
+- **`--deploy-refresh`**: Trigger dataset refresh after deploy
+- **`--deploy-bundle`**: Bundle deployment (shared model + thin reports)
+- **`--shared-model FILE [FILE ...]`**: Build shared semantic model from multiple apps
+- **`--model-name`**: Name for the shared semantic model
+- **`--assess-merge`**: Merge assessment only (preview mode)
+- **`--merge-preview`**: Preview merge without generating
+- **`--save-merge-config` / `--merge-config`**: Save/load merge decisions
+- **`--global-assess`**: Cross-app merge cluster analysis
+- **`--check-drift PATH`**: Schema drift detection
+- **`--sla-config`**: SLA compliance tracking
+- **`--llm-refine`**: LLM-assisted DAX refinement
+- **`--llm-provider` / `--llm-model` / `--llm-key` / `--llm-endpoint`**: LLM configuration
+- **`--llm-max-calls` / `--llm-dry-run`**: LLM limits and preview mode
+- **`--workers` / `--parallel`**: Parallel batch migration
+- **`--resume`**: Resume from checkpoint
+- **`--jsonl-log`**: Structured JSONL logging
+- **`--web-ui` / `--web-port`**: Launch Streamlit migration wizard
+- **`--endorse`**: Endorsement level during deploy
+- **`--manifest`**: Generate artifact manifest
+- **`--validate-data`**: Cross-platform equivalence testing
+- **`--sync`**: Auto-deploy after generation
+- **`--multi-tenant`**: Multi-tenant template substitution
+- **`--rolling`**: Rolling calendar window
+- **`--consolidate`**: Consolidate duplicate columns
+- **`--skip-conversion`**: Skip DAX conversion pass
+- **`--languages`**: Multi-culture TMDL generation
+
+### New Modules
+- **`powerbi_import/lineage_map.py`**: Source-to-target provenance tracking (lineage_map.json)
+  - Tracks: datasource→table, measure→DAX, dimension→column/hierarchy, variable→parameter, visualization→visual, sheet→page, association→relationship, bookmark→PBI bookmark
+- **`powerbi_import/qa_pipeline.py`**: Full QA pipeline (validate → auto-fix → governance → compare)
+  - 17 Qlik→DAX leak auto-fix patterns (IsNull→ISBLANK, Null→BLANK, Alt→COALESCE, OSUser→USERPRINCIPALNAME, etc.)
+
+### Data Connectors — 25 → 42
+17 new M query generators: OData, Google Analytics, Azure Blob, Vertica, Impala, Hadoop Hive, Presto, Fabric Lakehouse, Dataverse, MongoDB, Cosmos DB, Athena, DB2, GeoJSON/Shapefile, SAP BW, Custom SQL (with aliases)
+
+### Handler Wiring
+- Lineage map automatically generated after migration
+- LLM refinement pass after DAX optimization
+- Governance audit integrated into post-generation pipeline
+- Comparison report auto-generated
+- QA pipeline runs validate → auto-fix → governance → compare
+- Deploy to Power BI Service with refresh and endorsement
+- Manifest generation with artifact inventory
+- Global assessment for cross-app merge analysis
+- Schema drift detection mode
+- Shared model mode with merge config, thin reports, and bundle deploy
+- Monitoring metrics export (JSON/Prometheus/Azure Monitor)
+- Data validation via equivalence testing
+
+### Tests
+- **122 new tests** across 4 new test files:
+  - `test_lineage_map.py` (30 tests): LineageEntry, LineageMap, build_lineage_map
+  - `test_qa_pipeline.py` (17 tests): Auto-fix patterns, full QA pipeline
+  - `test_new_connectors.py` (36 tests): All 17 new connectors + aliases + existing
+  - `test_new_cli_flags.py` (39 tests): CLI flag definitions, _build_calc_map_from_tmdl
+- Total test count: **2,213** (up from 2,091)
+
+## v9.1.0 — Preceptorship Multi-Agent Model & v9.1 Roadmap Delivery
+
+### Multi-Agent Architecture
+- **Preceptor agent**: New quality guardian agent that reviews work across all specialists, enforces standards, catches pitfalls, validates cross-agent consistency
+- **Preceptorship workflow**: All specialist agents now follow a structured **Plan → Assign → Implement → Review** cycle
+- **Tech Lead role**: Orchestrator formalized as Tech Lead — architectural decisions, task decomposition, cross-agent coordination
+- **Escalation paths**: Each specialist knows when to escalate to Preceptor (quality) vs Orchestrator (architecture)
+- **Self-review checklist**: Standardized review criteria embedded in every agent definition
+- **10 agent definitions**: Orchestrator (Tech Lead), Preceptor, Extractor, Converter, Generator, Assessor, Merger, Deployer, Tester, plus shared instructions
+
+### DAX Stub Completion (P1)
+- **KeepChar**: Improved from `UNSUPPORTED` to approximate SUBSTITUTE chain stripping common non-alphanumeric characters
+- **MapSubstring**: Improved annotation — now "maps substrings via lookup — chain SUBSTITUTE per mapping entry"
+- All 8 other stubs already implemented: Correl (Pearson), BitCount (8-bit MOD), Atan2 (4-quadrant), Interval (FORMAT), SubField (PATHITEM), NetWorkDays (DATEDIFF)
+- 4 functions remain formally unsupported: Skew, Hash128, Hash160, Hash256, Evaluate
+
+### Dynamic Zone Visibility (P3)
+- `visual_generator.py`: Worksheets with `dynamicZone` metadata now emit `conditionalVisibility` and `_dynamicZoneMeta` on the visual container
+- `pbip_generator.py`: New `_create_dynamic_zone_bookmarks()` method generates bookmark entries with `targetVisualType: "toggleVisibility"` wired into `report.json`
+
+### Integration Testing (P5)
+- **91 new tests** in `test_v91_features.py` covering DAX stubs, assessment Qlik-native checks, dynamic zones, drillthrough, icon sets, background images, script converter, E2E pipeline, Fabric modules, merge modules, SLA, governance
+- Total test count: **2,091** (up from 2,000)
+
+### Test Fixes
+- Updated pre-existing test assertions in `test_dax_stub_fixes.py` and `test_dax_stubs_v91.py` to match improved KeepChar/MapSubstring output
+
 ## v9.0.0 — Enterprise Features (ported from TableauToPowerBI)
 
 ### New Modules — 35 modules ported from TableauToPowerBI

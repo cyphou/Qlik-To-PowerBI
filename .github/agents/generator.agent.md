@@ -30,6 +30,13 @@ You are the **Generator** agent for the Qlik to Power BI migration project. You 
 - `powerbi_import/fabric_naming.py` — Name sanitisation (table, column, query, pipeline, Python var)
 - `powerbi_import/calc_column_utils.py` — Calculation classification (calc columns vs measures), Qlik→M/PySpark conversion
 
+## Preceptorship Cycle
+
+Follow the **Plan → Assign → Implement → Review** cycle (see `shared.instructions.md`).
+Before completing any task, run the self-review checklist. For changes to TMDL output format,
+visual type mappings, or Fabric generator contracts, escalate to **Preceptor** for review
+to validate TMDL syntax and cross-agent schema consistency.
+
 ## Constraints
 
 - Do NOT modify Qlik XML parsing — delegate to **Extractor**

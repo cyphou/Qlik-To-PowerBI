@@ -4,7 +4,7 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "qlik-to-powerbi"
-version = "9.0.0"
+version = "10.0.0"
 description = "Qlik Sense to Power BI migration toolkit — generates PBI Projects (TMDL)"
 requires-python = ">=3.10"
 license = {text = "MIT"}
