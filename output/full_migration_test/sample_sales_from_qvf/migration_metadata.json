@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-17T13:22:03.298576",
+  "generated_at": "2026-04-17T13:30:17.407244",
   "source": "Qlik Migration",
   "report_name": "sample_sales_from_qvf",
   "objects_converted": {
@@ -20,7 +20,7 @@
   },
   "generated_output": {
     "pages": 1,
-    "visuals": 12,
+    "visuals": 15,
     "theme_applied": false,
     "theme_detail": {
       "status": "skipped",

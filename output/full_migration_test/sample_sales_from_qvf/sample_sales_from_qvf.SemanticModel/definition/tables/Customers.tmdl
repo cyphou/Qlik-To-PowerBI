@@ -1,9 +1,9 @@
 table Customers
-	lineageTag: 2ed7bc2b-ace6-4eac-9ce8-51ba2d625931
+	lineageTag: 690eb920-abf2-43f7-b595-f71a1452ac7a
 
 	column Sheet1
 		dataType: string
-		lineageTag: 6d99f603-7ac5-45f8-a540-49dd0455e26b
+		lineageTag: 430bc4f1-6858-4cb9-a63f-dd622537ee42
 		summarizeBy: none
 		sourceColumn: Sheet1
 
@@ -11,20 +11,21 @@ table Customers
 
 	column Sheet
 		dataType: string
-		lineageTag: 47a9de98-d0fc-41c8-9552-fb7ca4238839
+		lineageTag: 0426ec6e-2fdc-446a-8e90-5c17561d1713
 		summarizeBy: none
 		sourceColumn: Sheet
 
 		annotation SummarizationSetBy = Automatic
 
-	partition 'Customers-11323b1b-2ff1-43c6-abdc-bee82365e38a' = m
+	partition 'Customers-9b3a3b91-775b-49ad-82bb-470903cadd7f' = m
 		mode: import
 		source =
 				let
 				    Source = Excel.Workbook(File.Contents("Customers.xlsx"), null, true),
 				    Sheet1 = Source{{[Item="Sheet1",Kind="Sheet"]}}[Data],
 				    PromotedHeaders = Table.PromoteHeaders(Sheet1, [PromoteAllScalars=true])
-				,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"CustomerID", "CustomerName", "Country", "City", "Region"})
+				,
+				    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"CustomerID", "CustomerName", "Country", "City", "Region"})
 				
 				in
 				    SelectedColumns

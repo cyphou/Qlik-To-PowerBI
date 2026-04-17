@@ -2121,7 +2121,7 @@ def _create_field_parameters(model, parameters, main_table_name, column_table_ma
                 f"(NAMEOF('{col_table}'[{col_name}]), {idx}, \"{col_name}\")"
             )
 
-        fp_expr = "{\\n" + ",\\n".join(rows) + "\\n}"
+        fp_expr = "{\n" + ",\n".join(rows) + "\n}"
 
         fp_table = {
             "name": fp_name,

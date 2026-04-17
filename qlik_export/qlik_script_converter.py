@@ -318,7 +318,7 @@ class QlikScriptToPowerQueryConverter:
             if simple_columns or calculated_columns:
                 all_columns = simple_columns + [name for name, _ in calculated_columns]
                 column_list = '", "'.join(all_columns)
-                pq_script.append(f',\\n    SelectedColumns = Table.SelectColumns({base_table}, {{"{column_list}"}})')
+                pq_script.append(f',\n    SelectedColumns = Table.SelectColumns({base_table}, {{"{column_list}"}})')
                 base_table = 'SelectedColumns'
         
         # Étape 3: Appliquer WHERE clause

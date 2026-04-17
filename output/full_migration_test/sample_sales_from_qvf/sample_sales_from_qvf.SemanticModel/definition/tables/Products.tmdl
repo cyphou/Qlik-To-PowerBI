@@ -1,9 +1,9 @@
 table Products
-	lineageTag: 67cde8c0-23d4-406c-9855-f9a4fc3992fc
+	lineageTag: bf44a44f-876b-4626-a399-bebb689c666b
 
 	column ProductID
 		dataType: string
-		lineageTag: b17d4c2b-3e0d-4654-9cc0-d7651d2fedef
+		lineageTag: 725d6616-5fa7-4e0a-94e9-4541e7c95298
 		summarizeBy: none
 		sourceColumn: ProductID
 
@@ -11,7 +11,7 @@ table Products
 
 	column ProductName
 		dataType: string
-		lineageTag: 9b6a8cb9-e652-4dcd-aee6-0b68e87db789
+		lineageTag: 8fae1703-cb54-48bb-8925-b6663d5c9819
 		summarizeBy: none
 		sourceColumn: ProductName
 
@@ -19,7 +19,7 @@ table Products
 
 	column CategoryID
 		dataType: string
-		lineageTag: 641587db-cb37-4717-b73b-0ccc2dc12c99
+		lineageTag: b2d9c0de-956b-402c-a093-e740f304f7ce
 		summarizeBy: none
 		sourceColumn: CategoryID
 
@@ -27,18 +27,19 @@ table Products
 
 	column UnitPrice
 		dataType: string
-		lineageTag: 10d0f746-ed7e-4e69-8984-24852962a203
+		lineageTag: 59c6d211-7b3c-4eee-a873-a884f029c36e
 		summarizeBy: none
 		sourceColumn: UnitPrice
 
 		annotation SummarizationSetBy = Automatic
 
-	partition 'Products-b33ad34e-9183-4dc1-99a1-2ed1becfb1b5' = m
+	partition 'Products-9ac0cbef-048c-4965-8085-9dd4a75be421' = m
 		mode: import
 		source =
 				let
 				    Source = Qvd.Document(File.Contents("Products.qvd"))
-				,\n    SelectedColumns = Table.SelectColumns(Source, {"ProductID", "ProductName", "CategoryID", "UnitPrice"})
+				,
+				    SelectedColumns = Table.SelectColumns(Source, {"ProductID", "ProductName", "CategoryID", "UnitPrice"})
 				
 				in
 				    SelectedColumns

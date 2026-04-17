@@ -1,22 +1,22 @@
 table Sales
-	lineageTag: 6072f1e0-fdc6-4161-8d19-9adb573c97fd
+	lineageTag: 5dc0bb3a-fb86-4f6a-be8f-1e15d8baf196
 
 	measure 'CA Total' = SUM(Amount)
 		formatString: #,0.00
 		displayFolder: Measures
-		lineageTag: ec445cc2-c4a9-4f92-968b-6d1eefe0e7f5
+		lineageTag: b76f9cf6-5e8b-4562-b140-898840ab458b
 
 	measure 'Qté Totale' = SUM(Quantity)
 		formatString: #,0.00
 		displayFolder: Measures
-		lineageTag: 1619b031-af73-46b3-aa74-011e3414cea6
+		lineageTag: b8d5ca8c-e544-4c3f-ae7c-5e0964441a2e
 
 	measure 'Année en cours' = "Year(Today())"
-		lineageTag: 9d2a15ef-f623-46da-87dd-ee4872feda52
+		lineageTag: 8d477a11-f48f-46d7-af8d-1f93354ca980
 
 	column SaleID
 		dataType: string
-		lineageTag: 7eee91f1-a143-4b91-a69b-2a1ee6de1f87
+		lineageTag: 07c2f0e1-929a-46be-85fc-e45e8cd041bf
 		summarizeBy: none
 		sourceColumn: SaleID
 
@@ -24,7 +24,7 @@ table Sales
 
 	column CustomerID
 		dataType: string
-		lineageTag: fdd65c7a-42d4-4278-b775-a63ae4e10e1a
+		lineageTag: 76a005f8-5ceb-4b92-b4a6-a3ee0f181149
 		summarizeBy: none
 		sourceColumn: CustomerID
 
@@ -32,7 +32,7 @@ table Sales
 
 	column ProductID
 		dataType: string
-		lineageTag: 2935817e-733a-49df-8627-a30e1580e7c1
+		lineageTag: 3f00cc7b-50df-4b44-ad0e-4c1b603817d0
 		summarizeBy: none
 		sourceColumn: ProductID
 
@@ -40,7 +40,7 @@ table Sales
 
 	column OrderDate
 		dataType: string
-		lineageTag: 41b0ac94-5c4e-4ec2-8745-d145f41ad7db
+		lineageTag: fee6df9e-62a6-48e5-9e15-82b65ce7c650
 		summarizeBy: none
 		sourceColumn: OrderDate
 
@@ -48,7 +48,7 @@ table Sales
 
 	column Amount
 		dataType: string
-		lineageTag: 63b3e4cf-0181-46b4-8aec-0787c70ade2b
+		lineageTag: a4ee3cf3-296d-4e53-83ce-bf799e105ee5
 		summarizeBy: none
 		sourceColumn: Amount
 
@@ -56,19 +56,20 @@ table Sales
 
 	column Quantity
 		dataType: string
-		lineageTag: 8d132f26-a028-47a9-a616-0162fa1ab259
+		lineageTag: 6975f48f-6d0d-4cb5-83bc-7e419acc85c4
 		summarizeBy: none
 		sourceColumn: Quantity
 
 		annotation SummarizationSetBy = Automatic
 
-	partition 'Sales-d0ed41b3-3124-474e-9969-11b7fb03c0fa' = m
+	partition 'Sales-52c8c65c-f0a4-45c6-b8af-590afefad0da' = m
 		mode: import
 		source =
 				let
 				    Source = Csv.Document(File.Contents("Sales.csv"),[Delimiter=",", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),
 				    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])
-				,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"SaleID", "CustomerID", "ProductID", "OrderDate", "Amount", "Quantity"})
+				,
+				    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"SaleID", "CustomerID", "ProductID", "OrderDate", "Amount", "Quantity"})
 				
 				in
 				    SelectedColumns
