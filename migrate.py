@@ -598,7 +598,7 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
     return ExitCode.SUCCESS if failed == 0 else ExitCode.BATCH_PARTIAL_FAIL
 
 
-def _build_calc_map_from_tmdl(source_basename, output_dir):
+def _build_lineage_calc_map(source_basename, output_dir):
     """Build a calc_map dict from generated TMDL files for lineage tracking."""
     import re as _re
     calc_map = {}
@@ -1782,7 +1782,7 @@ def main():
 
             qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
             qlik_data = ExtractionOrchestrator.load_intermediate_json(qlik_dir)
-            calc_map = _build_calc_map_from_tmdl(source_basename, args.output_dir)
+            calc_map = _build_lineage_calc_map(source_basename, args.output_dir)
             lineage = build_lineage_map(source_basename, qlik_data, calc_map)
             out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
             lineage_path = lineage.save(os.path.join(out_base, source_basename))
@@ -1860,7 +1860,8 @@ def main():
             from powerbi_import.comparison_report import generate_comparison_report
             out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
             project_dir = os.path.join(out_base, source_basename)
-            comp_path = generate_comparison_report(project_dir=project_dir, output_dir=out_base)
+            extract_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+            comp_path = generate_comparison_report(extract_dir, project_dir)
             if comp_path and not json_mode:
                 print(f"  \u2713 Comparison report: {comp_path}")
         except Exception as exc:

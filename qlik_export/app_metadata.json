@@ -1,18 +1,6 @@
 {
-  "name": "Sales Discovery Demo",
-  "description": "Qlik Sense demo app based on the Beginner's Tutorial Sales Discovery pattern. Multi-table star schema with Set Analysis, Aggr(), Section Access, and 6 sheet types.",
-  "author": "Qlik Demo Team",
-  "created": "2025-06-15",
-  "modified": "2026-01-20",
-  "theme": {
-    "colors": [
-      "#4477AA",
-      "#EE6677",
-      "#228833",
-      "#CCBB44",
-      "#66CCEE",
-      "#AA3377",
-      "#BBBBBB"
-    ]
-  }
+  "name": "Application Ventes Exemple",
+  "description": "Application de démonstration pour la migration",
+  "source_file": "examples\\qlik\\qlik_exports\\sample_sales_from_qvf.json",
+  "extracted_at": "2026-04-17T13:21:58.037522"
 }

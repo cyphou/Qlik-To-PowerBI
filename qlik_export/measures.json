@@ -1,128 +1,14 @@
 [
   {
-    "name": "Total Sales",
+    "name": "Chiffre d'Affaires",
     "expression": "Sum(Amount)",
-    "label": "Total Sales",
-    "format": "$#,##0",
-    "id": "mea-001"
+    "label": "CA Total",
+    "id": "measure-001"
   },
   {
-    "name": "Total Quantity",
+    "name": "Quantité Vendue",
     "expression": "Sum(Quantity)",
-    "label": "Qty",
-    "format": "#,##0",
-    "id": "mea-002"
-  },
-  {
-    "name": "Total Cost",
-    "expression": "Sum(Cost)",
-    "label": "Cost",
-    "format": "$#,##0",
-    "id": "mea-003"
-  },
-  {
-    "name": "Gross Profit",
-    "expression": "Sum(Amount) - Sum(Cost)",
-    "label": "Profit",
-    "format": "$#,##0",
-    "id": "mea-004"
-  },
-  {
-    "name": "Profit Margin",
-    "expression": "(Sum(Amount) - Sum(Cost)) / Sum(Amount)",
-    "label": "Margin %",
-    "format": "0.0%",
-    "id": "mea-005"
-  },
-  {
-    "name": "Avg Order Value",
-    "expression": "Avg(Amount)",
-    "label": "AOV",
-    "format": "$#,##0.00",
-    "id": "mea-006"
-  },
-  {
-    "name": "Distinct Customers",
-    "expression": "Count(DISTINCT CustomerID)",
-    "label": "Customers",
-    "format": "#,##0",
-    "id": "mea-007"
-  },
-  {
-    "name": "Orders Count",
-    "expression": "Count(DISTINCT OrderID)",
-    "label": "Orders",
-    "format": "#,##0",
-    "id": "mea-008"
-  },
-  {
-    "name": "YTD Sales",
-    "expression": "Sum({<OrderDate={'>=$(=YearStart(Today()))<=$(=Today())'}>} Amount)",
-    "label": "YTD Sales",
-    "format": "$#,##0",
-    "id": "mea-009"
-  },
-  {
-    "name": "Prior Year Sales",
-    "expression": "Sum({<Year={$(=Year(Today())-1)}>} Amount)",
-    "label": "PY Sales",
-    "format": "$#,##0",
-    "id": "mea-010"
-  },
-  {
-    "name": "YoY Growth",
-    "expression": "(Sum(Amount) - Sum({<Year={$(=Year(Today())-1)}>} Amount)) / Sum({<Year={$(=Year(Today())-1)}>} Amount)",
-    "label": "YoY %",
-    "format": "0.0%",
-    "id": "mea-011"
-  },
-  {
-    "name": "Sales vs Target",
-    "expression": "Sum(Amount) / Sum(TargetAmount)",
-    "label": "% Target",
-    "format": "0.0%",
-    "id": "mea-012"
-  },
-  {
-    "name": "Return Rate",
-    "expression": "Count(DISTINCT ReturnID) / Count(DISTINCT OrderID)",
-    "label": "Return Rate",
-    "format": "0.0%",
-    "id": "mea-013"
-  },
-  {
-    "name": "Avg Discount",
-    "expression": "Avg(Discount)",
-    "label": "Avg Discount",
-    "format": "0.0%",
-    "id": "mea-014"
-  },
-  {
-    "name": "Top Category Sales",
-    "expression": "Aggr(Sum(Amount), Category)",
-    "label": "Category Total",
-    "format": "$#,##0",
-    "id": "mea-015"
-  },
-  {
-    "name": "Running Total",
-    "expression": "RangeSum(Above(Sum(Amount), 0, RowNo()))",
-    "label": "Running Total",
-    "format": "$#,##0",
-    "id": "mea-016"
-  },
-  {
-    "name": "Rank by Sales",
-    "expression": "Rank(Sum(Amount))",
-    "label": "Rank",
-    "format": "#,##0",
-    "id": "mea-017"
-  },
-  {
-    "name": "Previous Month Sales",
-    "expression": "Above(Sum(Amount))",
-    "label": "Prev Month",
-    "format": "$#,##0",
-    "id": "mea-018"
+    "label": "Qté Totale",
+    "id": "measure-002"
   }
 ]

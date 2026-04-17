@@ -1,246 +1,80 @@
 [
   {
-    "name": "Sales",
     "tableName": "Sales",
-    "connectionType": "csv",
+    "connectionType": "loadscript",
     "connection": {
-      "path": "data/Sales.csv",
-      "delimiter": ","
+      "type": "loadscript"
     },
     "columns": [
       {
-        "name": "OrderID",
-        "type": "integer"
+        "name": "SaleID",
+        "dataType": "string"
+      },
+      {
+        "name": "CustomerID",
+        "dataType": "string"
+      },
+      {
+        "name": "ProductID",
+        "dataType": "string"
       },
       {
         "name": "OrderDate",
-        "type": "date"
-      },
-      {
-        "name": "CustomerID",
-        "type": "integer"
-      },
-      {
-        "name": "ProductID",
-        "type": "integer"
-      },
-      {
-        "name": "SalesRepID",
-        "type": "integer"
-      },
-      {
-        "name": "Quantity",
-        "type": "integer"
-      },
-      {
-        "name": "UnitPrice",
-        "type": "decimal"
-      },
-      {
-        "name": "Discount",
-        "type": "decimal"
+        "dataType": "string"
       },
       {
         "name": "Amount",
-        "type": "decimal"
+        "dataType": "string"
       },
       {
-        "name": "Cost",
-        "type": "decimal"
-      },
-      {
-        "name": "ShipDate",
-        "type": "date"
-      },
-      {
-        "name": "ShipMode",
-        "type": "string"
-      },
-      {
-        "name": "Region",
-        "type": "string"
+        "name": "Quantity",
+        "dataType": "string"
       }
     ],
-    "m_query": "let\n    Source = Csv.Document(File.Contents(\"data/Sales.csv\"),[Delimiter=\",\", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),\n    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])\n,\\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"OrderID\", \"OrderDate\", \"CustomerID\", \"ProductID\", \"SalesRepID\", \"Quantity\", \"UnitPrice\", \"Discount\", \"Amount\", \"Cost\", \"ShipDate\", \"ShipMode\", \"Region\"})\n\nin\n    SelectedColumns"
+    "m_query": "let\n    Source = Csv.Document(File.Contents(\"Sales.csv\"),[Delimiter=\",\", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),\n    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])\n,\\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"SaleID\", \"CustomerID\", \"ProductID\", \"OrderDate\", \"Amount\", \"Quantity\"})\n\nin\n    SelectedColumns"
   },
   {
-    "name": "Customers",
     "tableName": "Customers",
-    "connectionType": "excel",
+    "connectionType": "loadscript",
     "connection": {
-      "path": "data/Customers.xlsx"
+      "type": "loadscript"
     },
     "columns": [
       {
-        "name": "CustomerID",
-        "type": "integer"
+        "name": "Sheet1",
+        "dataType": "string"
       },
       {
-        "name": "CustomerName",
-        "type": "string"
-      },
-      {
-        "name": "Segment",
-        "type": "string"
-      },
-      {
-        "name": "Country",
-        "type": "string"
-      },
-      {
-        "name": "State",
-        "type": "string"
-      },
-      {
-        "name": "City",
-        "type": "string"
-      },
-      {
-        "name": "PostalCode",
-        "type": "string"
-      },
-      {
-        "name": "Phone",
-        "type": "string"
-      },
-      {
-        "name": "Email",
-        "type": "string"
+        "name": "Sheet",
+        "dataType": "string"
       }
     ],
-    "m_query": "let\n    Source = Excel.Workbook(File.Contents(\"data/Customers.xlsx\"), null, true),\n    Sheet1 = Source{{[Item=\"Sheet1\",Kind=\"Sheet\"]}}[Data],\n    PromotedHeaders = Table.PromoteHeaders(Sheet1, [PromoteAllScalars=true])\n,\\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"CustomerID\", \"CustomerName\", \"Segment\", \"Country\", \"State\", \"City\", \"PostalCode\", \"Phone\", \"Email\"})\n\nin\n    SelectedColumns"
+    "m_query": "let\n    Source = Excel.Workbook(File.Contents(\"Customers.xlsx\"), null, true),\n    Sheet1 = Source{{[Item=\"Sheet1\",Kind=\"Sheet\"]}}[Data],\n    PromotedHeaders = Table.PromoteHeaders(Sheet1, [PromoteAllScalars=true])\n,\\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"CustomerID\", \"CustomerName\", \"Country\", \"City\", \"Region\"})\n\nin\n    SelectedColumns"
   },
   {
-    "name": "Products",
     "tableName": "Products",
-    "connectionType": "sqlserver",
+    "connectionType": "loadscript",
     "connection": {
-      "server": "sql-prod-01",
-      "database": "ProductCatalog"
+      "type": "loadscript"
     },
     "columns": [
       {
         "name": "ProductID",
-        "type": "integer"
+        "dataType": "string"
       },
       {
         "name": "ProductName",
-        "type": "string"
+        "dataType": "string"
       },
       {
-        "name": "Category",
-        "type": "string"
+        "name": "CategoryID",
+        "dataType": "string"
       },
       {
-        "name": "SubCategory",
-        "type": "string"
-      },
-      {
-        "name": "Brand",
-        "type": "string"
-      },
-      {
-        "name": "UnitCost",
-        "type": "decimal"
-      },
-      {
-        "name": "ListPrice",
-        "type": "decimal"
-      }
-    ]
-  },
-  {
-    "name": "SalesReps",
-    "tableName": "SalesReps",
-    "connectionType": "csv",
-    "connection": {
-      "path": "data/SalesReps.csv",
-      "delimiter": ","
-    },
-    "columns": [
-      {
-        "name": "SalesRepID",
-        "type": "integer"
-      },
-      {
-        "name": "SalesRepName",
-        "type": "string"
-      },
-      {
-        "name": "Team",
-        "type": "string"
-      },
-      {
-        "name": "HireDate",
-        "type": "date"
-      },
-      {
-        "name": "ManagerName",
-        "type": "string"
+        "name": "UnitPrice",
+        "dataType": "string"
       }
     ],
-    "m_query": "let\n    Source = Csv.Document(File.Contents(\"data/SalesReps.csv\"),[Delimiter=\",\", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),\n    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])\n,\\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"SalesRepID\", \"SalesRepName\", \"Team\", \"HireDate\", \"ManagerName\"})\n\nin\n    SelectedColumns"
-  },
-  {
-    "name": "Targets",
-    "tableName": "Targets",
-    "connectionType": "excel",
-    "connection": {
-      "path": "data/Targets.xlsx"
-    },
-    "columns": [
-      {
-        "name": "Year",
-        "type": "integer"
-      },
-      {
-        "name": "Month",
-        "type": "integer"
-      },
-      {
-        "name": "Region",
-        "type": "string"
-      },
-      {
-        "name": "TargetAmount",
-        "type": "decimal"
-      },
-      {
-        "name": "TargetQuantity",
-        "type": "integer"
-      }
-    ],
-    "m_query": "let\n    Source = Excel.Workbook(File.Contents(\"data/Targets.xlsx\"), null, true),\n    Sheet1 = Source{{[Item=\"Sheet1\",Kind=\"Sheet\"]}}[Data],\n    PromotedHeaders = Table.PromoteHeaders(Sheet1, [PromoteAllScalars=true])\n,\\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"Year\", \"Month\", \"Region\", \"TargetAmount\", \"TargetQuantity\"})\n\nin\n    SelectedColumns"
-  },
-  {
-    "name": "Returns",
-    "tableName": "Returns",
-    "connectionType": "csv",
-    "connection": {
-      "path": "data/Returns.csv",
-      "delimiter": ","
-    },
-    "columns": [
-      {
-        "name": "ReturnID",
-        "type": "integer"
-      },
-      {
-        "name": "OrderID",
-        "type": "integer"
-      },
-      {
-        "name": "ReturnDate",
-        "type": "date"
-      },
-      {
-        "name": "ReturnReason",
-        "type": "string"
-      },
-      {
-        "name": "RefundAmount",
-        "type": "decimal"
-      }
-    ]
+    "m_query": "let\n    Source = Qvd.Document(File.Contents(\"Products.qvd\"))\n,\\n    SelectedColumns = Table.SelectColumns(Source, {\"ProductID\", \"ProductName\", \"CategoryID\", \"UnitPrice\"})\n\nin\n    SelectedColumns"
   }
 ]

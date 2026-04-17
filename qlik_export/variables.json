@@ -2,26 +2,6 @@
   {
     "name": "vCurrentYear",
     "value": "Year(Today())",
-    "comment": "Current year"
-  },
-  {
-    "name": "vPriorYear",
-    "value": "Year(Today()) - 1",
-    "comment": "Previous year"
-  },
-  {
-    "name": "vTargetGrowth",
-    "value": "0.10",
-    "comment": "10% YoY growth target"
-  },
-  {
-    "name": "vTop10Customers",
-    "value": "Sum({<CustomerName={\">=$(=Aggr(Sum(Amount), CustomerName)[-10]\"}>} Amount)",
-    "comment": "Sales from top 10 customers"
-  },
-  {
-    "name": "vMarginThreshold",
-    "value": "0.20",
-    "comment": "Minimum acceptable margin (20%)"
+    "comment": "Année en cours"
   }
 ]

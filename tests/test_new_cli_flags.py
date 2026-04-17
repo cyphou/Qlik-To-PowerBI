@@ -1,4 +1,4 @@
-"""Tests for new migrate.py CLI flags and helper functions."""
+﻿"""Tests for new migrate.py CLI flags and helper functions."""
 
 import os
 import subprocess
@@ -9,15 +9,15 @@ import unittest
 # Ensure project root is on sys.path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from migrate import _build_calc_map_from_tmdl
+from migrate import _build_lineage_calc_map
 
 
 class TestBuildCalcMapFromTmdl(unittest.TestCase):
-    """Tests for _build_calc_map_from_tmdl helper."""
+    """Tests for _build_lineage_calc_map helper."""
 
     def test_empty_directory(self):
         with tempfile.TemporaryDirectory() as td:
-            result = _build_calc_map_from_tmdl("NoApp", td)
+            result = _build_lineage_calc_map("NoApp", td)
             self.assertEqual(result, {})
 
     def test_reads_measures(self):
@@ -31,7 +31,7 @@ class TestBuildCalcMapFromTmdl(unittest.TestCase):
                 f.write("\tmeasure Revenue = SUM([Amount])\n")
                 f.write("\tmeasure 'Total Count' = COUNT([ID])\n")
 
-            result = _build_calc_map_from_tmdl(app, td)
+            result = _build_lineage_calc_map(app, td)
             self.assertIn("Revenue", result)
             self.assertEqual(result["Revenue"]["table"], "Sales")
             self.assertEqual(result["Revenue"]["type"], "measure")
@@ -46,7 +46,7 @@ class TestBuildCalcMapFromTmdl(unittest.TestCase):
                 f.write("table Products\n")
                 f.write("\tcolumn Category = RELATED('Dim'[Cat])\n")
 
-            result = _build_calc_map_from_tmdl(app, td)
+            result = _build_lineage_calc_map(app, td)
             self.assertIn("Category", result)
             self.assertEqual(result["Category"]["type"], "calculated_column")
             self.assertEqual(result["Category"]["table"], "Products")
@@ -62,7 +62,7 @@ class TestBuildCalcMapFromTmdl(unittest.TestCase):
             with open(os.path.join(tables_dir, "B.tmdl"), "w") as f:
                 f.write("table B\n\tmeasure M2 = COUNT([Y])\n")
 
-            result = _build_calc_map_from_tmdl(app, td)
+            result = _build_lineage_calc_map(app, td)
             self.assertEqual(result["M1"]["table"], "A")
             self.assertEqual(result["M2"]["table"], "B")
 
@@ -75,7 +75,7 @@ class TestBuildCalcMapFromTmdl(unittest.TestCase):
             with open(os.path.join(tables_dir, "readme.txt"), "w") as f:
                 f.write("measure Fake = 1\n")
 
-            result = _build_calc_map_from_tmdl(app, td)
+            result = _build_lineage_calc_map(app, td)
             self.assertEqual(result, {})
 
 

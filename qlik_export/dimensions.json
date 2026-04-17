@@ -1,67 +1,14 @@
 [
   {
-    "name": "Customer Name",
+    "name": "Client",
     "field": "CustomerName",
-    "label": "Customer",
+    "label": "Nom du Client",
     "id": "dim-001"
   },
   {
-    "name": "Product Category",
-    "field": "Category",
-    "label": "Category",
-    "id": "dim-002"
-  },
-  {
-    "name": "Sub-Category",
-    "field": "SubCategory",
-    "label": "Sub-Category",
-    "id": "dim-003"
-  },
-  {
-    "name": "Region",
-    "field": "Region",
-    "label": "Region",
-    "id": "dim-004"
-  },
-  {
-    "name": "Sales Rep",
-    "field": "SalesRepName",
-    "label": "Sales Rep",
-    "id": "dim-005"
-  },
-  {
-    "name": "Customer Segment",
-    "field": "Segment",
-    "label": "Segment",
-    "id": "dim-006"
-  },
-  {
-    "name": "Ship Mode",
-    "field": "ShipMode",
-    "label": "Ship Mode",
-    "id": "dim-007"
-  },
-  {
-    "name": "Product",
+    "name": "Produit",
     "field": "ProductName",
-    "label": "Product",
-    "id": "dim-008"
-  },
-  {
-    "name": "Country",
-    "field": "Country",
-    "label": "Country",
-    "id": "dim-009"
-  },
-  {
-    "name": "Year-Month",
-    "field": "=Year(OrderDate) & '-' & Num(Month(OrderDate), '00')",
-    "label": "Period",
-    "id": "dim-010",
-    "drillDown": [
-      "Year(OrderDate)",
-      "Month(OrderDate)",
-      "Day(OrderDate)"
-    ]
+    "label": "Nom du Produit",
+    "id": "dim-002"
   }
 ]
