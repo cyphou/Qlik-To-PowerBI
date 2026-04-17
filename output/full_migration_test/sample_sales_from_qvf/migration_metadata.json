@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-17T13:30:17.407244",
+  "generated_at": "2026-04-17T13:44:10.950443",
   "source": "Qlik Migration",
   "report_name": "sample_sales_from_qvf",
   "objects_converted": {
@@ -20,7 +20,7 @@
   },
   "generated_output": {
     "pages": 1,
-    "visuals": 15,
+    "visuals": 24,
     "theme_applied": false,
     "theme_detail": {
       "status": "skipped",
@@ -30,8 +30,8 @@
   "tmdl_stats": {
     "tables": 3,
     "measures": 3,
-    "columns": 12,
-    "relationships": 0
+    "columns": 15,
+    "relationships": 1
   },
   "visual_type_mappings": {
     "": "table"

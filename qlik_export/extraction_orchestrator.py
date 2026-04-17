@@ -665,20 +665,32 @@ class ExtractionOrchestrator:
         columns: List[Dict] = []
         seen: set = set()
 
-        # Match {"Col1", "Col2", ...} patterns
+        # Prefer Table.SelectColumns(..., {"Col1", "Col2"}) pattern first
+        sc_match = _re.search(
+            r'Table\.SelectColumns\s*\([^,]+,\s*\{([^{}]+)\}', m_query
+        )
+        if sc_match:
+            names = _re.findall(r'"([^"]+)"', sc_match.group(1))
+            for name in names:
+                if name not in seen:
+                    seen.add(name)
+                    columns.append({"name": name, "dataType": "string"})
+            if columns:
+                return columns
+
+        # Fallback: find the last {..."Col1", "Col2"...} list that looks
+        # like a column list (only quoted strings separated by commas).
+        best_names: List[str] = []
         for m in _re.finditer(r'\{([^{}]+)\}', m_query):
             inner = m.group(1)
-            # Only consider lists of quoted strings
             names = _re.findall(r'"([^"]+)"', inner)
-            if len(names) >= 2:
-                for name in names:
-                    if name not in seen:
-                        seen.add(name)
-                        columns.append({
-                            "name": name,
-                            "dataType": "string",
-                        })
-                break  # Use the first matching set (usually SelectColumns)
+            # Ensure this is a pure quoted-string list (no brackets/equals)
+            if len(names) >= 2 and '[' not in inner and '=' not in inner:
+                best_names = names
+        for name in best_names:
+            if name not in seen:
+                seen.add(name)
+                columns.append({"name": name, "dataType": "string"})
         return columns
 
     def get_extraction_summary(self) -> Dict[str, Any]:

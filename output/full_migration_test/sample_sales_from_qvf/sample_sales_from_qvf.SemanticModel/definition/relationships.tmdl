@@ -1,0 +1,10 @@
+relationship 91f03c41-5f96-42a0-a5b7-09096d323f69
+	fromColumn: Sales.CustomerID
+	toColumn: Customers.CustomerID
+	crossFilteringBehavior: oneDirection
+
+relationship fcc9d068-a1fa-42f9-bfaa-68b8e360b1d8
+	fromColumn: Sales.ProductID
+	toColumn: Products.ProductID
+	crossFilteringBehavior: oneDirection
+

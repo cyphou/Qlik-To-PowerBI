@@ -1,23 +1,50 @@
 table Customers
-	lineageTag: 690eb920-abf2-43f7-b595-f71a1452ac7a
+	lineageTag: 8a2e0a52-b978-48e1-86e1-421fd51750ed
 
-	column Sheet1
+	column CustomerID
 		dataType: string
-		lineageTag: 430bc4f1-6858-4cb9-a63f-dd622537ee42
+		lineageTag: 070d5ec2-462d-404f-be66-08f947d825ca
 		summarizeBy: none
-		sourceColumn: Sheet1
+		sourceColumn: CustomerID
 
 		annotation SummarizationSetBy = Automatic
 
-	column Sheet
+	column CustomerName
 		dataType: string
-		lineageTag: 0426ec6e-2fdc-446a-8e90-5c17561d1713
+		lineageTag: 475ed018-5897-41eb-8767-0a54df67ecd1
 		summarizeBy: none
-		sourceColumn: Sheet
+		sourceColumn: CustomerName
 
 		annotation SummarizationSetBy = Automatic
 
-	partition 'Customers-9b3a3b91-775b-49ad-82bb-470903cadd7f' = m
+	column Country
+		dataType: string
+		lineageTag: efc66886-214c-4464-bfe4-4b07720677f9
+		summarizeBy: none
+		sourceColumn: Country
+		dataCategory: Country
+
+		annotation SummarizationSetBy = Automatic
+
+	column City
+		dataType: string
+		lineageTag: c0b7395f-9c3f-4dfb-bcf2-70b2faad4a0d
+		summarizeBy: none
+		sourceColumn: City
+		dataCategory: City
+
+		annotation SummarizationSetBy = Automatic
+
+	column Region
+		dataType: string
+		lineageTag: 5d513aa8-7ed8-4a23-a880-9daa36bb6780
+		summarizeBy: none
+		sourceColumn: Region
+		dataCategory: StateOrProvince
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Customers-68a4a1c6-ce06-4242-99e5-7d72b00a223c' = m
 		mode: import
 		source =
 				let

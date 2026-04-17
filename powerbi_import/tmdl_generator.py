@@ -1328,8 +1328,13 @@ def _infer_cross_table_relationships(model):
             for col in common_cols:
                 col_lower = col.lower().rstrip('_')
                 # Score: exact ID/key column names get highest priority
+                # Split on underscores/spaces AND CamelCase boundaries
                 parts = re.split(r'[_\s]', col_lower)
-                has_key_suffix = any(p in _KEY_SUFFIXES for p in parts)
+                # Also split CamelCase: "customerid" → check endswith
+                has_key_suffix = (
+                    any(p in _KEY_SUFFIXES for p in parts)
+                    or any(col_lower.endswith(s) for s in _KEY_SUFFIXES)
+                )
                 if has_key_suffix:
                     score = 90
                 elif col_lower.endswith('name'):

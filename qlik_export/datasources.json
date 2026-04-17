@@ -41,11 +41,23 @@
     },
     "columns": [
       {
-        "name": "Sheet1",
+        "name": "CustomerID",
         "dataType": "string"
       },
       {
-        "name": "Sheet",
+        "name": "CustomerName",
+        "dataType": "string"
+      },
+      {
+        "name": "Country",
+        "dataType": "string"
+      },
+      {
+        "name": "City",
+        "dataType": "string"
+      },
+      {
+        "name": "Region",
         "dataType": "string"
       }
     ],
