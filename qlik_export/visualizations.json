@@ -1,32 +1,70 @@
 [
   {
-    "id": "KPI-001",
+    "name": "CA Total",
     "type": "kpi",
-    "title": "",
     "sheetId": "sheet-001",
+    "col": 0,
+    "row": 0,
     "dimensions": [],
-    "measures": [],
-    "settings": {},
-    "position": {}
+    "measures": [
+      {
+        "name": "Chiffre d'Affaires",
+        "expression": "Sum(Amount)",
+        "label": "CA Total"
+      }
+    ]
   },
   {
-    "id": "Chart-001",
+    "name": "Ventes par Client",
     "type": "barchart",
-    "title": "",
     "sheetId": "sheet-001",
-    "dimensions": [],
-    "measures": [],
-    "settings": {},
-    "position": {}
+    "col": 1,
+    "row": 0,
+    "dimensions": [
+      {
+        "field": "CustomerName",
+        "label": "Client"
+      }
+    ],
+    "measures": [
+      {
+        "name": "Chiffre d'Affaires",
+        "expression": "Sum(Amount)",
+        "label": "CA Total"
+      }
+    ]
   },
   {
-    "id": "Table-001",
+    "name": "Détail Ventes",
     "type": "table",
-    "title": "",
     "sheetId": "sheet-001",
-    "dimensions": [],
-    "measures": [],
-    "settings": {},
-    "position": {}
+    "col": 0,
+    "row": 1,
+    "dimensions": [
+      {
+        "field": "CustomerName",
+        "label": "Client"
+      },
+      {
+        "field": "ProductName",
+        "label": "Produit"
+      },
+      {
+        "field": "OrderDate",
+        "label": "Date"
+      }
+    ],
+    "measures": [
+      {
+        "name": "Chiffre d'Affaires",
+        "expression": "Sum(Amount)",
+        "label": "CA Total"
+      },
+      {
+        "name": "Quantité Vendue",
+        "expression": "Sum(Quantity)",
+        "label": "Qté Totale"
+      }
+    ]
   }
 ]

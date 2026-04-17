@@ -1,0 +1,2 @@
+expression DataFolder = "C:\\Users\\pidoudet\\OneDrive - Microsoft\\Boulot\\PBI SME\\OracleToPostgre\\QlikToPowerBI\\output\\demo_migration\\sample_sales_from_qvf\\data" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+

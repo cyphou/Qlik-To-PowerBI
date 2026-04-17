@@ -314,6 +314,11 @@ def convert_qlik_expression_to_dax(
     if is_calculated_column and col_table_map and table_name:
         dax = _insert_related(dax, table_name, col_table_map, relationships)
 
+    # Phase 8b: Qualify bare column references in aggregation functions
+    # SUM(Amount) → SUM('Sales'[Amount])  (DAX requires table-qualified columns)
+    if table_name or col_table_map:
+        dax = _qualify_aggregation_columns(dax, table_name, col_table_map)
+
     # Phase 9: Clean up
     dax = _cleanup_dax(dax)
 
@@ -1167,6 +1172,53 @@ def _split_top_level_args(text: str) -> List[str]:
     if buf:
         args.append(''.join(buf))
     return args
+
+
+# ── Qualify bare columns in aggregation functions ─────────────────
+
+# DAX aggregation functions that require table-qualified column references
+_AGG_FUNCTIONS = {
+    'SUM', 'AVERAGE', 'MIN', 'MAX', 'COUNT', 'COUNTA', 'COUNTBLANK',
+    'DISTINCTCOUNT', 'DISTINCTCOUNTNOBLANK',
+    'STDEV.S', 'STDEV.P', 'VAR.S', 'VAR.P',
+    'MAXX', 'MINX', 'SUMX', 'AVERAGEX', 'COUNTX', 'COUNTAX',
+    'MEDIAN', 'PERCENTILE.INC', 'PERCENTILE.EXC',
+    'PRODUCT', 'GEOMEAN', 'GEOMEANX',
+}
+
+# Pattern: AGG_FUNC( <bare_identifier> )
+# A bare identifier is a word without quotes, brackets, dots, or nested parens
+_QUALIFY_RE = re.compile(
+    r'\b(' + '|'.join(re.escape(f) for f in sorted(_AGG_FUNCTIONS, key=len, reverse=True)) +
+    r')\(\s*([A-Za-z_]\w*)\s*\)',
+    re.IGNORECASE,
+)
+
+
+def _qualify_aggregation_columns(
+    expr: str,
+    table_name: str = "",
+    col_table_map: Optional[Dict[str, str]] = None,
+) -> str:
+    """Qualify bare column references inside DAX aggregation functions.
+
+    ``SUM(Amount)`` → ``SUM('Sales'[Amount])``
+
+    Only touches arguments that are simple identifiers (no brackets,
+    quotes, dots, or nested function calls already present).
+    """
+    ctm = col_table_map or {}
+
+    def _replace(m):
+        func = m.group(1)
+        col = m.group(2)
+        # Resolve table: prefer col_table_map, fall back to table_name
+        tbl = ctm.get(col, table_name)
+        if tbl:
+            return f"{func}('{tbl}'[{col}])"
+        return m.group(0)  # leave unchanged if no table context
+
+    return _QUALIFY_RE.sub(_replace, expr)
 
 
 # ── Cleanup ───────────────────────────────────────────────────────

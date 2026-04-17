@@ -31,7 +31,7 @@
         "dataType": "string"
       }
     ],
-    "m_query": "let\n    Source = Csv.Document(File.Contents(\"Sales.csv\"),[Delimiter=\",\", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),\n    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])\n,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"SaleID\", \"CustomerID\", \"ProductID\", \"OrderDate\", \"Amount\", \"Quantity\"})\n\nin\n    SelectedColumns"
+    "m_query": "let\n    Source = Csv.Document(File.Contents(DataFolder & \"\\\\Sales.csv\"),[Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.None]),\n    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])\n,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"SaleID\", \"CustomerID\", \"ProductID\", \"OrderDate\", \"Amount\", \"Quantity\"})\n\nin\n    SelectedColumns"
   },
   {
     "tableName": "Customers",
@@ -61,7 +61,7 @@
         "dataType": "string"
       }
     ],
-    "m_query": "let\n    Source = Excel.Workbook(File.Contents(\"Customers.xlsx\"), null, true),\n    Sheet1 = Source{{[Item=\"Sheet1\",Kind=\"Sheet\"]}}[Data],\n    PromotedHeaders = Table.PromoteHeaders(Sheet1, [PromoteAllScalars=true])\n,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"CustomerID\", \"CustomerName\", \"Country\", \"City\", \"Region\"})\n\nin\n    SelectedColumns"
+    "m_query": "let\n    Source = Csv.Document(File.Contents(DataFolder & \"\\\\Customers.csv\"),[Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.None]),\n    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])\n,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"CustomerID\", \"CustomerName\", \"Country\", \"City\", \"Region\"})\n\nin\n    SelectedColumns"
   },
   {
     "tableName": "Products",
@@ -87,6 +87,6 @@
         "dataType": "string"
       }
     ],
-    "m_query": "let\n    Source = Qvd.Document(File.Contents(\"Products.qvd\"))\n,\n    SelectedColumns = Table.SelectColumns(Source, {\"ProductID\", \"ProductName\", \"CategoryID\", \"UnitPrice\"})\n\nin\n    SelectedColumns"
+    "m_query": "let\n    Source = Csv.Document(File.Contents(DataFolder & \"\\\\Products.csv\"),[Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.None]),\n    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])\n,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"ProductID\", \"ProductName\", \"CategoryID\", \"UnitPrice\"})\n\nin\n    SelectedColumns"
   }
 ]
