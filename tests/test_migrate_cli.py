@@ -287,3 +287,58 @@ class TestBatchMigration:
         )
         result = _run_batch_config(args)
         assert result == ExitCode.GENERAL_ERROR
+
+
+# ── DAX optimizer default / opt-out tests ────────────────────────────
+
+class TestDaxOptimizerFlags:
+    """Test that --optimize-dax / --no-optimize-dax are parsed correctly."""
+
+    def _get_help_text(self):
+        result = subprocess.run(
+            [sys.executable, str(_project_root / 'migrate.py'), '--help'],
+            capture_output=True, text=True, timeout=30,
+        )
+        return result.stdout
+
+    def test_optimize_dax_in_help(self):
+        """--optimize-dax should appear in help output."""
+        assert '--optimize-dax' in self._get_help_text()
+
+    def test_no_optimize_dax_in_help(self):
+        """--no-optimize-dax should appear in help output."""
+        assert '--no-optimize-dax' in self._get_help_text()
+
+    def test_optimize_dax_enabled_by_default(self):
+        """DAX optimizer runs by default — enabled by default help text."""
+        help_text = self._get_help_text()
+        # The flag description mentions 'enabled by default'
+        assert 'enabled by default' in help_text
+
+
+class TestNewCLIFlags:
+    """Test that new CLI flags are accepted and parsed correctly."""
+
+    def _get_help_text(self):
+        result = subprocess.run(
+            [sys.executable, str(_project_root / 'migrate.py'), '--help'],
+            capture_output=True, text=True, timeout=30,
+        )
+        return result.stdout
+
+    def test_post_check_in_help(self):
+        assert '--post-check' in self._get_help_text()
+
+    def test_time_intelligence_in_help(self):
+        assert '--time-intelligence' in self._get_help_text()
+
+    def test_sla_config_in_help(self):
+        assert '--sla-config' in self._get_help_text()
+
+    def test_jsonl_log_in_help(self):
+        assert '--jsonl-log' in self._get_help_text()
+
+    def test_post_check_description(self):
+        """Post-check help should mention comprehensive."""
+        help_text = self._get_help_text()
+        assert 'comprehensive' in help_text.lower() or 'post-migration' in help_text.lower()

@@ -962,15 +962,16 @@ def main():
     parser.add_argument(
         '--optimize-dax',
         action='store_true',
-        default=False,
-        help='Run DAX optimizer pass (IF→SWITCH, COALESCE, constant folding, VAR extraction)'
+        default=True,
+        dest='optimize_dax',
+        help='Run DAX optimizer pass — enabled by default (IF→SWITCH, COALESCE, constant folding, VAR extraction)'
     )
 
     parser.add_argument(
         '--no-optimize-dax',
-        action='store_true',
-        default=False,
-        help='Disable DAX optimizer (enabled by default)'
+        action='store_false',
+        dest='optimize_dax',
+        help='Disable the DAX optimizer pass'
     )
 
     parser.add_argument(
@@ -1853,8 +1854,8 @@ def main():
         else:
             progress.fail("Generation failed")
 
-        # DAX optimization pass
-        if results.get('generation') and not args.dry_run:
+        # DAX optimization pass (enabled by default, --no-optimize-dax to skip)
+        if results.get('generation') and not args.dry_run and getattr(args, 'optimize_dax', True):
             try:
                 from powerbi_import.dax_optimizer import optimize_dax
                 out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
@@ -1886,6 +1887,54 @@ def main():
                         print(f"  \u2713 DAX optimizer: {optimized_count} measures optimized")
             except Exception as exc:
                 logger.debug("DAX optimization skipped: %s", exc)
+
+        # Time Intelligence auto-injection (--time-intelligence auto)
+        ti_mode = getattr(args, 'time_intelligence', None)
+        if ti_mode == 'auto' and results.get('generation') and not args.dry_run:
+            try:
+                from powerbi_import.dax_optimizer import generate_time_intelligence_measures
+                out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+                tables_dir = os.path.join(out_base, source_basename,
+                                          f'{source_basename}.SemanticModel',
+                                          'definition', 'tables')
+                if os.path.isdir(tables_dir):
+                    import re as _re_ti
+                    # Collect existing measures from all TMDL files
+                    all_measures = []
+                    for tmdl_file in os.listdir(tables_dir):
+                        if not tmdl_file.endswith('.tmdl'):
+                            continue
+                        fpath = os.path.join(tables_dir, tmdl_file)
+                        content = open(fpath, 'r', encoding='utf-8').read()
+                        for m in _re_ti.finditer(
+                            r"measure\s+'([^']+)'\s*=\s*(.+?)(?=\n\t[a-z]|\n\s*\n|\Z)",
+                            content, _re_ti.DOTALL
+                        ):
+                            all_measures.append({
+                                'name': m.group(1),
+                                'expression': m.group(2).strip(),
+                                'source_file': tmdl_file,
+                            })
+
+                    ti_measures = generate_time_intelligence_measures(all_measures)
+                    if ti_measures:
+                        # Append TI measures to the first table file that has measures
+                        target_file = all_measures[0]['source_file'] if all_measures else None
+                        if target_file:
+                            fpath = os.path.join(tables_dir, target_file)
+                            with open(fpath, 'r', encoding='utf-8') as f:
+                                content = f.read()
+                            ti_lines = []
+                            for ti in ti_measures:
+                                ti_lines.append(f"\tmeasure '{ti['name']}' = {ti['expression']}")
+                                ti_lines.append(f"\t\tdisplayFolder: {ti.get('displayFolder', 'Time Intelligence')}")
+                            content = content.rstrip() + '\n\n' + '\n'.join(ti_lines) + '\n'
+                            with open(fpath, 'w', encoding='utf-8') as f:
+                                f.write(content)
+                        if not json_mode:
+                            print(f"  \u2713 Time Intelligence: {len(ti_measures)} measures injected")
+            except Exception as exc:
+                logger.debug("Time Intelligence injection skipped: %s", exc)
 
         # Plugin hook: post_generation
         if results.get('generation'):
@@ -2181,6 +2230,62 @@ def main():
         except Exception as exc:
             logger.debug("Monitoring export skipped: %s", exc)
 
+    # ── SLA compliance check ──────────────────────────────────
+    if getattr(args, 'sla_config', None) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.sla_tracker import SLATracker
+            sla_cfg_path = args.sla_config
+            sla_config = None
+            if os.path.isfile(sla_cfg_path):
+                with open(sla_cfg_path, 'r', encoding='utf-8') as f:
+                    sla_config = json.load(f)
+            tracker = SLATracker(config=sla_config)
+            # Record elapsed time from start_time
+            duration_so_far = (datetime.now() - start_time).total_seconds()
+            fidelity = 0.0
+            if report_summary:
+                fidelity = report_summary.get('fidelity_score', 0.0)
+            validation_passed = results.get('validation', False)
+            # Use the tracker (simulate start → record)
+            tracker._timers[source_basename] = time.monotonic() - duration_so_far
+            sla_result = tracker.record_result(
+                source_basename,
+                fidelity=fidelity,
+                validation_passed=validation_passed,
+            )
+            if not json_mode:
+                status = '✓ compliant' if sla_result.compliant else '✗ breached'
+                print(f"  {status}: SLA ({sla_result.migration_seconds:.1f}s, fidelity={sla_result.fidelity_score:.1f}%)")
+                for breach in sla_result.breaches:
+                    print(f"    ⚠ {breach}")
+        except Exception as exc:
+            logger.debug("SLA tracking skipped: %s", exc)
+
+    # ── JSONL structured log ──────────────────────────────────
+    if getattr(args, 'jsonl_log', None) and results.get('generation'):
+        try:
+            log_entry = {
+                'timestamp': datetime.now().isoformat(),
+                'app': source_basename,
+                'status': 'success' if all(v for v in results.values() if v is not None) else 'error',
+                'tables': _stats.tmdl_tables,
+                'measures': _stats.tmdl_measures,
+                'visuals': _stats.visuals_generated,
+                'pages': _stats.pages_generated,
+                'warnings_count': len(_stats.warnings),
+                'duration_seconds': round((datetime.now() - start_time).total_seconds(), 2),
+            }
+            if report_summary:
+                log_entry['fidelity_score'] = report_summary.get('fidelity_score', 0)
+            log_path = args.jsonl_log
+            os.makedirs(os.path.dirname(log_path) or '.', exist_ok=True)
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(log_entry, ensure_ascii=False) + '\n')
+            if not json_mode:
+                print(f"  ✓ JSONL log appended: {log_path}")
+        except Exception as exc:
+            logger.debug("JSONL logging skipped: %s", exc)
+
     # ── Data validation (equivalence testing) ─────────────────
     if getattr(args, 'validate_data', None) and results.get('generation') and not args.dry_run:
         try:
@@ -2260,6 +2365,8 @@ def main():
             json_result["exact"] = report_summary.get('exact', 0)
             json_result["approximate"] = report_summary.get('approximate', 0)
             json_result["unsupported"] = report_summary.get('unsupported', 0)
+        if results.get('post_check'):
+            json_result["post_check"] = results['post_check']
         print(json.dumps(json_result, indent=2, ensure_ascii=False))
 
         # Finalize telemetry

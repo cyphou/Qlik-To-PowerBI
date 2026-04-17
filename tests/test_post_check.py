@@ -440,5 +440,58 @@ class TestQaPipelineGovernance(unittest.TestCase):
         self.assertNotIn("GovernanceAuditor", source)
 
 
+class TestTimeIntelligenceIntegration(unittest.TestCase):
+    """Test time intelligence measure generation from dax_optimizer."""
+
+    def test_generates_ytd_py_yoy(self):
+        from powerbi_import.dax_optimizer import generate_time_intelligence_measures
+        measures = [
+            {'name': 'Total Sales', 'expression': 'SUM([Amount])'},
+        ]
+        ti = generate_time_intelligence_measures(measures)
+        names = [m['name'] for m in ti]
+        self.assertIn('Total Sales YTD', names)
+        self.assertIn('Total Sales PY', names)
+        self.assertIn('Total Sales YoY %', names)
+
+    def test_skips_non_aggregate_measures(self):
+        from powerbi_import.dax_optimizer import generate_time_intelligence_measures
+        measures = [
+            {'name': 'Status', 'expression': 'IF([Flag], "Yes", "No")'},
+        ]
+        ti = generate_time_intelligence_measures(measures)
+        self.assertEqual(ti, [])
+
+    def test_display_folder_set(self):
+        from powerbi_import.dax_optimizer import generate_time_intelligence_measures
+        measures = [
+            {'name': 'Revenue', 'expression': 'SUM([Revenue])'},
+        ]
+        ti = generate_time_intelligence_measures(measures)
+        for m in ti:
+            self.assertEqual(m['displayFolder'], 'Time Intelligence')
+
+
+class TestSLATracker(unittest.TestCase):
+    """Test SLATracker basic functionality."""
+
+    def test_compliant_result(self):
+        from powerbi_import.sla_tracker import SLATracker
+        tracker = SLATracker({'max_migration_seconds': 600, 'min_fidelity_score': 50,
+                              'require_validation_pass': False})
+        tracker.start('app1')
+        result = tracker.record_result('app1', fidelity=80.0, validation_passed=True)
+        self.assertTrue(result.compliant)
+
+    def test_fidelity_breach(self):
+        from powerbi_import.sla_tracker import SLATracker
+        tracker = SLATracker({'max_migration_seconds': 600, 'min_fidelity_score': 90,
+                              'require_validation_pass': False})
+        tracker.start('app1')
+        result = tracker.record_result('app1', fidelity=50.0, validation_passed=True)
+        self.assertFalse(result.fidelity_compliant)
+        self.assertTrue(any('fidelity' in b.lower() for b in result.breaches))
+
+
 if __name__ == "__main__":
     unittest.main()
