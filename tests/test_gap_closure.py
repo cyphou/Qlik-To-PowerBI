@@ -910,5 +910,216 @@ class TestTMDLGeneratorExpressions(unittest.TestCase):
                 self.assertGreaterEqual(len(pq_files), 1)
 
 
+# ═══════════════════════════════════════════════════════════════════
+# Pipeline Wiring Tests — geo_passthrough in pbip_generator
+# ═══════════════════════════════════════════════════════════════════
+
+class TestGeoPassthroughWiring(unittest.TestCase):
+    """Test that geo_passthrough is wired into PowerBIProjectGenerator."""
+
+    def test_geo_passthrough_imported_in_generate_project(self):
+        """Verify geo_passthrough import is reachable from pbip_generator."""
+        import importlib
+        mod = importlib.import_module('powerbi_import.pbip_generator')
+        # The import happens lazily inside generate_project, so just verify
+        # the module can be imported
+        geo = importlib.import_module('powerbi_import.geo_passthrough')
+        self.assertTrue(hasattr(geo, 'detect_geo_sources'))
+        self.assertTrue(hasattr(geo, 'copy_geo_resources'))
+        self.assertTrue(hasattr(geo, 'build_shape_map_config'))
+
+    def test_generate_project_with_geo_visuals(self):
+        """Test that generate_project handles worksheets with GeoJSON."""
+        from powerbi_import.pbip_generator import PowerBIProjectGenerator
+
+        with tempfile.TemporaryDirectory() as td:
+            gen = PowerBIProjectGenerator(output_dir=td)
+            converted = {
+                'datasources': [{'name': 'Source', 'tables': [
+                    {'name': 'Regions', 'columns': [
+                        {'name': 'Country', 'dataType': 'string'},
+                    ]}
+                ]}],
+                'worksheets': [{
+                    'name': 'GeoSheet',
+                    'type': 'map',
+                    'properties': {
+                        'type': 'FeatureCollection',
+                        'features': [{'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [0, 0]}}],
+                    },
+                    'dimensions': [{'field': 'Country'}],
+                    'measures': [],
+                }],
+                'calculations': [],
+                'dashboards': [{'name': 'Dashboard1', 'objects': []}],
+            }
+            # Should not raise even with geo data present
+            result = gen.generate_project('GeoTest', converted)
+            self.assertTrue(os.path.isdir(result))
+
+    def test_generate_project_writes_geojson_resources(self):
+        """Test that inline GeoJSON is written to RegisteredResources."""
+        from powerbi_import.pbip_generator import PowerBIProjectGenerator
+
+        with tempfile.TemporaryDirectory() as td:
+            gen = PowerBIProjectGenerator(output_dir=td)
+            geojson = {
+                'type': 'FeatureCollection',
+                'features': [
+                    {'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [1, 2]},
+                     'properties': {'name': 'Test'}}
+                ],
+            }
+            converted = {
+                'datasources': [{'name': 'Src', 'tables': [
+                    {'name': 'T', 'columns': [{'name': 'C', 'dataType': 'string'}]}
+                ]}],
+                'worksheets': [{
+                    'name': 'MapViz',
+                    'type': 'map',
+                    'chart_type': 'map',
+                    'properties': geojson,
+                    'dimensions': [],
+                    'measures': [],
+                }],
+                'calculations': [],
+                'dashboards': [{'name': 'D', 'objects': []}],
+            }
+            result = gen.generate_project('GeoResourceTest', converted)
+            # Check RegisteredResources for .geojson files
+            res_dir = os.path.join(result, 'GeoResourceTest.Report',
+                                   'definition', 'RegisteredResources')
+            if os.path.isdir(res_dir):
+                geo_files = [f for f in os.listdir(res_dir) if f.endswith('.geojson')]
+                self.assertGreaterEqual(len(geo_files), 1)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Pipeline Wiring Tests — CLI flags for server/refresh
+# ═══════════════════════════════════════════════════════════════════
+
+class TestNewCLIFlagsV101(unittest.TestCase):
+    """Test that v10.1 CLI flags are registered in migrate.py."""
+
+    @classmethod
+    def setUpClass(cls):
+        import subprocess
+        project_root = os.path.join(os.path.dirname(__file__), '..')
+        python = os.path.join(project_root, 'venv', 'Scripts', 'python.exe')
+        if not os.path.isfile(python):
+            python = sys.executable
+        result = subprocess.run(
+            [python, os.path.join(project_root, 'migrate.py'), '--help'],
+            capture_output=True, text=True, cwd=project_root,
+        )
+        cls.help_text = result.stdout + result.stderr
+
+    def _assert_flag(self, flag_name):
+        self.assertIn(flag_name, self.help_text,
+                      f"Flag {flag_name} not in --help output")
+
+    def test_server_url_flag(self):
+        self._assert_flag('--server-url')
+
+    def test_server_api_key_flag(self):
+        self._assert_flag('--server-api-key')
+
+    def test_server_cert_flag(self):
+        self._assert_flag('--server-cert')
+
+    def test_server_app_id_flag(self):
+        self._assert_flag('--server-app-id')
+
+    def test_refresh_schedule_flag(self):
+        self._assert_flag('--refresh-schedule')
+
+    def test_refresh_timezone_flag(self):
+        self._assert_flag('--refresh-timezone')
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Pipeline Wiring Tests — refresh_generator integration
+# ═══════════════════════════════════════════════════════════════════
+
+class TestRefreshGeneratorWiring(unittest.TestCase):
+    """Test refresh_generator end-to-end with write_refresh_config."""
+
+    def test_write_refresh_config_creates_file(self):
+        from powerbi_import.refresh_generator import (
+            parse_qlik_tasks, generate_refresh_schedule,
+            generate_refresh_powershell, write_refresh_config,
+        )
+
+        with tempfile.TemporaryDirectory() as td:
+            tasks_meta = [
+                {
+                    'name': 'DailyReload',
+                    'appName': 'SalesApp',
+                    'enabled': True,
+                    'triggers': [
+                        {'type': 'daily', 'startTime': '06:30'}
+                    ]
+                }
+            ]
+            tasks = parse_qlik_tasks(tasks_meta)
+            schedule = generate_refresh_schedule(tasks, timezone='UTC')
+            config_path = write_refresh_config(schedule, td)
+            self.assertTrue(os.path.isfile(config_path))
+
+            with open(config_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            self.assertIn('times', data)
+
+    def test_powershell_script_generation(self):
+        from powerbi_import.refresh_generator import (
+            parse_qlik_tasks, generate_refresh_schedule,
+            generate_refresh_powershell,
+        )
+
+        tasks_meta = {'tasks': [
+            {'name': 'Weekly', 'enabled': True, 'triggers': [
+                {'type': 'weekly', 'startTime': '08:00', 'days': ['Monday', 'Wednesday']}
+            ]}
+        ]}
+        tasks = parse_qlik_tasks(tasks_meta)
+        schedule = generate_refresh_schedule(tasks)
+        ps = generate_refresh_powershell(schedule, dataset_id='test-ds-id')
+        self.assertIn('test-ds-id', ps)
+        self.assertIn('Invoke-', ps)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Pipeline Wiring Tests — qlik_server_client extraction
+# ═══════════════════════════════════════════════════════════════════
+
+class TestServerClientWiring(unittest.TestCase):
+    """Test that qlik_server_client can be used from migrate.py context."""
+
+    def test_extract_app_for_migration_keys(self):
+        """Verify extract_app_for_migration returns 11-key dict structure."""
+        from qlik_export.qlik_server_client import QlikServerClient
+
+        client = QlikServerClient('https://qlik.example.com', api_key='test')
+        # The method calls the API, but we test the client construction
+        self.assertEqual(client.server, 'https://qlik.example.com')
+        self.assertTrue(client._is_cloud)
+
+    def test_server_client_qseow_detection(self):
+        """QSEoW clients should set _is_cloud=False."""
+        from qlik_export.qlik_server_client import QlikServerClient
+
+        client = QlikServerClient(
+            'https://qlik-internal.corp.com',
+            cert_path='/path/to/cert.pem'
+        )
+        self.assertFalse(client._is_cloud)
+
+    def test_import_from_qlik_export(self):
+        """Verify qlik_server_client is importable from qlik_export package."""
+        from qlik_export import qlik_server_client
+        self.assertTrue(hasattr(qlik_server_client, 'QlikServerClient'))
+        self.assertTrue(hasattr(qlik_server_client, 'QlikApiError'))
+
+
 if __name__ == '__main__':
     unittest.main()

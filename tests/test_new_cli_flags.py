@@ -201,6 +201,24 @@ class TestNewCLIFlags(unittest.TestCase):
     def test_consolidate_flag(self):
         self._assert_flag("--consolidate")
 
+    def test_server_url_flag(self):
+        self._assert_flag("--server-url")
+
+    def test_server_api_key_flag(self):
+        self._assert_flag("--server-api-key")
+
+    def test_server_cert_flag(self):
+        self._assert_flag("--server-cert")
+
+    def test_server_app_id_flag(self):
+        self._assert_flag("--server-app-id")
+
+    def test_refresh_schedule_flag(self):
+        self._assert_flag("--refresh-schedule")
+
+    def test_refresh_timezone_flag(self):
+        self._assert_flag("--refresh-timezone")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -27,6 +27,8 @@ python migrate.py app.qvf --json           # Machine-readable JSON output
 python migrate.py app.qvf --plugins m.Cls  # Load custom plugins
 python migrate.py app.qvf --dry-run        # Preview without executing
 python migrate.py app.qvf --verbose        # Detailed logging
+python migrate.py --server-url https://qlik.example.com --server-app-id abc123  # Direct server extraction
+python migrate.py app.qvf --refresh-schedule  # Generate PBI refresh config
 ```
 
 ## Project Structure
@@ -211,12 +213,13 @@ SAP BW, Custom SQL
 - P()/E() set analysis → ALL/EXCEPT
 - Dollar-sign expression expansion `$(=expr)` with Qlik→DAX conversion
 
-## Current Stats (v10.0.0)
+## Current Stats (v10.1.0)
 
-- **2,213 tests** across 60 test files
-- **57 powerbi_import modules** (including lineage_map, qa_pipeline)
+- **2,427 tests** across 62 test files
+- **59 powerbi_import modules** (including geo_passthrough, refresh_generator)
 - **42 data connectors** in M query generator (was 25 in v9)
-- **~85 CLI flags** (was 25 in v9)
+- **~91 CLI flags** (added --server-url, --server-api-key, --server-cert, --server-app-id, --refresh-schedule, --refresh-timezone)
+- **120+ visual type mappings** (was 75+ in v10.0)
 - **164 entries** in `_SIMPLE_FUNCTION_MAP`
 - **4 DAX stubs remaining** (Skew, Hash128/160/256, Evaluate — truly unsupported)
 - **5/6 sample migrations** pass at 100% fidelity
@@ -227,6 +230,9 @@ SAP BW, Custom SQL
 - **5 CI workflows** (lint, test, deploy, gh-pages, publish)
 - **Lineage map** for full source-to-target provenance tracking
 - **QA pipeline** with 17 auto-fix patterns for Qlik→DAX leaks
+- **Qlik Server client** for direct extraction (QSEoW + Cloud)
+- **GeoJSON passthrough** — auto-wired into project generation
+- **Refresh schedule generator** — Qlik reload tasks → PBI refresh config
 
 ## Multi-Agent Preceptorship Model
 

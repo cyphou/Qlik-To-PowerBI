@@ -132,8 +132,8 @@ class TestPhase5Documentation:
         f = project_root_dir / ".github" / "copilot-instructions.md"
         assert f.exists()
         content = f.read_text("utf-8")
-        assert "2,213" in content or "2213" in content, "copilot-instructions should have updated test count"
-        assert "10.0.0" in content
+        assert "2,427" in content or "2427" in content, "copilot-instructions should have updated test count"
+        assert "10.1.0" in content
 
     def test_faq_has_v8_entries(self, project_root_dir):
         content = (project_root_dir / "docs" / "FAQ.md").read_text("utf-8")

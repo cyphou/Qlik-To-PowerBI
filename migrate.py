@@ -1284,6 +1284,46 @@ def main():
         help='Auto-deploy after incremental change detection'
     )
 
+    # ── Qlik Server / Cloud extraction ────────────────────────
+    parser.add_argument(
+        '--server-url',
+        metavar='URL',
+        help='Qlik Sense server URL for direct extraction (e.g. https://qlik.example.com)'
+    )
+
+    parser.add_argument(
+        '--server-api-key',
+        metavar='KEY',
+        help='API key for Qlik Cloud authentication'
+    )
+
+    parser.add_argument(
+        '--server-cert',
+        metavar='PATH',
+        help='Client certificate path for Qlik Sense Enterprise (QSEoW) authentication'
+    )
+
+    parser.add_argument(
+        '--server-app-id',
+        metavar='APP_ID',
+        help='Qlik app ID to extract from server (required with --server-url)'
+    )
+
+    # ── Refresh schedule generation ───────────────────────────
+    parser.add_argument(
+        '--refresh-schedule',
+        action='store_true',
+        default=False,
+        help='Generate PBI refresh schedule from Qlik reload tasks'
+    )
+
+    parser.add_argument(
+        '--refresh-timezone',
+        metavar='TZ',
+        default='UTC',
+        help='Timezone for refresh schedule (default: UTC)'
+    )
+
     args = parser.parse_args()
 
     # Load configuration file if specified (CLI args take precedence)
@@ -1611,6 +1651,55 @@ def main():
             culture=args.culture,
         )
 
+    # ── Qlik Server direct extraction mode ──────────────────────
+    if getattr(args, 'server_url', None):
+        try:
+            from qlik_export.qlik_server_client import QlikServerClient
+
+            print_header("QLIK SERVER EXTRACTION")
+            server_url = args.server_url
+            api_key = getattr(args, 'server_api_key', None)
+            cert_path = getattr(args, 'server_cert', None)
+            app_id = getattr(args, 'server_app_id', None)
+
+            if not app_id:
+                parser.error('--server-app-id is required with --server-url')
+
+            client = QlikServerClient(server_url, api_key=api_key, cert_path=cert_path)
+            print(f"  Server:  {server_url}")
+            print(f"  App ID:  {app_id}")
+
+            extracted = client.extract_app_for_migration(app_id)
+            app_name = extracted.get('app_metadata', {}).get('name', app_id)
+            print(f"  App:     {app_name}")
+
+            # Write extracted data to intermediate JSON files
+            qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+            os.makedirs(qlik_dir, exist_ok=True)
+            for key, data in extracted.items():
+                json_path = os.path.join(qlik_dir, f'{key}.json')
+                with open(json_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+            print(f"  ✓ Extracted {len(extracted)} JSON files → {qlik_dir}")
+
+            # Store reload tasks for refresh schedule generation
+            if getattr(args, 'refresh_schedule', False):
+                try:
+                    tasks = client.get_reload_tasks(app_id)
+                    schedules = client.get_task_schedules(app_id)
+                    extracted['_reload_tasks'] = tasks or schedules or []
+                except Exception:
+                    pass
+
+            # Now continue with generation using the extracted data
+            args.qlik_file = args.qlik_file or f'server://{app_id}'
+            args.skip_extraction = True
+            print(f"\n  Continuing to generation...")
+        except Exception as e:
+            logger.error(f"Server extraction failed: {e}", exc_info=True)
+            print(f"\n✗ Server extraction failed: {e}")
+            return ExitCode.EXTRACTION_FAILED
+
     # ── Single file migration ─────────────────────────────────
     if not args.qlik_file:
         parser.error('qlik_file is required (or use --batch DIR)')
@@ -1811,6 +1900,43 @@ def main():
                 print(f"  \u2713 Lineage map: {lineage_path} ({lineage.to_dict()['total_entries']} entries)")
         except Exception as exc:
             logger.debug("Lineage map generation skipped: %s", exc)
+
+    # ── Refresh schedule generation ───────────────────────────
+    if getattr(args, 'refresh_schedule', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.refresh_generator import (
+                parse_qlik_tasks, generate_refresh_schedule,
+                generate_refresh_powershell, write_refresh_config,
+            )
+            from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+
+            qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+            qlik_data = ExtractionOrchestrator.load_intermediate_json(qlik_dir)
+            task_meta = qlik_data.get('_reload_tasks') or qlik_data.get('reload_tasks', [])
+
+            if task_meta:
+                tasks = parse_qlik_tasks(task_meta)
+                tz = getattr(args, 'refresh_timezone', 'UTC')
+                schedule = generate_refresh_schedule(tasks, timezone=tz)
+
+                out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+                project_dir = os.path.join(out_base, source_basename)
+                config_path = write_refresh_config(schedule, project_dir)
+                if not json_mode:
+                    print(f"  \u2713 Refresh schedule: {config_path} ({len(schedule.get('times', []))} slots)")
+
+                # Generate PowerShell script for PBI Service
+                ps_script = generate_refresh_powershell(schedule, dataset_id=source_basename)
+                if ps_script:
+                    ps_path = os.path.join(project_dir, 'configure_refresh.ps1')
+                    with open(ps_path, 'w', encoding='utf-8') as f:
+                        f.write(ps_script)
+                    if not json_mode:
+                        print(f"  \u2713 Refresh PowerShell: {ps_path}")
+            elif not json_mode:
+                print(f"  ⚠ No Qlik reload tasks found — refresh schedule skipped")
+        except Exception as exc:
+            logger.debug("Refresh schedule generation skipped: %s", exc)
 
     # ── LLM-assisted DAX refinement ───────────────────────────
     if getattr(args, 'llm_refine', False) and results.get('generation') and not args.dry_run:

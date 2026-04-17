@@ -110,7 +110,21 @@ class PowerBIProjectGenerator:
             if copied:
                 print(f"  ✓ Sample data copied: {copied} files → {data_dest}")
         
-        # 5. Create paginated report layout (if requested)
+        # 6. GeoJSON passthrough for shape map visuals
+        try:
+            from powerbi_import.geo_passthrough import (
+                detect_geo_sources, copy_geo_resources, build_shape_map_config,
+            )
+            visualizations = converted_objects.get('worksheets', [])
+            geo_sources = detect_geo_sources(visualizations)
+            if geo_sources:
+                created = copy_geo_resources(geo_sources, project_dir, report_name)
+                if created:
+                    print(f"  ✓ GeoJSON resources: {len(created)} files → RegisteredResources/")
+        except Exception as exc:
+            logger.debug("GeoJSON passthrough skipped: %s", exc)
+
+        # 7. Create paginated report layout (if requested)
         if self._paginated:
             pag_dir = self._create_paginated_report(project_dir, report_name, converted_objects)
             print(f"  ✓ Paginated report layout created: {pag_dir}")

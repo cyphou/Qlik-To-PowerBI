@@ -1,5 +1,44 @@
 # Changelog
 
+## v10.1.0 — Gap Closure & Pipeline Wiring
+
+### Visual Mapping Expansion
+- Expanded `VISUAL_TYPE_MAP` from 75 to **120+ entries** (parity with TableauToPowerBI)
+  - Bar/column (12), line/area (10), combo (9), pie/donut (5), map (10), KPI/card/gauge (15), table/matrix (10), specialty (30+)
+- Expanded `APPROXIMATION_MAP` from 12 to **27+ entries** with migration notes
+- Expanded `_QLIK_CHART_TYPE_MAP` in format_adapter with **25+ new Qlik-specific types**
+
+### Power Query File Generation
+- New `_write_power_query_files()` in `tmdl_generator.py`
+- Writes each table's M query as `.pq` files in `definition/expressions/`
+- Integrated as step 10 in the TMDL pipeline
+
+### New Modules
+- **`geo_passthrough.py`**: GeoJSON/shapefile passthrough for Power BI shape maps
+  - `detect_geo_sources()`, `copy_geo_resources()`, `build_shape_map_config()`, `extract_geo_properties()`
+  - Auto-wired into `PowerBIProjectGenerator.generate_project()` — inline GeoJSON detected and written to `RegisteredResources/`
+- **`refresh_generator.py`**: Qlik reload tasks → PBI refresh schedules
+  - `parse_qlik_tasks()`, `generate_refresh_schedule()`, `generate_refresh_powershell()`, `write_refresh_config()`
+  - Wired into `migrate.py` post-generation pipeline (`--refresh-schedule` flag)
+- **`qlik_server_client.py`**: Qlik Sense Enterprise/Cloud REST API client
+  - Supports QSEoW (certificates), Cloud (API key/JWT), auto-detection
+  - `list_apps()`, `get_app()`, `get_app_objects()`, `get_app_script()`, `get_reload_tasks()`, `extract_app_for_migration()`
+  - Wired into `migrate.py` as `--server-url` extraction mode
+
+### New CLI Flags
+- **`--server-url URL`**: Direct extraction from Qlik Sense server
+- **`--server-api-key KEY`**: API key for Qlik Cloud auth
+- **`--server-cert PATH`**: Client certificate for QSEoW auth
+- **`--server-app-id ID`**: App ID to extract from server
+- **`--refresh-schedule`**: Generate PBI refresh schedule from Qlik reload tasks
+- **`--refresh-timezone TZ`**: Timezone for refresh schedule (default: UTC)
+
+### Tests
+- **20 new tests**: geo wiring (3), CLI flags (6), refresh wiring (2), server wiring (3), plus 6 flag tests in existing test file
+- Total test count: **2,427** (up from 2,407)
+
+---
+
 ## v10.0.0 — Full Parity with TableauToPowerBI
 
 ### New CLI Flags (~60 new flags)
