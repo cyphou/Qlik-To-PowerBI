@@ -6,11 +6,12 @@ model Model
 		legacyRedirects
 		returnErrorValuesAsNull
 
-annotation PBI_QueryOrder = ["Sales","Customers","Products"]
+annotation PBI_QueryOrder = ["Sales","Customers","Products","Calendar"]
 
 ref table Sales
 ref table Customers
 ref table Products
+ref table Calendar
 
 ref expression DataFolder
 

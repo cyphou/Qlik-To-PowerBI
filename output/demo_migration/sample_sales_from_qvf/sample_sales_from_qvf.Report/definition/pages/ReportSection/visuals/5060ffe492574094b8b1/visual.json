@@ -1,20 +1,20 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
-  "name": "cf020145c74b4dcc9659",
+  "name": "5060ffe492574094b8b1",
   "position": {
-    "x": 434,
-    "y": 0,
-    "z": 1000,
+    "x": 0,
+    "y": 309,
+    "z": 2000,
     "height": 411,
     "width": 846,
-    "tabOrder": 1000
+    "tabOrder": 2000
   },
   "visual": {
-    "visualType": "clusteredBarChart",
+    "visualType": "tableEx",
     "drillFilterOtherVisuals": true,
     "query": {
       "queryState": {
-        "Category": {
+        "Values": {
           "projections": [
             {
               "field": {
@@ -29,11 +29,35 @@
               },
               "queryRef": "Customers.CustomerName",
               "active": true
-            }
-          ]
-        },
-        "Y": {
-          "projections": [
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Products"
+                    }
+                  },
+                  "Property": "ProductName"
+                }
+              },
+              "queryRef": "Products.ProductName",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Sales"
+                    }
+                  },
+                  "Property": "OrderDate"
+                }
+              },
+              "queryRef": "Sales.OrderDate",
+              "active": true
+            },
             {
               "field": {
                 "Measure": {
@@ -47,6 +71,20 @@
               },
               "queryRef": "Sales.CA Total",
               "active": true
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Sales"
+                    }
+                  },
+                  "Property": "Qté Totale"
+                }
+              },
+              "queryRef": "Sales.Qté Totale",
+              "active": true
             }
           ]
         }
@@ -59,7 +97,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Ventes par Client'"
+                  "Value": "'Détail Ventes'"
                 }
               }
             }
@@ -86,6 +124,23 @@
               "expr": {
                 "Literal": {
                   "Value": "true"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "values": [
+        {
+          "properties": {
+            "backColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#F2F2F2'"
+                    }
+                  }
                 }
               }
             }

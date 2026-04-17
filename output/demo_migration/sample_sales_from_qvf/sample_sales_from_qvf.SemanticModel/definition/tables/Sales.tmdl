@@ -1,68 +1,68 @@
 table Sales
-	lineageTag: db8f6de9-d951-404b-bb0b-1b448bd8c3ce
+	lineageTag: 028a9795-5617-4ba9-a547-cb31caaa3ac2
 
 	measure 'CA Total' = SUM('Sales'[Amount])
 		formatString: #,0.00
 		displayFolder: Measures
-		lineageTag: c5bb0693-21f5-4863-8662-825ec3fda555
+		lineageTag: 042418cf-48e1-40a8-b029-108a97e4645d
 
 	measure 'Qté Totale' = SUM('Sales'[Quantity])
 		formatString: #,0.00
 		displayFolder: Measures
-		lineageTag: a0588417-cdbe-4b9e-a54a-7310e40c0ae4
+		lineageTag: f1922c92-b7b7-4d6a-bf5f-fea05bfc2167
 
 	measure 'Année en cours' = "Year(Today())"
-		lineageTag: 456617a8-afd9-45af-9846-fb7bcd8cffaf
+		lineageTag: 25dce2b6-a5ce-4f90-8747-cde58c83110a
 
 	column SaleID
-		dataType: string
-		lineageTag: 06bbec20-c974-4061-a68c-b53140c7ca35
+		dataType: int64
+		lineageTag: 1dedadb4-1bb0-4416-9783-e50c1aea9c1b
 		summarizeBy: none
 		sourceColumn: SaleID
 
 		annotation SummarizationSetBy = Automatic
 
 	column CustomerID
-		dataType: string
-		lineageTag: a39e2f34-da23-474f-a14c-924fac660345
+		dataType: int64
+		lineageTag: 335950a0-4520-4933-8eab-ed1f414cbac7
 		summarizeBy: none
 		sourceColumn: CustomerID
 
 		annotation SummarizationSetBy = Automatic
 
 	column ProductID
-		dataType: string
-		lineageTag: 3bf1ed92-dc4d-4cc6-9ca7-3a87e013c416
+		dataType: int64
+		lineageTag: e15f9a91-6dd0-4d1b-b93c-b088a17f1d64
 		summarizeBy: none
 		sourceColumn: ProductID
 
 		annotation SummarizationSetBy = Automatic
 
 	column OrderDate
-		dataType: string
-		lineageTag: 730b6038-111c-4bc3-98fd-57df702d7b3e
+		dataType: dateTime
+		lineageTag: eb4f4765-1a65-443f-93da-15be0d7e8600
 		summarizeBy: none
 		sourceColumn: OrderDate
 
 		annotation SummarizationSetBy = Automatic
 
 	column Amount
-		dataType: string
-		lineageTag: 285c7a9c-d83a-497d-b88f-2cfab94d320d
+		dataType: double
+		lineageTag: 9e2dd17d-ff50-4d4e-b0c5-6d029dd0c185
 		summarizeBy: none
 		sourceColumn: Amount
 
 		annotation SummarizationSetBy = Automatic
 
 	column Quantity
-		dataType: string
-		lineageTag: 0175242a-89e5-4331-92ac-149ce7f08837
+		dataType: int64
+		lineageTag: 2910f3ba-6aa5-4583-b497-c0bcc8241457
 		summarizeBy: none
 		sourceColumn: Quantity
 
 		annotation SummarizationSetBy = Automatic
 
-	partition 'Sales-4a12400f-aeed-447b-a1f8-12a485f925fa' = m
+	partition 'Sales-d9cc3d81-936e-4f55-b348-9142e701ee9a' = m
 		mode: import
 		source =
 				let

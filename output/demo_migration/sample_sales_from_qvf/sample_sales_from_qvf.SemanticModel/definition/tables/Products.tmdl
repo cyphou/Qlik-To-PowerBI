@@ -1,9 +1,9 @@
 table Products
-	lineageTag: 64ea43e0-425f-484b-a3d9-43bd3bcf26d0
+	lineageTag: 50313f0f-432d-49d0-aa3e-fed07125bc79
 
 	column ProductID
-		dataType: string
-		lineageTag: ec269aa1-acaa-4fdc-8941-56274bf92a21
+		dataType: int64
+		lineageTag: 6e6fc324-c6d8-402f-a5e9-82b2f7e2c155
 		summarizeBy: none
 		sourceColumn: ProductID
 
@@ -11,29 +11,29 @@ table Products
 
 	column ProductName
 		dataType: string
-		lineageTag: 309adf33-d296-478c-bdff-47d75d0dc56a
+		lineageTag: 75eac102-ce2a-4381-a1ca-98b3376e0d84
 		summarizeBy: none
 		sourceColumn: ProductName
 
 		annotation SummarizationSetBy = Automatic
 
 	column CategoryID
-		dataType: string
-		lineageTag: 5c320c89-17f2-49ec-821e-e48d6e105b9b
+		dataType: int64
+		lineageTag: 174369f4-40f9-4667-971e-ba6eb4340bfb
 		summarizeBy: none
 		sourceColumn: CategoryID
 
 		annotation SummarizationSetBy = Automatic
 
 	column UnitPrice
-		dataType: string
-		lineageTag: c890c7b8-520e-4a93-890e-6ddeb2f72f72
+		dataType: double
+		lineageTag: e2945c55-a076-40b9-9cad-9e8c57d7704f
 		summarizeBy: none
 		sourceColumn: UnitPrice
 
 		annotation SummarizationSetBy = Automatic
 
-	partition 'Products-4bcf893b-935e-4e88-a9b4-6b39c3d392fe' = m
+	partition 'Products-535537ff-4730-43d3-8f1e-f66a690ff59c' = m
 		mode: import
 		source =
 				let

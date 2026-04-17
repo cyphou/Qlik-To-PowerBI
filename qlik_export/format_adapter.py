@@ -27,6 +27,8 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
+from qlik_export.qlik_model_converter import _infer_column_datatype
+
 logger = logging.getLogger(__name__)
 
 
@@ -252,6 +254,9 @@ def _adapt_datasources(
             col_type = (col.get('dataType', '')
                         or col.get('type', '')
                         or 'string').lower()
+            # Infer type from column name when source has no explicit type
+            if col_type in ('string', 'text'):
+                col_type = _infer_column_datatype(col_name)
             columns.append({
                 'name': col_name,
                 'datatype': col_type,
