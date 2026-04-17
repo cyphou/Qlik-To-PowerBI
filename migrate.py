@@ -498,7 +498,8 @@ def _build_calc_map_from_tmdl(report_name, output_dir=None):
 # ── Batch migration ─────────────────────────────────────────────────
 
 def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
-                        calendar_start=None, calendar_end=None, culture=None):
+                        calendar_start=None, calendar_end=None, culture=None,
+                        workers=None):
     """Batch migrate all .qvf/.json files in a directory.
 
     Args:
@@ -508,6 +509,7 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
         calendar_start: Start year for Calendar table
         calendar_end: End year for Calendar table
         culture: Override culture/locale
+        workers: Number of parallel workers (None=sequential)
     """
     if not os.path.isdir(batch_dir):
         print(f"Error: Batch directory not found: {batch_dir}")
@@ -535,10 +537,11 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
     batch_start = datetime.now()
     batch_results = {}
 
-    for i, qlik_file in enumerate(qlik_files, 1):
+    def _migrate_one(qlik_file, index, total):
+        """Migrate a single Qlik file. Returns (basename, result_dict)."""
         basename = os.path.splitext(os.path.basename(qlik_file))[0]
         print(f"\n{'=' * 80}")
-        print(f"  [{i}/{len(qlik_files)}] Migrating: {basename}")
+        print(f"  [{index}/{total}] Migrating: {basename}")
         print(f"{'=' * 80}")
 
         global _stats
@@ -551,8 +554,7 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
             file_results['extraction'] = run_extraction(qlik_file)
             if not file_results['extraction']:
                 logger.warning(f"Extraction failed for {basename}, skipping")
-                batch_results[basename] = {'success': False, 'error': 'extraction'}
-                continue
+                return basename, {'success': False, 'error': 'extraction'}
         else:
             file_results['extraction'] = True
 
@@ -574,11 +576,35 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
             )
 
         all_ok = all(v for v in file_results.values() if v is not None)
-        batch_results[basename] = {
+        return basename, {
             'success': all_ok,
             'stats': _stats.to_dict(),
             'fidelity': report_summary.get('fidelity_score') if report_summary else None,
         }
+
+    total = len(qlik_files)
+    if workers and workers > 1:
+        # Parallel batch migration
+        print(f"  Workers:     {workers}")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(_migrate_one, qf, i, total): qf
+                for i, qf in enumerate(qlik_files, 1)
+            }
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    basename, result = future.result()
+                    batch_results[basename] = result
+                except Exception as exc:
+                    qf = futures[future]
+                    basename = os.path.splitext(os.path.basename(qf))[0]
+                    batch_results[basename] = {'success': False, 'error': str(exc)}
+                    logger.warning("Parallel migration failed for %s: %s", basename, exc)
+    else:
+        # Sequential batch migration
+        for i, qlik_file in enumerate(qlik_files, 1):
+            basename, result = _migrate_one(qlik_file, i, total)
+            batch_results[basename] = result
 
     # Batch summary
     batch_duration = datetime.now() - batch_start
@@ -1657,6 +1683,7 @@ def main():
             calendar_start=args.calendar_start,
             calendar_end=args.calendar_end,
             culture=args.culture,
+            workers=int(workers) if workers else None,
         )
 
     # ── Qlik Server direct extraction mode ──────────────────────
@@ -2041,16 +2068,64 @@ def main():
     # ── Governance checks ─────────────────────────────────────
     if getattr(args, 'governance', False) and results.get('generation') and not args.dry_run:
         try:
-            from powerbi_import.governance import GovernanceAuditor
+            from powerbi_import.governance import GovernanceEngine
             out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
             project_dir = os.path.join(out_base, source_basename)
-            auditor = GovernanceAuditor()
-            gov_result = auditor.audit_project(project_dir)
-            findings = gov_result.get('findings', [])
+
+            # Load governance config if provided
+            gov_config = None
+            gov_config_path = getattr(args, 'governance_config', None)
+            if gov_config_path and os.path.isfile(gov_config_path):
+                with open(gov_config_path, 'r', encoding='utf-8') as f:
+                    gov_config = json.load(f)
+
+            engine = GovernanceEngine(config=gov_config)
+
+            # Parse TMDL tables for governance checks
+            tmdl_tables = []
+            sm_dir = None
+            for d in os.listdir(project_dir):
+                if d.endswith('.SemanticModel'):
+                    sm_dir = os.path.join(project_dir, d)
+                    break
+            if sm_dir:
+                tables_dir = os.path.join(sm_dir, 'definition', 'tables')
+                if os.path.isdir(tables_dir):
+                    for tmdl_file in os.listdir(tables_dir):
+                        if tmdl_file.endswith('.tmdl'):
+                            fpath = os.path.join(tables_dir, tmdl_file)
+                            try:
+                                with open(fpath, 'r', encoding='utf-8') as f:
+                                    content = f.read()
+                                table_name = tmdl_file[:-5]
+                                columns = []
+                                measures = []
+                                for line in content.splitlines():
+                                    s = line.strip()
+                                    if s.startswith('column '):
+                                        col_name = s[7:].strip().strip("'")
+                                        if col_name:
+                                            columns.append({'name': col_name})
+                                    elif s.startswith('measure '):
+                                        m_name = s[8:].strip().strip("'")
+                                        m_name = m_name.split('=')[0].strip().strip("'")
+                                        if m_name:
+                                            measures.append({'name': m_name})
+                                tmdl_tables.append({
+                                    'name': table_name,
+                                    'columns': columns,
+                                    'measures': measures,
+                                })
+                            except Exception:
+                                pass
+
+            gov_report = engine.check(tmdl_tables)
+            findings = gov_report.issues if gov_report else []
             if findings and not json_mode:
                 print(f"  \u26a0 Governance: {len(findings)} finding(s)")
                 for f_item in findings[:5]:
-                    print(f"    \u2022 {f_item.get('message', f_item)}")
+                    msg = f_item.message if hasattr(f_item, 'message') else str(f_item)
+                    print(f"    \u2022 {msg}")
             elif not json_mode:
                 print(f"  \u2713 Governance: all checks passed")
         except Exception as exc:
@@ -2213,20 +2288,24 @@ def main():
     # ── Monitoring export ─────────────────────────────────────
     if getattr(args, 'monitor', None) and results.get('generation') and not args.dry_run:
         try:
-            from powerbi_import.monitoring import export_metrics
-            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
-            export_metrics(
-                format_type=args.monitor,
-                output_dir=out_base,
-                migration_stats={
-                    'tables': _stats.tmdl_tables,
-                    'measures': _stats.tmdl_measures,
-                    'visuals': _stats.visuals_generated,
-                    'pages': _stats.pages_generated,
-                },
+            from powerbi_import.monitoring import MigrationMonitor
+            monitor = MigrationMonitor(backend='json')
+            fidelity = 0.0
+            if report_summary:
+                fidelity = report_summary.get('fidelity_score', 0.0)
+            monitor.record_migration(
+                app=source_basename,
+                duration_seconds=round((datetime.now() - start_time).total_seconds(), 2),
+                fidelity=fidelity,
+                tables=_stats.tmdl_tables,
+                measures=_stats.tmdl_measures,
+                visuals=_stats.visuals_generated,
+                pages=_stats.pages_generated,
             )
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            flush_result = monitor.flush()
             if not json_mode:
-                print(f"  \u2713 Metrics exported: {args.monitor}")
+                print(f"  \u2713 Metrics exported: json")
         except Exception as exc:
             logger.debug("Monitoring export skipped: %s", exc)
 

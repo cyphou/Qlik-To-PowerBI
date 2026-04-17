@@ -342,3 +342,62 @@ class TestNewCLIFlags:
         """Post-check help should mention comprehensive."""
         help_text = self._get_help_text()
         assert 'comprehensive' in help_text.lower() or 'post-migration' in help_text.lower()
+
+
+class TestGovernanceWiring:
+    """Test that --governance uses GovernanceEngine (not GovernanceAuditor)."""
+
+    def test_migrate_py_imports_governance_engine(self):
+        """Verify governance block imports GovernanceEngine, not GovernanceAuditor."""
+        import inspect
+        source = inspect.getsource(migrate)
+        # Should contain GovernanceEngine in governance block
+        assert 'GovernanceEngine' in source
+        # GovernanceAuditor should not appear anywhere
+        assert 'GovernanceAuditor' not in source
+
+    def test_governance_config_flag_accepted(self):
+        result = subprocess.run(
+            [sys.executable, str(_project_root / 'migrate.py'), '--help'],
+            capture_output=True, text=True, timeout=30,
+        )
+        assert '--governance-config' in result.stdout
+
+
+class TestMonitoringWiring:
+    """Test that --monitor uses MigrationMonitor (not export_metrics)."""
+
+    def test_migrate_py_uses_migration_monitor(self):
+        """Verify monitoring block uses MigrationMonitor class."""
+        import inspect
+        source = inspect.getsource(migrate)
+        assert 'MigrationMonitor' in source
+        # Old broken export_metrics should not appear
+        assert 'export_metrics' not in source
+
+    def test_migration_monitor_class_exists(self):
+        from powerbi_import.monitoring import MigrationMonitor
+        monitor = MigrationMonitor(backend='json')
+        assert monitor.backend_name == 'json'
+
+
+class TestBatchParallel:
+    """Test batch migration parallel workers support."""
+
+    def test_run_batch_accepts_workers_param(self):
+        """run_batch_migration should accept workers keyword."""
+        import inspect
+        sig = inspect.signature(migrate.run_batch_migration)
+        assert 'workers' in sig.parameters
+
+    def test_batch_empty_dir_with_workers(self, tmp_dir):
+        """Batch with workers on empty dir should still error."""
+        result = migrate.run_batch_migration(str(tmp_dir), workers=2)
+        assert result == ExitCode.GENERAL_ERROR
+
+    def test_workers_flag_in_help(self):
+        result = subprocess.run(
+            [sys.executable, str(_project_root / 'migrate.py'), '--help'],
+            capture_output=True, text=True, timeout=30,
+        )
+        assert '--workers' in result.stdout
