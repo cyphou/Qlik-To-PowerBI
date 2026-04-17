@@ -273,7 +273,7 @@ class QlikScriptToPowerQueryConverter:
                 pq_script.append('    PromotedHeaders = Table.PromoteHeaders(Sheet1, [PromoteAllScalars=true])')
                 base_table = 'PromotedHeaders'
             elif file_ext in ['csv', 'txt']:
-                pq_script.append(f'let\n    Source = Csv.Document(File.Contents({file_ref}),[Delimiter=",", Columns=auto, Encoding=65001, QuoteStyle=QuoteStyle.None]),')
+                pq_script.append(f'let\n    Source = Csv.Document(File.Contents({file_ref}),[Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.None]),')
                 pq_script.append('    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])')
                 base_table = 'PromotedHeaders'
             else:
