@@ -294,3 +294,60 @@ class TestXssSafety:
         result = stat_card('<b>evil</b>', '<i>bad</i>')
         # The label/value should be escaped
         assert isinstance(result, str)
+
+
+# ── Dark / Light mode toggle ─────────────────────────────────────
+class TestDarkLightMode:
+    """Tests for the dark/light mode toggle feature."""
+
+    def test_css_has_dark_theme_selector(self):
+        css = get_report_css()
+        assert '[data-theme="dark"]' in css
+
+    def test_css_no_prefers_color_scheme_dark_root(self):
+        """Old @media (prefers-color-scheme: dark) for :root should be replaced."""
+        css = get_report_css()
+        # Should NOT have the old automatic dark mode CSS media query
+        assert '@media (prefers-color-scheme: dark)' not in css
+
+    def test_css_has_toggle_button_styles(self):
+        css = get_report_css()
+        assert '.theme-toggle' in css
+
+    def test_js_has_toggle_theme_function(self):
+        js = get_report_js()
+        assert 'toggleTheme' in js
+
+    def test_js_has_localstorage(self):
+        js = get_report_js()
+        assert 'localStorage' in js
+
+    def test_js_has_system_preference_detection(self):
+        js = get_report_js()
+        assert 'prefers-color-scheme' in js
+
+    def test_html_open_has_toggle_button(self):
+        html = html_open(title="Test")
+        assert 'theme-toggle' in html
+        assert 'toggleTheme' in html
+
+    def test_html_close_has_theme_sync(self):
+        html = html_close()
+        assert 'theme-icon' in html
+        assert 'theme-label' in html
+
+    def test_dark_theme_overrides_surface(self):
+        css = get_report_css()
+        assert '--pbi-surface: #252423' in css
+
+    def test_dark_theme_overrides_bg(self):
+        css = get_report_css()
+        assert '--pbi-bg: #1b1a19' in css
+
+    def test_toggle_button_in_header(self):
+        html = html_open(title="Test")
+        # Button should be inside report-header div (find the HTML div, not CSS)
+        header_start = html.index('<div class="report-header">')
+        toggle_pos = html.index('theme-toggle', header_start)
+        container_pos = html.index('<div class="container">')
+        assert header_start < toggle_pos < container_pos

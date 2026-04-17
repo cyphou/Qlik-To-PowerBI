@@ -88,6 +88,14 @@ _CSS_EXTRA = """
 .card .val.pass { color: var(--success); }
 .card .val.warn { color: #ca5010; }
 .card .val.fail { color: var(--fail); }
+/* dark mode overrides for visual-diff extras */
+[data-theme="dark"] .diff { background: var(--pbi-surface); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+[data-theme="dark"] .diff .row-header { background: #1a3a5c; }
+[data-theme="dark"] .col { border-color: #3b3a39; }
+[data-theme="dark"] .label { color: #b3b0ad; }
+[data-theme="dark"] .enc-item { background: #323130; color: #b3b0ad; }
+[data-theme="dark"] .enc-item.present { background: #1a3a1a; color: #6ccb5f; }
+[data-theme="dark"] .enc-item.missing { background: #4a1a1d; color: #f5707a; }
 """
 
 
@@ -311,6 +319,10 @@ def generate_visual_diff(
 <div class="report-header">
 <h1>Qlik &rarr; Power BI &mdash; Visual Diff Report</h1>
 <p>Project: {_esc(pbip_dir)}</p>
+<button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+    <span class="theme-icon">&#9790;</span>
+    <span class="theme-label">Dark</span>
+</button>
 </div>
 <div class="container">
 """]
@@ -396,7 +408,16 @@ def generate_visual_diff(
         )
     parts.append('</table>')
 
-    parts.append(f'</div><script>{get_report_js()}</script></body></html>')
+    parts.append(f"""</div><script>{get_report_js()}
+(function() {{
+    var theme = document.documentElement.getAttribute('data-theme') || 'light';
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) {{
+        btn.querySelector('.theme-icon').textContent = theme === 'dark' ? '\\u2600' : '\\u263E';
+        btn.querySelector('.theme-label').textContent = theme === 'dark' ? 'Light' : 'Dark';
+    }}
+}})();
+</script></body></html>""")
 
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
     with open(output_path, 'w', encoding='utf-8') as f:

@@ -22,7 +22,7 @@ _CSS = """
 body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0;
        background: #f0f2f5; color: #333; }
 header { background: linear-gradient(135deg, #0d47a1, #1565c0);
-         color: #fff; padding: 1.5rem 2rem; }
+         color: #fff; padding: 1.5rem 2rem; position: relative; }
 header h1 { margin: 0; font-size: 1.4rem; }
 .container { max-width: 1200px; margin: 1rem auto; padding: 0 1rem; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -41,6 +41,59 @@ th { background: #fafafa; }
 .chart-bar { height: 24px; background: #42a5f5; border-radius: 3px;
              display: inline-block; min-width: 2px; }
 .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #999; }
+.theme-toggle {
+    position: absolute; top: 50%; right: 24px; transform: translateY(-50%);
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+    color: #fff; border-radius: 20px; padding: 6px 14px; cursor: pointer;
+    font-size: 0.82em; font-family: inherit; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background 0.2s; backdrop-filter: blur(4px);
+}
+.theme-toggle:hover { background: rgba(255,255,255,0.25); }
+.theme-toggle .theme-icon { font-size: 1.1em; line-height: 1; }
+[data-theme="dark"] body { background: #1b1a19; color: #f3f2f1; }
+[data-theme="dark"] header { background: linear-gradient(135deg, #002b5c, #0d47a1); }
+[data-theme="dark"] .card { background: #252423; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+[data-theme="dark"] .card h3 { color: #8a8886; }
+[data-theme="dark"] .card .sub { color: #b3b0ad; }
+[data-theme="dark"] table { background: #252423; }
+[data-theme="dark"] th { background: #3b3a39; color: #f3f2f1; }
+[data-theme="dark"] td { border-color: #3b3a39; color: #f3f2f1; }
+[data-theme="dark"] th, [data-theme="dark"] td { border-color: #3b3a39; }
+[data-theme="dark"] h2 { color: #f3f2f1; }
+[data-theme="dark"] .footer { color: #8a8886; }
+@media print { .theme-toggle { display: none; } }
+"""
+
+_THEME_JS = """
+<script>
+(function() {
+    var stored = localStorage.getItem('pbi-report-theme');
+    if (stored) { document.documentElement.setAttribute('data-theme', stored); }
+    else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+})();
+function toggleTheme() {
+    var html = document.documentElement;
+    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('pbi-report-theme', next);
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) {
+        btn.querySelector('.theme-icon').textContent = next === 'dark' ? '\\u2600' : '\\u263E';
+        btn.querySelector('.theme-label').textContent = next === 'dark' ? 'Light' : 'Dark';
+    }
+}
+document.addEventListener('DOMContentLoaded', function() {
+    var theme = document.documentElement.getAttribute('data-theme') || 'light';
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) {
+        btn.querySelector('.theme-icon').textContent = theme === 'dark' ? '\\u2600' : '\\u263E';
+        btn.querySelector('.theme-label').textContent = theme === 'dark' ? 'Light' : 'Dark';
+    }
+});
+</script>
 """
 
 
@@ -122,6 +175,10 @@ def generate_dashboard(artifacts_dir, output_path=None):
 <body>
 <header>
 <h1>Migration Telemetry Dashboard</h1>
+<button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+    <span class="theme-icon">&#9790;</span>
+    <span class="theme-label">Dark</span>
+</button>
 </header>
 <div class="container">
 """]
@@ -189,6 +246,7 @@ def generate_dashboard(artifacts_dir, output_path=None):
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     parts.append(f'<div class="footer">Generated: {now} | '
                  f'Qlik → Power BI Migration Tool</div>')
+    parts.append(_THEME_JS)
     parts.append('</div></body></html>')
 
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)

@@ -442,6 +442,10 @@ def generate_merge_html_report(
 <div class="report-header">
 <h1>&#128279; Shared Semantic Model — Merge Report</h1>
 <p>Model: <strong>{_esc(model_name)}</strong> &nbsp;|&nbsp; apps: {len(app_names)} &nbsp;|&nbsp; Generated: {now} &nbsp;|&nbsp; Tool: v{tool_version}</p>
+<button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+    <span class="theme-icon">&#9790;</span>
+    <span class="theme-label">Dark</span>
+</button>
 </div>
 <div class="container">
 """
@@ -872,7 +876,16 @@ Conflicts: <strong>{len(assessment.parameter_conflicts)}</strong></p>
 
 </div><!-- /.container -->
 
-<script>{get_report_js()}</script>
+<script>{get_report_js()}
+(function() {{
+    var theme = document.documentElement.getAttribute('data-theme') || 'light';
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) {{
+        btn.querySelector('.theme-icon').textContent = theme === 'dark' ? '\\u2600' : '\\u263E';
+        btn.querySelector('.theme-label').textContent = theme === 'dark' ? 'Light' : 'Dark';
+    }}
+}})();
+</script>
 </body>
 </html>"""
 

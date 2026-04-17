@@ -231,32 +231,69 @@ def get_report_css() -> str:
         .chart-row { grid-template-columns: 1fr; } .bar-label { width: 80px; }
         .donut-container { flex-direction: column; }
     }
-    @media (prefers-color-scheme: dark) {
-        :root { --pbi-bg: #1b1a19; --pbi-surface: #252423; --pbi-dark: #f3f2f1; --pbi-gray: #b3b0ad; --pbi-light-gray: #8a8886; }
-        body { background: var(--pbi-bg); color: var(--pbi-dark); }
-        .report-header { background: linear-gradient(135deg, #004578 0%, #001d33 100%); }
-        .stat-card, .card { background: var(--pbi-surface); box-shadow: 0 1.6px 3.6px rgba(0,0,0,0.4); }
-        table { background: var(--pbi-surface); }
-        thead th { background: #004578; } thead th.sortable:hover { background: #005a9e; }
-        .detail-table thead th { background: #3b3a39; }
-        tbody td { border-bottom-color: #3b3a39; } tbody tr:hover { background: #323130; }
-        .section-header:hover { border-bottom-color: #2b88d8; } .section-header { border-bottom-color: #3b3a39; }
-        .tab-bar { border-bottom-color: #3b3a39; } .tab:hover { background: rgba(0,120,212,0.15); }
-        .fidelity-track, .bar-track { background: #3b3a39; }
-        .badge-gray { background: #3b3a39; color: #b3b0ad; }
-        .tag-connector { background: #1a3a5c; color: #6cb8f6; }
-        .tag-success { background: #1a3a1a; color: #6ccb5f; }
-        .tag-warn { background: #3a3500; color: #d4c75f; }
-        .tag-danger { background: #4a1a1d; color: #f5707a; }
-        code { background: #3b3a39; }
-        .report-footer { border-top-color: #3b3a39; }
-        .table-search input { background: #323130; border-color: #3b3a39; color: var(--pbi-dark); }
-        .table-search input:focus { border-color: #2b88d8; }
+    /* ── Dark theme (toggle or system preference) ──────────── */
+    [data-theme="dark"] {
+        --pbi-bg: #1b1a19; --pbi-surface: #252423; --pbi-dark: #f3f2f1;
+        --pbi-gray: #b3b0ad; --pbi-light-gray: #8a8886;
+        --shadow-sm: 0 1.6px 3.6px rgba(0,0,0,0.4), 0 0.3px 0.9px rgba(0,0,0,0.3);
+        --shadow-md: 0 3.2px 7.2px rgba(0,0,0,0.4), 0 0.6px 1.8px rgba(0,0,0,0.3);
     }
+    [data-theme="dark"] body { background: var(--pbi-bg); color: var(--pbi-dark); }
+    [data-theme="dark"] .report-header { background: linear-gradient(135deg, #004578 0%, #001d33 100%); }
+    [data-theme="dark"] .stat-card,
+    [data-theme="dark"] .card,
+    [data-theme="dark"] .chart-card { background: var(--pbi-surface); }
+    [data-theme="dark"] table { background: var(--pbi-surface); }
+    [data-theme="dark"] thead th { background: #004578; }
+    [data-theme="dark"] thead th.sortable:hover { background: #005a9e; }
+    [data-theme="dark"] .detail-table thead th { background: #3b3a39; }
+    [data-theme="dark"] tbody td { border-bottom-color: #3b3a39; }
+    [data-theme="dark"] tbody tr:hover { background: #323130; }
+    [data-theme="dark"] .section-header { border-bottom-color: #3b3a39; }
+    [data-theme="dark"] .section-header:hover { border-bottom-color: #2b88d8; }
+    [data-theme="dark"] .tab-bar { border-bottom-color: #3b3a39; }
+    [data-theme="dark"] .tab:hover { background: rgba(0,120,212,0.15); }
+    [data-theme="dark"] .fidelity-track,
+    [data-theme="dark"] .bar-track { background: #3b3a39; }
+    [data-theme="dark"] .badge-gray { background: #3b3a39; color: #b3b0ad; }
+    [data-theme="dark"] .badge-green { background: #1a3a1a; color: #6ccb5f; }
+    [data-theme="dark"] .badge-yellow { background: #3a3500; color: #d4c75f; }
+    [data-theme="dark"] .badge-red { background: #4a1a1d; color: #f5707a; }
+    [data-theme="dark"] .badge-blue { background: #1a3a5c; color: #6cb8f6; }
+    [data-theme="dark"] .badge-purple { background: #2d1a4e; color: #c4a5f0; }
+    [data-theme="dark"] .badge-teal { background: #1a3a3a; color: #5fd4d4; }
+    [data-theme="dark"] .tag-connector { background: #1a3a5c; color: #6cb8f6; }
+    [data-theme="dark"] .tag-success { background: #1a3a1a; color: #6ccb5f; }
+    [data-theme="dark"] .tag-warn { background: #3a3500; color: #d4c75f; }
+    [data-theme="dark"] .tag-danger { background: #4a1a1d; color: #f5707a; }
+    [data-theme="dark"] .tag-dim { background: #1a2040; color: #8ea0e0; }
+    [data-theme="dark"] .tag-measure { background: #3a1a2a; color: #e08090; }
+    [data-theme="dark"] code { background: #3b3a39; }
+    [data-theme="dark"] .report-footer { border-top-color: #3b3a39; }
+    [data-theme="dark"] .table-search input { background: #323130; border-color: #3b3a39; color: var(--pbi-dark); }
+    [data-theme="dark"] .table-search input:focus { border-color: #2b88d8; }
+    [data-theme="dark"] .comparison { background: var(--pbi-surface); }
+    [data-theme="dark"] .comparison .row-header { background: #2d2d2d; }
+    [data-theme="dark"] .col { border-color: #3b3a39; }
+    [data-theme="dark"] pre { background: #2d2d2d; color: #d4d4d4; }
+    /* ── Theme toggle button ─────────────────────────────────── */
+    .theme-toggle {
+        position: absolute; top: 50%; right: 24px; transform: translateY(-50%);
+        background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+        color: #fff; border-radius: 20px; padding: 6px 14px; cursor: pointer;
+        font-size: 0.82em; font-family: inherit; font-weight: 500;
+        display: inline-flex; align-items: center; gap: 6px;
+        transition: background 0.2s, border-color 0.2s;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    }
+    .theme-toggle:hover { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.4); }
+    .theme-toggle .theme-icon { font-size: 1.1em; line-height: 1; }
+    .report-header { position: relative; }
     @media print and (prefers-color-scheme: dark) {
         :root { --pbi-bg: #fff; --pbi-surface: #fff; --pbi-dark: #323130; --pbi-gray: #605e5c; --pbi-light-gray: #a19f9d; }
         body { background: #fff; color: #323130; } .report-header { background: #0078d4 !important; }
     }
+    @media print { .theme-toggle { display: none; } }
 """
 
 
@@ -267,6 +304,37 @@ def get_report_css() -> str:
 def get_report_js() -> str:
     """Return the shared JavaScript for interactive features."""
     return """
+/* ── Theme toggle ─────────────────────────────────────── */
+(function() {
+    var stored = localStorage.getItem('pbi-report-theme');
+    if (stored) {
+        document.documentElement.setAttribute('data-theme', stored);
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+})();
+function toggleTheme() {
+    var html = document.documentElement;
+    var current = html.getAttribute('data-theme');
+    var next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('pbi-report-theme', next);
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) {
+        btn.querySelector('.theme-icon').textContent = next === 'dark' ? '\\u2600' : '\\u263E';
+        btn.querySelector('.theme-label').textContent = next === 'dark' ? 'Light' : 'Dark';
+    }
+}
+window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+    if (!localStorage.getItem('pbi-report-theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+        var btn = document.querySelector('.theme-toggle');
+        if (btn) {
+            btn.querySelector('.theme-icon').textContent = e.matches ? '\\u2600' : '\\u263E';
+            btn.querySelector('.theme-label').textContent = e.matches ? 'Light' : 'Dark';
+        }
+    }
+});
 function toggleSection(id) {
     var body = document.getElementById(id);
     var arrow = document.getElementById(id + '-arrow');
@@ -352,6 +420,10 @@ def html_open(
     <div class="meta">
         {meta_html}
     </div>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+        <span class="theme-icon">&#9790;</span>
+        <span class="theme-label">Dark</span>
+    </button>
 </div>
 <div class="container">
 """
@@ -373,6 +445,15 @@ def html_close(version: str = "", timestamp: str = "") -> str:
 </div>
 <script>
 {get_report_js()}
+// Sync toggle button label on load
+(function() {{
+    var theme = document.documentElement.getAttribute('data-theme') || 'light';
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) {{
+        btn.querySelector('.theme-icon').textContent = theme === 'dark' ? '\\u2600' : '\\u263E';
+        btn.querySelector('.theme-label').textContent = theme === 'dark' ? 'Light' : 'Dark';
+    }}
+}})();
 </script>
 </body>
 </html>"""

@@ -31,7 +31,7 @@ _CSS = """
 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
        margin: 0; padding: 0; background: #f0f2f5; color: #333; }
 header { background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
-         color: #fff; padding: 1.5rem 2rem; }
+         color: #fff; padding: 1.5rem 2rem; position: relative; }
 header h1 { margin: 0; font-size: 1.5rem; }
 header p { margin: 0.3rem 0 0; opacity: 0.85; font-size: 0.9rem; }
 .container { max-width: 1400px; margin: 1rem auto; padding: 0 1rem; }
@@ -59,6 +59,62 @@ table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 th, td { border: 1px solid #e0e0e0; padding: 4px 8px; text-align: left; }
 th { background: #fafafa; }
 .pass { color: #4caf50; } .warn { color: #ff9800; } .fail { color: #f44336; }
+.theme-toggle {
+    position: absolute; top: 50%; right: 24px; transform: translateY(-50%);
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+    color: #fff; border-radius: 20px; padding: 6px 14px; cursor: pointer;
+    font-size: 0.82em; font-family: inherit; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background 0.2s; backdrop-filter: blur(4px);
+}
+.theme-toggle:hover { background: rgba(255,255,255,0.25); }
+.theme-toggle .theme-icon { font-size: 1.1em; line-height: 1; }
+[data-theme="dark"] body { background: #1b1a19; color: #f3f2f1; }
+[data-theme="dark"] header { background: linear-gradient(135deg, #0d1440 0%, #1a237e 100%); }
+[data-theme="dark"] .card { background: #252423; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+[data-theme="dark"] .card h3 { color: #8a8886; }
+[data-theme="dark"] .comparison { background: #252423; }
+[data-theme="dark"] .comparison .row-header { background: #2d2d2d; }
+[data-theme="dark"] .col { border-color: #3b3a39; }
+[data-theme="dark"] .col h4 { color: #8ea0e0; }
+[data-theme="dark"] pre { background: #2d2d2d; color: #d4d4d4; }
+[data-theme="dark"] .label { color: #b3b0ad; }
+[data-theme="dark"] table { background: #252423; }
+[data-theme="dark"] th { background: #3b3a39; color: #f3f2f1; }
+[data-theme="dark"] th, [data-theme="dark"] td { border-color: #3b3a39; color: #f3f2f1; }
+[data-theme="dark"] h2 { color: #f3f2f1; }
+@media print { .theme-toggle { display: none; } }
+"""
+
+_THEME_JS = """
+<script>
+(function() {
+    var stored = localStorage.getItem('pbi-report-theme');
+    if (stored) { document.documentElement.setAttribute('data-theme', stored); }
+    else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+})();
+function toggleTheme() {
+    var html = document.documentElement;
+    var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('pbi-report-theme', next);
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) {
+        btn.querySelector('.theme-icon').textContent = next === 'dark' ? '\\u2600' : '\\u263E';
+        btn.querySelector('.theme-label').textContent = next === 'dark' ? 'Light' : 'Dark';
+    }
+}
+document.addEventListener('DOMContentLoaded', function() {
+    var theme = document.documentElement.getAttribute('data-theme') || 'light';
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) {
+        btn.querySelector('.theme-icon').textContent = theme === 'dark' ? '\\u2600' : '\\u263E';
+        btn.querySelector('.theme-label').textContent = theme === 'dark' ? 'Light' : 'Dark';
+    }
+});
+</script>
 """
 
 
@@ -249,6 +305,10 @@ def generate_comparison_report(extract_dir, pbip_dir, output_path=None):
 <header>
 <h1>Qlik → Power BI — Side-by-Side Comparison</h1>
 <p>Extract: {_esc(extract_dir)} | Project: {_esc(pbip_dir)}</p>
+<button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+    <span class="theme-icon">&#9790;</span>
+    <span class="theme-label">Dark</span>
+</button>
 </header>
 <div class="container">
 """]
@@ -329,6 +389,7 @@ def generate_comparison_report(extract_dir, pbip_dir, output_path=None):
             )
         parts.append('</table>')
 
+    parts.append(_THEME_JS)
     parts.append('</div></body></html>')
 
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
