@@ -148,18 +148,48 @@ def run_qa_pipeline(project_dir: str, output_dir: Optional[str] = None,
     # ── Step 3: Governance Checks ─────────────────────────────
     governance_result: Dict[str, Any] = {"status": "skip"}
     try:
-        from powerbi_import.governance import GovernanceAuditor
-        auditor = GovernanceAuditor()
-        # Scan for naming conventions and PII in TMDL files
-        findings: List[Dict[str, str]] = []
+        from powerbi_import.governance import GovernanceEngine
+        engine = GovernanceEngine()
+        # Parse TMDL files into table dicts for governance checks
+        tmdl_tables: List[Dict[str, Any]] = []
         if sem_model:
             tables_dir = os.path.join(sem_model, "definition", "tables")
             if os.path.isdir(tables_dir):
                 for tmdl_file in os.listdir(tables_dir):
                     if tmdl_file.endswith(".tmdl"):
                         fpath = os.path.join(tables_dir, tmdl_file)
-                        result = auditor.audit_file(fpath)
-                        findings.extend(result.get("findings", []))
+                        try:
+                            with open(fpath, "r", encoding="utf-8") as f:
+                                content = f.read()
+                            table_name = tmdl_file[:-5]  # Remove .tmdl
+                            columns = []
+                            measures = []
+                            for line in content.splitlines():
+                                s = line.strip()
+                                if s.startswith("column "):
+                                    col_name = s[7:].strip().strip("'")
+                                    if col_name:
+                                        columns.append({"name": col_name})
+                                elif s.startswith("measure "):
+                                    m_name = s[8:].strip().strip("'")
+                                    # Strip trailing = for inline expressions
+                                    m_name = m_name.split("=")[0].strip().strip("'")
+                                    if m_name:
+                                        measures.append({"name": m_name})
+                            tmdl_tables.append({
+                                "name": table_name,
+                                "columns": columns,
+                                "measures": measures,
+                            })
+                        except Exception:
+                            pass
+
+        gov_report = engine.check(tmdl_tables)
+        findings = [
+            {"category": i.category, "severity": i.severity,
+             "artifact": i.artifact_name, "message": i.message}
+            for i in (gov_report.issues if gov_report else [])
+        ]
 
         governance_result = {
             "status": "pass" if not findings else "warn",

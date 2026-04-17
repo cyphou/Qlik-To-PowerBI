@@ -900,6 +900,13 @@ def main():
     )
 
     parser.add_argument(
+        '--post-check',
+        action='store_true',
+        default=False,
+        help='Run comprehensive post-migration checks (file structure, visual completeness, model refs, TMDL integrity)'
+    )
+
+    parser.add_argument(
         '--json',
         action='store_true',
         default=False,
@@ -2066,6 +2073,42 @@ def main():
         except Exception as exc:
             logger.warning("Validation failed: %s", exc)
             results['validation'] = False
+
+    # Step 4b: Comprehensive post-migration check (optional)
+    if getattr(args, 'post_check', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.validator import ArtifactValidator
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            print_step(3, 3, "POST-MIGRATION CHECK")
+            pc_result = ArtifactValidator.post_check(project_dir)
+            results['post_check'] = pc_result
+
+            # Print check results
+            checks = pc_result.get('checks', {})
+            for check_name, passed in checks.items():
+                status = '✓' if passed else '✗'
+                print(f"    {status} {check_name}")
+
+            if pc_result.get('errors'):
+                for err in pc_result['errors']:
+                    print(f"    ✗ {err}")
+            if pc_result.get('warnings'):
+                for w in pc_result['warnings'][:15]:
+                    print(f"    ⚠ {w}")
+                remaining = len(pc_result['warnings']) - 15
+                if remaining > 0:
+                    print(f"    ... and {remaining} more warnings")
+
+            total_errors = len(pc_result.get('errors', []))
+            total_warnings = len(pc_result.get('warnings', []))
+            if pc_result.get('valid'):
+                print(f"    ✓ Post-check passed ({total_warnings} warning(s))")
+            else:
+                print(f"    ✗ Post-check failed — {total_errors} error(s), {total_warnings} warning(s)")
+        except Exception as exc:
+            logger.warning("Post-check failed: %s", exc)
+            results['post_check'] = {'valid': False, 'error': str(exc)}
 
     # Step 5: Migration report
     report_summary = None

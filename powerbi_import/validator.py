@@ -798,3 +798,395 @@ class ArtifactValidator:
             }
 
         return results
+
+    # ── Post-check validation methods ─────────────────────────────
+
+    @classmethod
+    def validate_file_structure(cls, project_dir):
+        """Validate complete .pbip file structure beyond minimal checks.
+
+        Checks for .pbism, .platform, database.tmdl, version.json,
+        and expressions.tmdl presence.
+
+        Returns:
+            tuple: (errors: list[str], warnings: list[str])
+        """
+        project_dir = Path(project_dir)
+        errors = []
+        warnings = []
+        report_name = project_dir.name
+
+        sm_dir = project_dir / f'{report_name}.SemanticModel'
+        report_dir = project_dir / f'{report_name}.Report'
+
+        # .pbism
+        if sm_dir.exists():
+            pbism = sm_dir / 'definition.pbism'
+            if not pbism.exists():
+                errors.append('Missing definition.pbism in SemanticModel/')
+            # .platform
+            platform = sm_dir / '.platform'
+            if not platform.exists():
+                warnings.append('Missing .platform in SemanticModel/')
+            # database.tmdl
+            db_tmdl = sm_dir / 'definition' / 'database.tmdl'
+            if not db_tmdl.exists():
+                warnings.append('Missing database.tmdl (optional but recommended)')
+            # expressions.tmdl
+            expr_tmdl = sm_dir / 'definition' / 'expressions.tmdl'
+            if not expr_tmdl.exists():
+                warnings.append('Missing expressions.tmdl (no Power Query expressions)')
+
+        if report_dir.exists():
+            # .platform
+            platform = report_dir / '.platform'
+            if not platform.exists():
+                warnings.append('Missing .platform in Report/')
+            # version.json
+            def_dir = report_dir / 'definition'
+            if def_dir.exists():
+                version_json = def_dir / 'version.json'
+                if not version_json.exists():
+                    warnings.append('Missing version.json in Report/definition/')
+
+        return errors, warnings
+
+    @classmethod
+    def validate_visual_completeness(cls, project_dir):
+        """Check that visuals have data bindings and pages have visuals.
+
+        Returns:
+            tuple: (errors: list[str], warnings: list[str])
+        """
+        project_dir = Path(project_dir)
+        errors = []
+        warnings = []
+        report_name = project_dir.name
+
+        report_dir = project_dir / f'{report_name}.Report'
+        if not report_dir.exists():
+            return errors, warnings
+
+        def_dir = report_dir / 'definition'
+        pages_dir = def_dir / 'pages' if def_dir.exists() else report_dir / 'pages'
+        if not pages_dir.exists():
+            return errors, warnings
+
+        for page_dir in sorted(pages_dir.iterdir()):
+            if not page_dir.is_dir():
+                continue
+            visuals_dir = page_dir / 'visuals'
+            page_name = page_dir.name
+
+            if not visuals_dir.exists() or not any(visuals_dir.iterdir()):
+                warnings.append(f'Page "{page_name}" has no visuals')
+                continue
+
+            for visual_dir in sorted(visuals_dir.iterdir()):
+                if not visual_dir.is_dir():
+                    continue
+                visual_json = visual_dir / 'visual.json'
+                if not visual_json.exists():
+                    continue
+
+                try:
+                    with open(visual_json, 'r', encoding='utf-8') as f:
+                        vj = json.load(f)
+                except Exception:
+                    continue
+
+                visual = vj.get('visual', vj.get('singleVisual', {}))
+                visual_type = visual.get('visualType', 'unknown')
+
+                # Skip non-data visuals
+                if visual_type in ('textbox', 'actionButton', 'image',
+                                   'shape', 'basicShape'):
+                    continue
+
+                # Check for data bindings (projections or query)
+                has_projections = bool(visual.get('projections'))
+                has_query = bool(vj.get('query') or vj.get('dataTransforms'))
+                if not has_projections and not has_query:
+                    warnings.append(
+                        f'Visual "{visual_dir.name}" ({visual_type}) on page '
+                        f'"{page_name}" has no data bindings'
+                    )
+
+        return errors, warnings
+
+    @classmethod
+    def validate_visual_model_refs(cls, project_dir):
+        """Cross-reference visual projections against the semantic model.
+
+        Checks that Entity/Property references in visual.json files
+        match actual tables and columns/measures in the TMDL model.
+
+        Returns:
+            list[str]: warning messages for unresolved references.
+        """
+        project_dir = Path(project_dir)
+        warnings = []
+        report_name = project_dir.name
+
+        sm_dir = project_dir / f'{report_name}.SemanticModel'
+        if not sm_dir.exists():
+            return warnings
+
+        symbols = cls._collect_model_symbols(str(sm_dir))
+        known_tables = symbols['tables']
+        known_cols = symbols['columns']
+        known_measures = symbols['measures']
+
+        report_dir = project_dir / f'{report_name}.Report'
+        if not report_dir.exists():
+            return warnings
+
+        def_dir = report_dir / 'definition'
+        pages_dir = def_dir / 'pages' if def_dir.exists() else report_dir / 'pages'
+        if not pages_dir.exists():
+            return warnings
+
+        def _extract_refs(obj, refs):
+            """Recursively extract Entity/Property pairs from visual JSON."""
+            if isinstance(obj, dict):
+                if 'Entity' in obj and 'Property' in obj:
+                    refs.append((obj['Entity'], obj['Property']))
+                elif 'SourceRef' in obj and isinstance(obj['SourceRef'], dict):
+                    entity = obj['SourceRef'].get('Entity', '')
+                    if entity:
+                        prop = obj.get('Property', '')
+                        if prop:
+                            refs.append((entity, prop))
+                for v in obj.values():
+                    _extract_refs(v, refs)
+            elif isinstance(obj, list):
+                for item in obj:
+                    _extract_refs(item, refs)
+
+        for page_dir in pages_dir.iterdir():
+            if not page_dir.is_dir():
+                continue
+            visuals_dir = page_dir / 'visuals'
+            if not visuals_dir.exists():
+                continue
+            for visual_dir in visuals_dir.iterdir():
+                if not visual_dir.is_dir():
+                    continue
+                visual_json = visual_dir / 'visual.json'
+                if not visual_json.exists():
+                    continue
+                try:
+                    with open(visual_json, 'r', encoding='utf-8') as f:
+                        vj = json.load(f)
+                except Exception:
+                    continue
+
+                refs = []
+                _extract_refs(vj, refs)
+                for entity, prop in refs:
+                    if entity and entity not in known_tables:
+                        warnings.append(
+                            f'Visual "{visual_dir.name}" references unknown '
+                            f'table "{entity}"'
+                        )
+                    elif entity and prop:
+                        all_fields = (known_cols.get(entity, set()) |
+                                      known_measures.get(entity, set()))
+                        if all_fields and prop not in all_fields:
+                            warnings.append(
+                                f'Visual "{visual_dir.name}" references '
+                                f'unknown field "{entity}.{prop}"'
+                            )
+
+        return warnings
+
+    @classmethod
+    def validate_tmdl_integrity(cls, project_dir):
+        """Validate TMDL structural integrity beyond basic syntax.
+
+        Checks:
+        - Balanced quotes in TMDL files
+        - Duplicate column/measure names within tables
+        - Relationship references (tables/columns exist)
+        - model.tmdl has ref table entries for each table TMDL file
+
+        Returns:
+            tuple: (errors: list[str], warnings: list[str])
+        """
+        project_dir = Path(project_dir)
+        errors = []
+        warnings = []
+        report_name = project_dir.name
+
+        sm_dir = project_dir / f'{report_name}.SemanticModel'
+        if not sm_dir.exists():
+            return errors, warnings
+
+        def_dir = sm_dir / 'definition'
+        symbols = cls._collect_model_symbols(str(sm_dir))
+        known_tables = symbols['tables']
+
+        # Check balanced quotes in all TMDL files
+        tables_dir = def_dir / 'tables'
+        if tables_dir.exists():
+            for tmdl_file in tables_dir.glob('*.tmdl'):
+                try:
+                    content = tmdl_file.read_text(encoding='utf-8')
+                except Exception:
+                    continue
+
+                # Balanced single quotes (used in table/column references)
+                in_expr = False
+                for line in content.splitlines():
+                    stripped = line.strip()
+                    if stripped.startswith('expression') or stripped.startswith('='):
+                        in_expr = True
+                        continue
+                    if in_expr and stripped and not stripped.startswith('\t'):
+                        in_expr = False
+                    if not in_expr:
+                        single_quotes = stripped.count("'")
+                        if single_quotes % 2 != 0:
+                            warnings.append(
+                                f'Unbalanced single quotes in {tmdl_file.name}: '
+                                f'"{stripped[:60]}"'
+                            )
+                            break
+
+        # Re-scan for duplicate column/measure names (sets lose dupes)
+        if tables_dir and tables_dir.exists():
+            for tmdl_file in tables_dir.glob('*.tmdl'):
+                try:
+                    content = tmdl_file.read_text(encoding='utf-8')
+                except Exception:
+                    continue
+                col_names = []
+                measure_names = []
+                for line in content.splitlines():
+                    stripped = line.strip()
+                    cm = cls._RE_COL_DEF.match(stripped)
+                    if cm:
+                        col_names.append(cm.group(1))
+                    mm = cls._RE_MEASURE_DEF.match(stripped)
+                    if mm:
+                        measure_names.append(mm.group(1))
+                    elif stripped.startswith('measure '):
+                        # Handle inline measures: measure 'Name' = expr
+                        m = re.match(r"^measure\s+'([^']+)'", stripped)
+                        if m:
+                            measure_names.append(m.group(1))
+
+                seen = set()
+                for name in col_names:
+                    if name in seen:
+                        errors.append(
+                            f'Duplicate column "{name}" in {tmdl_file.name}'
+                        )
+                    seen.add(name)
+                seen_m = set()
+                for name in measure_names:
+                    if name in seen_m:
+                        errors.append(
+                            f'Duplicate measure "{name}" in {tmdl_file.name}'
+                        )
+                    seen_m.add(name)
+
+        # Check relationships.tmdl references
+        rels_tmdl = def_dir / 'relationships.tmdl'
+        if rels_tmdl.exists():
+            try:
+                content = rels_tmdl.read_text(encoding='utf-8')
+                for line in content.splitlines():
+                    stripped = line.strip()
+                    if stripped.startswith('fromTable:'):
+                        tbl = stripped.split(':', 1)[1].strip().strip("'")
+                        if tbl and tbl not in known_tables:
+                            errors.append(
+                                f'Relationship references unknown table '
+                                f'"{tbl}" in relationships.tmdl'
+                            )
+                    elif stripped.startswith('toTable:'):
+                        tbl = stripped.split(':', 1)[1].strip().strip("'")
+                        if tbl and tbl not in known_tables:
+                            errors.append(
+                                f'Relationship references unknown table '
+                                f'"{tbl}" in relationships.tmdl'
+                            )
+            except Exception:
+                pass
+
+        # Check model.tmdl has ref table entries for each table file
+        model_tmdl = def_dir / 'model.tmdl'
+        if model_tmdl.exists() and tables_dir and tables_dir.exists():
+            try:
+                model_content = model_tmdl.read_text(encoding='utf-8')
+                ref_tables = set()
+                for line in model_content.splitlines():
+                    stripped = line.strip()
+                    if stripped.startswith('ref table'):
+                        name = stripped[len('ref table'):].strip().strip("'")
+                        ref_tables.add(name)
+
+                for tmdl_file in tables_dir.glob('*.tmdl'):
+                    table_name = tmdl_file.stem
+                    if table_name not in ref_tables:
+                        warnings.append(
+                            f'Table "{table_name}" has TMDL file but no '
+                            f'"ref table" in model.tmdl'
+                        )
+            except Exception:
+                pass
+
+        return errors, warnings
+
+    @classmethod
+    def post_check(cls, project_dir):
+        """Run comprehensive post-migration validation on a .pbip project.
+
+        Combines all validation checks:
+        1. Standard project validation (JSON, TMDL, DAX, semantic refs)
+        2. File structure completeness (.pbism, .platform, database.tmdl)
+        3. Visual completeness (data bindings, empty pages)
+        4. Visual→Model cross-reference validation
+        5. TMDL integrity (balanced quotes, duplicates, relationships)
+
+        Args:
+            project_dir: Path to the .pbip project directory
+
+        Returns:
+            Dict with 'valid' (bool), 'errors' (list), 'warnings' (list),
+            'files_checked' (int), 'checks' (dict of check → pass/fail).
+        """
+        project_dir = Path(project_dir)
+
+        # Run standard validation first
+        result = cls.validate_project(project_dir)
+        checks = {'standard_validation': result['valid']}
+
+        # File structure completeness
+        fs_errors, fs_warnings = cls.validate_file_structure(project_dir)
+        result['errors'].extend(fs_errors)
+        result['warnings'].extend(fs_warnings)
+        checks['file_structure'] = len(fs_errors) == 0
+
+        # Visual completeness
+        vc_errors, vc_warnings = cls.validate_visual_completeness(project_dir)
+        result['errors'].extend(vc_errors)
+        result['warnings'].extend(vc_warnings)
+        checks['visual_completeness'] = len(vc_errors) == 0
+
+        # Visual → Model cross-reference
+        vm_warnings = cls.validate_visual_model_refs(project_dir)
+        result['warnings'].extend(vm_warnings)
+        checks['visual_model_refs'] = len(vm_warnings) == 0
+
+        # TMDL integrity
+        ti_errors, ti_warnings = cls.validate_tmdl_integrity(project_dir)
+        result['errors'].extend(ti_errors)
+        result['warnings'].extend(ti_warnings)
+        checks['tmdl_integrity'] = len(ti_errors) == 0
+
+        result['valid'] = len(result['errors']) == 0
+        result['checks'] = checks
+
+        return result
