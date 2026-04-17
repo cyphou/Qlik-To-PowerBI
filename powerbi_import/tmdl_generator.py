@@ -843,6 +843,13 @@ def _build_semantic_model(datasources, report_name="Report", extra_objects=None,
         n_bridges = _generate_bridge_tables(model)
         if n_bridges:
             print(f"  ✓ Generated {n_bridges} bridge table(s) to replace manyToMany")
+            # Validate bridge tables
+            bridge_issues = _validate_bridge_tables(model)
+            if bridge_issues:
+                for issue in bridge_issues:
+                    print(f"  ⚠ Bridge validation: {issue}")
+            else:
+                print(f"  ✓ Bridge table validation passed")
 
     # Phase 10c: Replace RELATED() with LOOKUPVALUE() for manyToMany
     _fix_related_for_many_to_many(model)
@@ -1458,6 +1465,8 @@ def _detect_many_to_many(model, datasources):
     """Determine cardinality for each relationship using multi-signal analysis.
 
     Signals (in priority order):
+    0. Synthetic key table: tables named ``$Syn*`` are Qlik synthetic keys
+       created when multiple fields link two tables → manyToMany
     1. Explicit joinType='full' → manyToMany
     2. Column uniqueness from model metadata (primary-key flags)
     3. ID-suffix heuristic: columns ending in ID/Id/_id are likely unique keys
@@ -1472,6 +1481,13 @@ def _detect_many_to_many(model, datasources):
     # Build column-uniqueness map from model tables and datasource metadata
     unique_columns = _build_unique_column_set(model, datasources)
 
+    # Detect synthetic key tables ($Syn, $SyntheticKey, etc.)
+    syn_tables = set()
+    for table in model.get('model', {}).get('tables', []):
+        tname = table.get('name', '')
+        if tname.startswith('$Syn') or tname.startswith('$syn'):
+            syn_tables.add(tname)
+
     # Build table-column-count map for fact-table tiebreaker
     table_col_count = {}
     for table in model.get('model', {}).get('tables', []):
@@ -1483,6 +1499,13 @@ def _detect_many_to_many(model, datasources):
         to_table = rel.get('toTable', '')
         to_col = rel.get('toColumn', '')
         join_type = rel.get('joinType', 'inner')
+
+        # Signal 0: synthetic key table → manyToMany
+        if from_table in syn_tables or to_table in syn_tables:
+            _set_cardinality(rel, 'many', 'many')
+            print(f"  ⚠️  {from_table}.{from_col} ↔ {to_table}.{to_col}: "
+                  f"manyToMany (synthetic key table)")
+            continue
 
         # Signal 1: explicit full join → manyToMany
         if join_type == 'full':
@@ -1632,6 +1655,10 @@ def _generate_bridge_tables(model):
        - TableB.ColB → Bridge.ColB  (manyToOne)
     3. The bridge table is hidden by default.
 
+    Also handles **composite key** M2M relationships (multiple M2M rels
+    between the same table pair) by merging them into a single bridge
+    table with multiple column pairs.
+
     This eliminates symmetric cross-filter ambiguity and improves
     Power BI performance compared to native manyToMany relationships.
 
@@ -1648,77 +1675,134 @@ def _generate_bridge_tables(model):
     if not m2m_rels:
         return 0
 
+    # Group M2M rels by table pair for composite key detection
+    pair_groups: dict[tuple, list] = {}
+    for rel in m2m_rels:
+        from_table = rel.get('fromTable', '')
+        to_table = rel.get('toTable', '')
+        pair_key = (min(from_table, to_table), max(from_table, to_table))
+        pair_groups.setdefault(pair_key, []).append(rel)
+
     existing_table_names = {t.get('name', '') for t in tables}
     new_tables = []
     new_rels = []
     removed_rels = set()
 
-    for rel in m2m_rels:
-        from_table = rel.get('fromTable', '')
-        from_col = rel.get('fromColumn', '')
-        to_table = rel.get('toTable', '')
-        to_col = rel.get('toColumn', '')
+    # Build a quick lookup for column data types
+    col_type_map: dict[tuple, str] = {}
+    for t in tables:
+        tname = t.get('name', '')
+        for c in t.get('columns', []):
+            col_type_map[(tname, c.get('name', ''))] = c.get('dataType', 'string')
 
-        if not from_table or not to_table or not from_col or not to_col:
+    for (tbl_a, tbl_b), group_rels in pair_groups.items():
+        # Collect all column pairs for this table pair
+        col_pairs = []
+        for rel in group_rels:
+            from_table = rel.get('fromTable', '')
+            from_col = rel.get('fromColumn', '')
+            to_table = rel.get('toTable', '')
+            to_col = rel.get('toColumn', '')
+            if not from_table or not to_table or not from_col or not to_col:
+                continue
+            col_pairs.append((from_table, from_col, to_table, to_col))
+
+        if not col_pairs:
             continue
 
+        # Normalize direction: first table is always tbl_a
+        normalized = []
+        for ft, fc, tt, tc in col_pairs:
+            if ft == tbl_a:
+                normalized.append((ft, fc, tt, tc))
+            else:
+                normalized.append((tt, tc, ft, fc))
+        col_pairs = normalized
+
         # Generate unique bridge table name
-        bridge_name = f"Bridge_{from_table}_{to_table}"
+        bridge_name = f"Bridge_{tbl_a}_{tbl_b}"
         suffix = 2
         while bridge_name in existing_table_names:
-            bridge_name = f"Bridge_{from_table}_{to_table}_{suffix}"
+            bridge_name = f"Bridge_{tbl_a}_{tbl_b}_{suffix}"
             suffix += 1
         existing_table_names.add(bridge_name)
 
-        # Determine column data types from source tables
-        from_type = 'string'
-        to_type = 'string'
-        for t in tables:
-            if t.get('name') == from_table:
-                for c in t.get('columns', []):
-                    if c.get('name') == from_col:
-                        from_type = c.get('dataType', 'string')
-                        break
-            if t.get('name') == to_table:
-                for c in t.get('columns', []):
-                    if c.get('name') == to_col:
-                        to_type = c.get('dataType', 'string')
-                        break
+        # Build bridge table columns and DAX expression
+        bridge_cols = []
+        values_a = []
+        values_b = []
+        select_cols = []
+        seen_col_names = set()
 
-        # Build DAX expression for the bridge table partition
-        ft_ref = f"'{from_table}'"
-        tt_ref = f"'{to_table}'"
-        # Use SUMMARIZE to get distinct combinations from both tables
-        # via the existing (soon-to-be-removed) relationship path
-        dax_expr = (
-            f"DISTINCT(\n"
-            f"    SELECTCOLUMNS(\n"
-            f"        CROSSJOIN(\n"
-            f"            VALUES({ft_ref}[{from_col}]),\n"
-            f"            VALUES({tt_ref}[{to_col}])\n"
-            f"        ),\n"
-            f"        \"{from_col}\", {ft_ref}[{from_col}],\n"
-            f"        \"{to_col}\", {tt_ref}[{to_col}]\n"
-            f"    )\n"
-            f")"
-        )
+        for ft, fc, tt, tc in col_pairs:
+            ft_type = col_type_map.get((ft, fc), 'string')
+            tt_type = col_type_map.get((tt, tc), 'string')
+
+            # Ensure unique column names in bridge table
+            a_col_name = fc
+            b_col_name = tc
+            if a_col_name == b_col_name:
+                a_col_name = f"{ft}_{fc}"
+                b_col_name = f"{tt}_{tc}"
+
+            # Deduplicate column names
+            base_a, base_b = a_col_name, b_col_name
+            idx = 2
+            while a_col_name in seen_col_names:
+                a_col_name = f"{base_a}_{idx}"
+                idx += 1
+            seen_col_names.add(a_col_name)
+            idx = 2
+            while b_col_name in seen_col_names:
+                b_col_name = f"{base_b}_{idx}"
+                idx += 1
+            seen_col_names.add(b_col_name)
+
+            bridge_cols.extend([
+                {'name': a_col_name, 'dataType': ft_type,
+                 'sourceColumn': a_col_name, 'isHidden': False},
+                {'name': b_col_name, 'dataType': tt_type,
+                 'sourceColumn': b_col_name, 'isHidden': False},
+            ])
+            values_a.append(f"VALUES('{ft}'[{fc}])")
+            values_b.append(f"VALUES('{tt}'[{tc}])")
+            select_cols.append(f'        \"{a_col_name}\", \'{ft}\'[{fc}]')
+            select_cols.append(f'        \"{b_col_name}\", \'{tt}\'[{tc}]')
+
+        # Build DAX expression
+        if len(col_pairs) == 1:
+            # Single column pair: simple CROSSJOIN
+            dax_expr = (
+                f"DISTINCT(\n"
+                f"    SELECTCOLUMNS(\n"
+                f"        CROSSJOIN(\n"
+                f"            {values_a[0]},\n"
+                f"            {values_b[0]}\n"
+                f"        ),\n"
+                + ',\n'.join(select_cols) + '\n'
+                f"    )\n"
+                f")"
+            )
+        else:
+            # Composite key: CROSSJOIN multiple VALUES
+            all_values = []
+            for va, vb in zip(values_a, values_b):
+                all_values.extend([va, vb])
+            crossjoin_inner = ',\n            '.join(all_values)
+            dax_expr = (
+                f"DISTINCT(\n"
+                f"    SELECTCOLUMNS(\n"
+                f"        CROSSJOIN(\n"
+                f"            {crossjoin_inner}\n"
+                f"        ),\n"
+                + ',\n'.join(select_cols) + '\n'
+                f"    )\n"
+                f")"
+            )
 
         bridge_table = {
             'name': bridge_name,
-            'columns': [
-                {
-                    'name': from_col,
-                    'dataType': from_type,
-                    'sourceColumn': from_col,
-                    'isHidden': False,
-                },
-                {
-                    'name': to_col,
-                    'dataType': to_type,
-                    'sourceColumn': to_col,
-                    'isHidden': False,
-                },
-            ],
+            'columns': bridge_cols,
             'measures': [],
             'hierarchies': [],
             'partitions': [{
@@ -1733,35 +1817,42 @@ def _generate_bridge_tables(model):
         }
         new_tables.append(bridge_table)
 
-        # Create two manyToOne relationships replacing the M2M
-        rel_from = {
-            'name': f"Bridge-{from_table}-{bridge_name}",
-            'fromTable': from_table,
-            'fromColumn': from_col,
-            'toTable': bridge_name,
-            'toColumn': from_col,
-            'fromCardinality': 'many',
-            'toCardinality': 'one',
-            'crossFilteringBehavior': 'oneDirection',
-        }
-        rel_to = {
-            'name': f"Bridge-{to_table}-{bridge_name}",
-            'fromTable': to_table,
-            'fromColumn': to_col,
-            'toTable': bridge_name,
-            'toColumn': to_col,
-            'fromCardinality': 'many',
-            'toCardinality': 'one',
-            'crossFilteringBehavior': 'oneDirection',
-        }
-        new_rels.append(rel_from)
-        new_rels.append(rel_to)
+        # Create manyToOne relationships from each source table to bridge
+        col_idx = 0
+        for ft, fc, tt, tc in col_pairs:
+            a_col_name = bridge_cols[col_idx]['name']
+            b_col_name = bridge_cols[col_idx + 1]['name']
+            col_idx += 2
 
-        # Mark the original M2M relationship for removal
-        removed_rels.add(id(rel))
+            new_rels.append({
+                'name': f"Bridge-{ft}-{bridge_name}-{a_col_name}",
+                'fromTable': ft,
+                'fromColumn': fc,
+                'toTable': bridge_name,
+                'toColumn': a_col_name,
+                'fromCardinality': 'many',
+                'toCardinality': 'one',
+                'crossFilteringBehavior': 'oneDirection',
+            })
+            new_rels.append({
+                'name': f"Bridge-{tt}-{bridge_name}-{b_col_name}",
+                'fromTable': tt,
+                'fromColumn': tc,
+                'toTable': bridge_name,
+                'toColumn': b_col_name,
+                'fromCardinality': 'many',
+                'toCardinality': 'one',
+                'crossFilteringBehavior': 'oneDirection',
+            })
 
-        print(f"  🔗 Bridge table '{bridge_name}' created for "
-              f"{from_table}.{from_col} ↔ {to_table}.{to_col}")
+        # Mark all original M2M relationships for removal
+        for rel in group_rels:
+            removed_rels.add(id(rel))
+
+        is_composite = len(col_pairs) > 1
+        kind = f"composite ({len(col_pairs)} keys)" if is_composite else "single key"
+        print(f"  🔗 Bridge table '{bridge_name}' ({kind}) for "
+              f"{tbl_a} ↔ {tbl_b}")
 
     # Remove original M2M relationships and add bridge relationships
     model['model']['relationships'] = [
@@ -1935,6 +2026,75 @@ def _validate_relationships(model):
             print(f"  ⚠ {w}")
 
     return report
+
+
+def _validate_bridge_tables(model):
+    """Validate generated bridge tables for structural correctness.
+
+    Checks:
+    1. Bridge table DAX expression has balanced parentheses
+    2. Referenced tables/columns exist in the model
+    3. Replacement relationships connect to valid bridge table columns
+    4. Each bridge table has at least 2 columns
+
+    Returns:
+        list[str]: List of validation issue descriptions (empty = all good).
+    """
+    issues: list[str] = []
+    table_map = {t.get('name', ''): t for t in model['model'].get('tables', [])}
+    rels = model['model'].get('relationships', [])
+
+    for table in model['model'].get('tables', []):
+        tname = table.get('name', '')
+        if not tname.startswith('Bridge_'):
+            continue
+
+        # Check: at least 2 columns
+        cols = table.get('columns', [])
+        if len(cols) < 2:
+            issues.append(f"'{tname}' has {len(cols)} columns (expected ≥ 2)")
+
+        # Check: DAX expression exists and has balanced parens
+        for part in table.get('partitions', []):
+            src = part.get('source', {})
+            if src.get('type') != 'calculated':
+                continue
+            expr = src.get('expression', '')
+            if not expr:
+                issues.append(f"'{tname}' has empty DAX expression")
+                continue
+            if expr.count('(') != expr.count(')'):
+                issues.append(
+                    f"'{tname}' DAX has unbalanced parentheses "
+                    f"({expr.count('(')} open vs {expr.count(')')} close)")
+
+            # Check: referenced tables exist in VALUES() calls
+            import re as _re
+            for m in _re.finditer(r"VALUES\('([^']+)'\[", expr):
+                ref_table = m.group(1)
+                if ref_table not in table_map:
+                    issues.append(
+                        f"'{tname}' DAX references non-existent "
+                        f"table '{ref_table}'")
+
+        # Check: bridge table has incoming relationships
+        bridge_rels = [r for r in rels
+                       if r.get('toTable') == tname]
+        if len(bridge_rels) < 2:
+            issues.append(
+                f"'{tname}' has {len(bridge_rels)} incoming "
+                f"relationship(s) (expected ≥ 2)")
+
+        # Check: relationship columns exist in bridge table
+        col_names = {c.get('name', '') for c in cols}
+        for r in bridge_rels:
+            to_col = r.get('toColumn', '')
+            if to_col and to_col not in col_names:
+                issues.append(
+                    f"'{tname}' relationship references column "
+                    f"'{to_col}' which doesn't exist in bridge table")
+
+    return issues
 
 
 def _fix_related_for_many_to_many(model):

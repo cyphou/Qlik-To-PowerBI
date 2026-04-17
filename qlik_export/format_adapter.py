@@ -325,11 +325,32 @@ def _adapt_datasources(
 
 
 def _inject_relationships(datasources: List[Dict], associations: List[Dict]):
-    """Convert Qlik associations → Tableau relationship format inside datasources."""
+    """Convert Qlik associations → Tableau relationship format inside datasources.
+
+    Detects Qlik synthetic keys (tables prefixed with ``$Syn``) and composite
+    key associations (multiple fields between the same table pair) and marks
+    them with ``joinType='full'`` so downstream M2M detection picks them up.
+    """
     if not associations:
         return
 
     ds_map = {ds['name']: ds for ds in datasources}
+
+    # Detect synthetic key tables ($Syn, $SyntheticKey, etc.)
+    syn_tables = set()
+    for ds in datasources:
+        for t in ds.get('tables', []):
+            tname = t.get('name', '')
+            if tname.startswith('$Syn') or tname.startswith('$syn'):
+                syn_tables.add(tname)
+
+    # Group associations by table pair to detect composite keys
+    pair_assocs: Dict[tuple, List[Dict]] = {}
+    for assoc in associations:
+        table1 = assoc.get('table1', assoc.get('fromTable', ''))
+        table2 = assoc.get('table2', assoc.get('toTable', ''))
+        pair_key = (min(table1, table2), max(table1, table2))
+        pair_assocs.setdefault(pair_key, []).append(assoc)
 
     for assoc in associations:
         table1 = assoc.get('table1', assoc.get('fromTable', ''))
@@ -341,6 +362,15 @@ def _inject_relationships(datasources: List[Dict], associations: List[Dict]):
         # Qlik associations are natural inner joins; 'full' indicates a
         # synthetic key or explicit many-to-many relationship.
         join_type = assoc.get('joinType', assoc.get('type', 'inner'))
+
+        # Mark synthetic key relationships as full join (M2M)
+        if table1 in syn_tables or table2 in syn_tables:
+            join_type = 'full'
+
+        # Mark composite key associations (multiple fields between same pair)
+        pair_key = (min(table1, table2), max(table1, table2))
+        if len(pair_assocs.get(pair_key, [])) > 1:
+            assoc['_composite_key'] = True
 
         rel = {
             'left': {'table': table1, 'column': field1},

@@ -550,6 +550,64 @@ class TestDashboardAdaptation:
         assert result['dashboards'] == []
 
 
+# ── Synthetic Key Detection ─────────────────────────────────────────
+
+class TestSyntheticKeyDetection:
+    """Tests for synthetic key detection in _inject_relationships."""
+
+    def test_syn_table_marked_as_full_join(self):
+        """Associations involving $Syn tables should get joinType='full'."""
+        from qlik_export.format_adapter import _inject_relationships
+
+        datasources = [
+            {'name': 'Orders', 'tables': [{'name': 'Orders'}]},
+            {'name': '$Syn 1', 'tables': [{'name': '$Syn 1'}]},
+        ]
+        associations = [
+            {'table1': 'Orders', 'table2': '$Syn 1',
+             'field1': 'Key', 'field2': 'Key'},
+        ]
+        _inject_relationships(datasources, associations)
+
+        rels = datasources[0].get('relationships', [])
+        assert len(rels) == 1
+        assert rels[0]['type'] == 'full'
+
+    def test_non_syn_table_keeps_inner(self):
+        """Normal associations keep joinType='inner'."""
+        from qlik_export.format_adapter import _inject_relationships
+
+        datasources = [
+            {'name': 'Sales', 'tables': [{'name': 'Sales'}]},
+            {'name': 'Products', 'tables': [{'name': 'Products'}]},
+        ]
+        associations = [
+            {'table1': 'Sales', 'table2': 'Products',
+             'field1': 'ProdID', 'field2': 'ProdID'},
+        ]
+        _inject_relationships(datasources, associations)
+
+        rels = datasources[0].get('relationships', [])
+        assert len(rels) == 1
+        assert rels[0]['type'] == 'inner'
+
+    def test_composite_key_flagged(self):
+        """Multiple associations between same pair get _composite_key flag."""
+        from qlik_export.format_adapter import _inject_relationships
+
+        datasources = [
+            {'name': 'A', 'tables': [{'name': 'A'}]},
+            {'name': 'B', 'tables': [{'name': 'B'}]},
+        ]
+        associations = [
+            {'table1': 'A', 'table2': 'B', 'field1': 'X', 'field2': 'X'},
+            {'table1': 'A', 'table2': 'B', 'field1': 'Y', 'field2': 'Y'},
+        ]
+        _inject_relationships(datasources, associations)
+        assert associations[0].get('_composite_key') is True
+        assert associations[1].get('_composite_key') is True
+
+
 # ── Parameter (variable) tests ──────────────────────────────────────
 
 class TestParameterAdaptation:

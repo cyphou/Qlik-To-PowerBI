@@ -176,4 +176,4 @@ class TestPhase6Housekeeping:
 
     def test_pyproject_version_9(self, project_root_dir):
         content = (project_root_dir / "pyproject.toml").read_text("utf-8")
-        assert '10.0.0' in content
+        assert '10.1.0' in content

@@ -2,6 +2,12 @@
 
 ## v10.1.0 — Gap Closure & Pipeline Wiring
 
+### Bridge Table Improvements
+- **Composite key support**: M2M relationships between the same table pair with multiple columns are now merged into a single bridge table with all column pairs
+- **Synthetic key detection**: Qlik `$Syn*` tables are automatically flagged as manyToMany candidates in both `_inject_relationships()` and `_detect_many_to_many()`
+- **Bridge table validation**: Post-generation validation checks balanced parentheses, referenced table existence, relationship connectivity, and minimum column count
+- **Table pair grouping**: Bridge tables now group by alphabetically-sorted table pairs for deterministic naming
+
 ### Visual Mapping Expansion
 - Expanded `VISUAL_TYPE_MAP` from 75 to **120+ entries** (parity with TableauToPowerBI)
   - Bar/column (12), line/area (10), combo (9), pie/donut (5), map (10), KPI/card/gauge (15), table/matrix (10), specialty (30+)
@@ -35,7 +41,7 @@
 
 ### Tests
 - **20 new tests**: geo wiring (3), CLI flags (6), refresh wiring (2), server wiring (3), plus 6 flag tests in existing test file
-- Total test count: **2,427** (up from 2,407)
+- Total test count: **2,438** (up from 2,407)
 
 ---
 

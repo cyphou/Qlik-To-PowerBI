@@ -19,6 +19,7 @@ from powerbi_import.tmdl_generator import (
     _build_unique_column_set,
     _set_cardinality,
     _generate_bridge_tables,
+    _validate_bridge_tables,
     _optimize_cross_filter_direction,
     _validate_relationships,
 )
@@ -539,15 +540,14 @@ class TestBridgeTableGeneration:
         count = _generate_bridge_tables(model)
         assert count == 1
 
-        # Bridge table exists
+        # Bridge table exists (alphabetical: Articles < Tags)
         table_names = [t['name'] for t in model['model']['tables']]
-        assert 'Bridge_Tags_Articles' in table_names
+        assert 'Bridge_Articles_Tags' in table_names
 
         # Bridge table has two columns
-        bridge = [t for t in model['model']['tables'] if t['name'] == 'Bridge_Tags_Articles'][0]
+        bridge = [t for t in model['model']['tables'] if t['name'] == 'Bridge_Articles_Tags'][0]
         col_names = [c['name'] for c in bridge['columns']]
-        assert 'TagName' in col_names
-        assert len(col_names) == 2  # same col name on both sides → still 2 entries
+        assert len(col_names) == 2  # same col name on both sides → prefixed with table names
 
         # Bridge table is hidden
         assert bridge.get('isHidden') is True
@@ -636,8 +636,9 @@ class TestBridgeTableGeneration:
 
         bridge = [t for t in model['model']['tables']
                   if t['name'].startswith('Bridge_')][0]
-        types = {c['name']: c['dataType'] for c in bridge['columns']}
-        assert types['ProductCode'] == 'Int64'
+        types = {c['name']: c.get('dataType', 'string') for c in bridge['columns']}
+        # Both sides have same column name → prefixed with table names
+        assert any(v == 'Int64' for v in types.values())
 
     def test_bridge_name_dedup(self):
         """If Bridge_X_Y already exists, a suffix is appended."""
@@ -780,6 +781,207 @@ class TestBridgeTableGeneration:
             content = f.read()
         assert 'isHidden' in content
         assert 'calculated' in content
+
+    def test_composite_key_bridge_table(self):
+        """Two M2M rels between same table pair → single bridge with 4 columns."""
+        model = self._make_model(
+            rels=[
+                {'fromTable': 'Sales', 'fromColumn': 'Region',
+                 'toTable': 'Budget', 'toColumn': 'Region',
+                 'fromCardinality': 'many', 'toCardinality': 'many',
+                 'crossFilteringBehavior': 'bothDirections'},
+                {'fromTable': 'Sales', 'fromColumn': 'Product',
+                 'toTable': 'Budget', 'toColumn': 'Product',
+                 'fromCardinality': 'many', 'toCardinality': 'many',
+                 'crossFilteringBehavior': 'bothDirections'},
+            ],
+            tables=[
+                {'name': 'Sales', 'columns': [
+                    {'name': 'Region', 'dataType': 'string'},
+                    {'name': 'Product', 'dataType': 'string'},
+                ]},
+                {'name': 'Budget', 'columns': [
+                    {'name': 'Region', 'dataType': 'string'},
+                    {'name': 'Product', 'dataType': 'string'},
+                ]},
+            ],
+        )
+        count = _generate_bridge_tables(model)
+        assert count == 1
+
+        bridge = [t for t in model['model']['tables']
+                  if t['name'].startswith('Bridge_')][0]
+        # Composite key → 4 columns (2 pairs)
+        assert len(bridge['columns']) == 4
+
+        # No M2M relationships remain
+        m2m = [r for r in model['model']['relationships']
+               if r.get('fromCardinality') == 'many' and r.get('toCardinality') == 'many']
+        assert len(m2m) == 0
+
+        # 4 manyToOne relationships (2 per column pair)
+        m2o = [r for r in model['model']['relationships']
+               if r.get('toCardinality') == 'one']
+        assert len(m2o) == 4
+
+    def test_composite_key_dax_has_multiple_values(self):
+        """Composite key DAX expression contains multiple VALUES() calls."""
+        model = self._make_model(
+            rels=[
+                {'fromTable': 'A', 'fromColumn': 'X',
+                 'toTable': 'B', 'toColumn': 'X',
+                 'fromCardinality': 'many', 'toCardinality': 'many',
+                 'crossFilteringBehavior': 'bothDirections'},
+                {'fromTable': 'A', 'fromColumn': 'Y',
+                 'toTable': 'B', 'toColumn': 'Y',
+                 'fromCardinality': 'many', 'toCardinality': 'many',
+                 'crossFilteringBehavior': 'bothDirections'},
+            ],
+            tables=[
+                {'name': 'A', 'columns': [
+                    {'name': 'X', 'dataType': 'string'},
+                    {'name': 'Y', 'dataType': 'int64'},
+                ]},
+                {'name': 'B', 'columns': [
+                    {'name': 'X', 'dataType': 'string'},
+                    {'name': 'Y', 'dataType': 'int64'},
+                ]},
+            ],
+        )
+        _generate_bridge_tables(model)
+        bridge = [t for t in model['model']['tables']
+                  if t['name'].startswith('Bridge_')][0]
+        expr = bridge['partitions'][0]['source']['expression']
+        # Should have 4 VALUES() calls (2 per column pair)
+        assert expr.count('VALUES(') == 4
+        assert 'CROSSJOIN' in expr
+        assert 'DISTINCT' in expr
+
+    def test_validate_bridge_tables_passes_for_valid(self):
+        """Validation passes for well-formed bridge tables."""
+        model = self._make_model(
+            rels=[{
+                'fromTable': 'T1', 'fromColumn': 'K',
+                'toTable': 'T2', 'toColumn': 'K',
+                'fromCardinality': 'many', 'toCardinality': 'many',
+                'crossFilteringBehavior': 'bothDirections',
+            }],
+            tables=[
+                {'name': 'T1', 'columns': [{'name': 'K', 'dataType': 'string'}]},
+                {'name': 'T2', 'columns': [{'name': 'K', 'dataType': 'string'}]},
+            ],
+        )
+        _generate_bridge_tables(model)
+        issues = _validate_bridge_tables(model)
+        assert issues == []
+
+    def test_validate_bridge_catches_missing_columns(self):
+        """Validation detects bridge table with < 2 columns."""
+        model = {
+            'model': {
+                'tables': [
+                    {'name': 'Bridge_X_Y', 'columns': [{'name': 'OnlyOne'}],
+                     'partitions': [{'source': {'type': 'calculated',
+                                                'expression': "DISTINCT(VALUES('X'[A]))"}}]},
+                ],
+                'relationships': [
+                    {'fromTable': 'X', 'fromColumn': 'A',
+                     'toTable': 'Bridge_X_Y', 'toColumn': 'OnlyOne'},
+                ],
+            },
+        }
+        issues = _validate_bridge_tables(model)
+        assert any('1 columns' in i for i in issues)
+        assert any('1 incoming' in i for i in issues)
+
+    def test_validate_bridge_catches_unbalanced_parens(self):
+        """Validation detects unbalanced parentheses in DAX expression."""
+        model = {
+            'model': {
+                'tables': [
+                    {'name': 'Bridge_A_B',
+                     'columns': [{'name': 'C1'}, {'name': 'C2'}],
+                     'partitions': [{'source': {'type': 'calculated',
+                                                'expression': "DISTINCT(VALUES('A'[X])"}}]},
+                ],
+                'relationships': [
+                    {'fromTable': 'A', 'fromColumn': 'X',
+                     'toTable': 'Bridge_A_B', 'toColumn': 'C1'},
+                    {'fromTable': 'B', 'fromColumn': 'Y',
+                     'toTable': 'Bridge_A_B', 'toColumn': 'C2'},
+                ],
+            },
+        }
+        issues = _validate_bridge_tables(model)
+        assert any('unbalanced' in i.lower() for i in issues)
+
+    def test_validate_bridge_catches_nonexistent_ref_table(self):
+        """Validation detects DAX reference to a table not in the model."""
+        model = {
+            'model': {
+                'tables': [
+                    {'name': 'Bridge_A_B',
+                     'columns': [{'name': 'C1'}, {'name': 'C2'}],
+                     'partitions': [{'source': {'type': 'calculated',
+                                                'expression': "DISTINCT(SELECTCOLUMNS(CROSSJOIN(VALUES('Ghost'[X]), VALUES('B'[Y])), \"C1\", 'Ghost'[X], \"C2\", 'B'[Y]))"}}]},
+                ],
+                'relationships': [
+                    {'fromTable': 'A', 'fromColumn': 'X',
+                     'toTable': 'Bridge_A_B', 'toColumn': 'C1'},
+                    {'fromTable': 'B', 'fromColumn': 'Y',
+                     'toTable': 'Bridge_A_B', 'toColumn': 'C2'},
+                ],
+            },
+        }
+        issues = _validate_bridge_tables(model)
+        assert any('Ghost' in i for i in issues)
+
+
+class TestSyntheticKeyDetection:
+    """Tests for synthetic key detection in _detect_many_to_many."""
+
+    def test_synthetic_key_table_flagged_as_m2m(self):
+        """Relationships involving $Syn tables are detected as manyToMany."""
+        model = {
+            'model': {
+                'tables': [
+                    {'name': 'Orders', 'columns': [{'name': 'Key'}]},
+                    {'name': '$Syn 1', 'columns': [{'name': 'Key'}]},
+                    {'name': 'Products', 'columns': [{'name': 'Key'}]},
+                ],
+                'relationships': [
+                    {'fromTable': 'Orders', 'fromColumn': 'Key',
+                     'toTable': '$Syn 1', 'toColumn': 'Key'},
+                    {'fromTable': '$Syn 1', 'fromColumn': 'Key',
+                     'toTable': 'Products', 'toColumn': 'Key'},
+                ],
+            },
+        }
+        _detect_many_to_many(model, [])
+        for rel in model['model']['relationships']:
+            assert rel.get('fromCardinality') == 'many'
+            assert rel.get('toCardinality') == 'many'
+
+    def test_non_synthetic_not_affected(self):
+        """Normal tables are not treated as synthetic keys."""
+        model = {
+            'model': {
+                'tables': [
+                    {'name': 'Sales', 'columns': [
+                        {'name': 'CustomerID', 'dataType': 'int64'}]},
+                    {'name': 'Customers', 'columns': [
+                        {'name': 'CustomerID', 'dataType': 'int64'}]},
+                ],
+                'relationships': [
+                    {'fromTable': 'Sales', 'fromColumn': 'CustomerID',
+                     'toTable': 'Customers', 'toColumn': 'CustomerID'},
+                ],
+            },
+        }
+        _detect_many_to_many(model, [])
+        rel = model['model']['relationships'][0]
+        # CustomerID is an ID-suffix column → should be detected as key
+        assert rel.get('toCardinality') != 'many' or rel.get('fromCardinality') != 'many'
 
 
 # ══════════════════════════════════════════════════════════════════
