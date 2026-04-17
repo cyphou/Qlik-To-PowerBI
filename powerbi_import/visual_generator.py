@@ -3,8 +3,8 @@ Power BI visual generation module for .pbir files
 Generates visualContainers from converted Qlik worksheets
 
 Features:
-- 60+ visual type mappings (all Qlik chart types)
-- 30+ PBIR-native visual config templates
+- 120+ visual type mappings (all Qlik chart types)
+- 35+ PBIR-native visual config templates
 - Data role definitions per visual type
 - Deep per-type query state building
 - Grid layout positioning from Qlik dashboard coordinates
@@ -190,6 +190,128 @@ VISUAL_TYPE_MAP = {
     "orgchart": "decompositionTree",
     "radar": "lineChart",
     "dendrogram": "decompositionTree",
+
+    # ── Additional Bar/Column variants ────────────────────────
+    "horizontalbar": "clusteredBarChart",
+    "horizontal-bar": "clusteredBarChart",
+    "normalizedbar": "hundredPercentStackedBarChart",
+    "normalized-bar": "hundredPercentStackedBarChart",
+    "normalizedcolumn": "hundredPercentStackedColumnChart",
+    "normalized-column": "hundredPercentStackedColumnChart",
+    "sidebyside": "clusteredColumnChart",
+    "side-by-side": "clusteredColumnChart",
+    "groupedbarchart": "clusteredBarChart",
+    "grouped-bar": "clusteredBarChart",
+    "groupedcolumnchart": "clusteredColumnChart",
+    "grouped-column": "clusteredColumnChart",
+
+    # ── Additional Line/Area variants ─────────────────────────
+    "stepline": "lineChart",
+    "step-line": "lineChart",
+    "smoothline": "lineChart",
+    "smooth-line": "lineChart",
+    "curvedline": "lineChart",
+    "spline": "lineChart",
+    "100stackedarea": "hundredPercentStackedAreaChart",
+    "percentstackedarea": "hundredPercentStackedAreaChart",
+    "stackedline": "lineChart",
+    "stacked-line": "lineChart",
+
+    # ── Additional Combo variants ─────────────────────────────
+    "barline": "lineClusteredColumnComboChart",
+    "bar-line": "lineClusteredColumnComboChart",
+    "columnline": "lineClusteredColumnComboChart",
+    "column-line": "lineClusteredColumnComboChart",
+    "linecolumn": "lineStackedColumnComboChart",
+    "line-column": "lineStackedColumnComboChart",
+    "linebar": "lineClusteredColumnComboChart",
+    "line-bar": "lineClusteredColumnComboChart",
+    "linestackedcolumncombochart": "lineStackedColumnComboChart",
+
+    # ── Additional Pie/Donut variants ─────────────────────────
+    "3dpie": "pieChart",
+    "3d-pie": "pieChart",
+    "explodedpie": "pieChart",
+    "halfdonut": "donutChart",
+    "half-donut": "donutChart",
+
+    # ── Additional Map variants ───────────────────────────────
+    "choropleth": "filledMap",
+    "bubblemap": "map",
+    "bubble-map": "map",
+    "pointmap": "map",
+    "point-map": "map",
+    "heatmapgeo": "map",
+    "densitymap": "map",
+    "mapbox": "azureMap",
+    "geojson": "shapeMap",
+    "geodata": "shapeMap",
+
+    # ── Additional KPI/Card variants ──────────────────────────
+    "scoreboard": "card",
+    "bignum": "card",
+    "big-number": "card",
+    "bignumber": "card",
+    "summary": "multiRowCard",
+    "statcard": "card",
+    "stat-card": "card",
+    "speedometer": "gauge",
+    "thermometer": "gauge",
+    "dial": "gauge",
+    "angulargauge": "gauge",
+    "angular-gauge": "gauge",
+    "lineargauge": "gauge",
+    "linear-gauge": "gauge",
+    "kpicard": "card",
+    "kpi-card": "card",
+
+    # ── Additional Table/Matrix variants ──────────────────────
+    "grid": "tableEx",
+    "datagrid": "tableEx",
+    "data-grid": "tableEx",
+    "crosstab": "matrix",
+    "cross-tab": "matrix",
+    "texttable": "tableEx",
+    "text-table": "tableEx",
+    "detailtable": "tableEx",
+    "detail-table": "tableEx",
+    "summaryTable": "tableEx",
+    "summary-table": "tableEx",
+
+    # ── Additional Specialty visuals ──────────────────────────
+    "tornado": "clusteredBarChart",
+    "tornadochart": "clusteredBarChart",
+    "tornado-chart": "clusteredBarChart",
+    "pyramidchart": "funnel",
+    "pyramid": "funnel",
+    "dumbbell": "clusteredBarChart",
+    "dumbbellchart": "clusteredBarChart",
+    "rangedot": "clusteredBarChart",
+    "range-dot": "clusteredBarChart",
+    "marimekko": "stackedBarChart",
+    "100percentbar": "hundredPercentStackedBarChart",
+    "100percentcolumn": "hundredPercentStackedColumnChart",
+    "percentbar": "hundredPercentStackedBarChart",
+    "percentcolumn": "hundredPercentStackedColumnChart",
+    "sparkcolumn": "clusteredColumnChart",
+    "sparkarea": "areaChart",
+    "sparkbar": "clusteredBarChart",
+    "minibar": "clusteredBarChart",
+    "minichart": "lineChart",
+    "trellis": "lineChart",
+    "smallmultiple": "lineChart",
+    "small-multiple": "lineChart",
+    "facet": "lineChart",
+    "panelchart": "lineChart",
+    "panel-chart": "lineChart",
+    "coxcomb": "pieChart",
+    "rose": "pieChart",
+    "nightingale": "pieChart",
+    "polarchart": "lineChart",
+    "polar": "lineChart",
+    "radarchart": "lineChart",
+    "spiderweb": "lineChart",
+    "spider": "lineChart",
 
     # ── PBI pass-through (already correct) ─────────────────
     "clusteredbarchart": "clusteredBarChart",
@@ -752,6 +874,7 @@ _AGG_FUNC_MAP = {
 
 APPROXIMATION_MAP = {
     "mekko":       ("stackedBarChart",                   "Mekko chart mapped to Stacked Bar — variable-width bars are not supported"),
+    "marimekko":   ("stackedBarChart",                   "Marimekko chart mapped to Stacked Bar — variable-width bars are not supported"),
     "sankey":      ("decompositionTree",                 "Sankey diagram mapped to Decomposition Tree — flow semantics differ"),
     "chord":       ("decompositionTree",                 "Chord diagram mapped to Decomposition Tree — circular layout not available"),
     "network":     ("decompositionTree",                 "Network graph mapped to Decomposition Tree — node/edge semantics differ"),
@@ -763,6 +886,20 @@ APPROXIMATION_MAP = {
     "waffle":      ("hundredPercentStackedBarChart",     "Waffle chart mapped to 100% Stacked Bar — grid layout lost"),
     "pareto":      ("lineClusteredColumnComboChart",     "Pareto mapped to Line+Column Combo — cumulative line may need adjustment"),
     "dualaxis":    ("lineClusteredColumnComboChart",     "Dual axis mapped to Line+Column Combo"),
+    "tornado":     ("clusteredBarChart",                 "Tornado chart mapped to Clustered Bar — mirrored layout lost"),
+    "pyramid":     ("funnel",                            "Pyramid mapped to Funnel — inverted orientation"),
+    "dumbbell":    ("clusteredBarChart",                 "Dumbbell chart mapped to Clustered Bar — range dot semantics lost"),
+    "coxcomb":     ("pieChart",                          "Coxcomb/Rose chart mapped to Pie — polar area semantics lost"),
+    "nightingale": ("pieChart",                          "Nightingale chart mapped to Pie — polar area semantics lost"),
+    "radar":       ("lineChart",                         "Radar chart mapped to Line Chart — radial layout not available"),
+    "spider":      ("lineChart",                         "Spider web chart mapped to Line Chart — radial layout not available"),
+    "polar":       ("lineChart",                         "Polar chart mapped to Line Chart — radial layout not available"),
+    "violin":      ("boxAndWhisker",                     "Violin plot mapped to Box and Whisker — density distribution lost"),
+    "trellis":     ("lineChart",                         "Trellis mapped to Line Chart — use small multiples in PBI Desktop"),
+    "smallmultiple": ("lineChart",                       "Small multiple mapped to Line Chart — configure in PBI Desktop"),
+    "orgchart":    ("decompositionTree",                 "Org chart mapped to Decomposition Tree — organizational layout lost"),
+    "dendrogram":  ("decompositionTree",                 "Dendrogram mapped to Decomposition Tree — tree layout differs"),
+    "lollipop":    ("clusteredBarChart",                 "Lollipop chart mapped to Clustered Bar — dot-line semantics lost"),
 }
 
 

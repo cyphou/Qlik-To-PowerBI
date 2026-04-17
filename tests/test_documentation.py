@@ -146,11 +146,11 @@ class TestPhase6Housekeeping:
 
     def test_version_8_in_qlik_export(self):
         import qlik_export
-        assert qlik_export.__version__ == '8.0.0'
+        assert qlik_export.__version__ == '9.0.0'
 
     def test_version_9_in_powerbi_import(self):
         import powerbi_import
-        assert powerbi_import.__version__ == '9.0.0'
+        assert powerbi_import.__version__ == '10.1.0'
 
     def test_fabric_api_deprecation_readme(self, project_root_dir):
         f = project_root_dir / "src" / "fabric_api" / "README.md"

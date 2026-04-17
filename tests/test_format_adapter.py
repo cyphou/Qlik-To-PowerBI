@@ -492,12 +492,14 @@ class TestChartTypeMapping:
 
     KNOWN_PBI_TYPES = {
         'clusteredBarChart', 'lineStackedColumnComboChart', 'lineChart',
+        'lineClusteredColumnComboChart',
         'pieChart', 'scatterChart', 'tableEx', 'pivotTable', 'card',
         'gauge', 'map', 'treemap', 'waterfallChart', 'boxAndWhisker',
         'clusteredColumnChart', 'slicer', 'textbox', 'actionButton',
         'stackedBarChart', 'bulletChart', 'wordCloud', 'funnel',
         'donutChart', 'areaChart', 'stackedColumnChart', 'decompositionTree',
-        'kpi',
+        'kpi', 'ribbonChart', 'sunburst', 'filledMap', 'shapeMap',
+        'azureMap', 'image', 'multiRowCard',
     }
 
     def test_all_mapped_types_are_valid(self):

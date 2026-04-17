@@ -9,7 +9,8 @@
 #   governance, security_validator, monitoring, alerts_generator,
 #   recovery_report, sla_tracker, schema_drift, equivalence_tester,
 #   regression_suite, visual_diff, marketplace, api_server,
-#   notebook_api, paginated_generator, permission_mapper, llm_client
+#   notebook_api, paginated_generator, permission_mapper, llm_client,
+#   geo_passthrough, refresh_generator
 #
 # Fabric-native generation:
 #   fabric_constants, fabric_naming, lakehouse_generator,
@@ -27,4 +28,4 @@
 # Deployment subpackage (powerbi_import.deploy):
 #   auth, client, deployer, utils, config/
 #   bundle_deployer, multi_tenant, pbi_client, pbi_deployer
-__version__ = '9.0.0'
+__version__ = '10.1.0'
