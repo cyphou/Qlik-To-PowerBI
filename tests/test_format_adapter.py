@@ -326,6 +326,33 @@ class TestRelationshipAdaptation:
         for ds in result['datasources']:
             assert ds.get('relationships', []) == []
 
+    def test_association_forwards_join_type(self, full_qlik_data):
+        """Association joinType should be forwarded, not hardcoded."""
+        # Default (no explicit joinType) → 'inner'
+        result = adapt_qlik_for_generation(full_qlik_data)
+        all_rels = []
+        for ds in result['datasources']:
+            all_rels.extend(ds.get('relationships', []))
+        if all_rels:
+            rel = all_rels[0]
+            # Default is 'inner' (Qlik natural associations)
+            assert rel['type'] == 'inner'
+
+    def test_explicit_full_join_type_forwarded(self, full_qlik_data):
+        """Explicit joinType='full' from Qlik should be forwarded."""
+        # Add an explicit full join association
+        full_qlik_data['associations'].append({
+            'table1': 'Sales', 'field1': 'Region',
+            'table2': 'Product', 'field2': 'Region',
+            'joinType': 'full',
+        })
+        result = adapt_qlik_for_generation(full_qlik_data)
+        all_rels = []
+        for ds in result['datasources']:
+            all_rels.extend(ds.get('relationships', []))
+        full_rels = [r for r in all_rels if r.get('type') == 'full']
+        assert len(full_rels) >= 1
+
 
 # ── Calculation (measures + dimensions) tests ────────────────────────
 

@@ -15,6 +15,9 @@ from powerbi_import.tmdl_generator import (
     _clean_field_ref,
     _split_dax_args,
     resolve_table_for_column,
+    _detect_many_to_many,
+    _build_unique_column_set,
+    _set_cardinality,
 )
 
 
@@ -214,6 +217,174 @@ class TestBuildRelationships:
         stats = generate_tmdl(ds, "Rel", extra, sm_dir)
         # May or may not infer relationships depending on matching columns
         assert stats["relationships"] >= 0
+
+
+# ══════════════════════════════════════════════════════════════════
+# 3b. Cardinality Detection
+# ══════════════════════════════════════════════════════════════════
+
+class TestCardinalityDetection:
+    """Tests for _detect_many_to_many and _build_unique_column_set."""
+
+    def _make_model(self, rels, tables=None):
+        """Build a minimal model dict with relationships and optional tables."""
+        return {
+            'model': {
+                'tables': tables or [],
+                'relationships': rels,
+            }
+        }
+
+    def test_id_suffix_detected_as_unique(self):
+        """Columns ending in ID/Id/_id/Key should be detected as unique."""
+        model = self._make_model([], tables=[
+            {'name': 'Orders', 'columns': [
+                {'name': 'OrderID'},
+                {'name': 'CustomerID'},
+                {'name': 'Amount'},
+            ]},
+            {'name': 'Customers', 'columns': [
+                {'name': 'CustomerID'},
+                {'name': 'Name'},
+            ]},
+        ])
+        unique = _build_unique_column_set(model, [])
+        assert ('Orders', 'OrderID') in unique
+        assert ('Orders', 'CustomerID') in unique
+        assert ('Customers', 'CustomerID') in unique
+        assert ('Orders', 'Amount') not in unique
+        assert ('Customers', 'Name') not in unique
+
+    def test_camel_case_id_detected(self):
+        """CamelCase ID suffixes like ProductId, order_key should match."""
+        model = self._make_model([], tables=[
+            {'name': 'T', 'columns': [
+                {'name': 'ProductId'},
+                {'name': 'order_key'},
+                {'name': 'item_pk'},
+                {'name': 'category_code'},
+            ]},
+        ])
+        unique = _build_unique_column_set(model, [])
+        assert ('T', 'ProductId') in unique
+        assert ('T', 'order_key') in unique
+        assert ('T', 'item_pk') in unique
+        assert ('T', 'category_code') in unique
+
+    def test_many_to_one_when_to_is_id(self):
+        """Star-schema: fact table (more columns) → dimension (fewer columns)."""
+        rels = [{'fromTable': 'Orders', 'fromColumn': 'CustomerID',
+                 'toTable': 'Customers', 'toColumn': 'CustomerID',
+                 'joinType': 'inner'}]
+        # Orders has more columns → fact table (FK side, not unique)
+        # Customers has fewer columns → dimension table (PK side, unique)
+        model = self._make_model(rels, tables=[
+            {'name': 'Orders', 'columns': [
+                {'name': 'OrderID'}, {'name': 'CustomerID'},
+                {'name': 'Amount'}, {'name': 'OrderDate'},
+            ]},
+            {'name': 'Customers', 'columns': [
+                {'name': 'CustomerID'}, {'name': 'Name'},
+            ]},
+        ])
+        _detect_many_to_many(model, [])
+        rel = model['model']['relationships'][0]
+        assert rel['fromCardinality'] == 'many'
+        assert rel['toCardinality'] == 'one'
+        assert rel['crossFilteringBehavior'] == 'oneDirection'
+
+    def test_one_to_one_when_both_are_ids(self):
+        """Both sides are ID columns → oneToOne."""
+        rels = [{'fromTable': 'Users', 'fromColumn': 'UserID',
+                 'toTable': 'Profiles', 'toColumn': 'UserID',
+                 'joinType': 'inner'}]
+        model = self._make_model(rels, tables=[
+            {'name': 'Users', 'columns': [{'name': 'UserID'}]},
+            {'name': 'Profiles', 'columns': [{'name': 'UserID'}]},
+        ])
+        _detect_many_to_many(model, [])
+        rel = model['model']['relationships'][0]
+        assert rel['fromCardinality'] == 'one'
+        assert rel['toCardinality'] == 'one'
+
+    def test_many_to_many_when_no_ids(self):
+        """Neither side is an ID column → manyToMany."""
+        rels = [{'fromTable': 'Tags', 'fromColumn': 'TagName',
+                 'toTable': 'Articles', 'toColumn': 'TagName',
+                 'joinType': 'inner'}]
+        model = self._make_model(rels, tables=[
+            {'name': 'Tags', 'columns': [{'name': 'TagName'}]},
+            {'name': 'Articles', 'columns': [{'name': 'TagName'}]},
+        ])
+        _detect_many_to_many(model, [])
+        rel = model['model']['relationships'][0]
+        assert rel['fromCardinality'] == 'many'
+        assert rel['toCardinality'] == 'many'
+        assert rel['crossFilteringBehavior'] == 'bothDirections'
+
+    def test_full_join_always_many_to_many(self):
+        """Explicit full join → manyToMany regardless of column names."""
+        rels = [{'fromTable': 'A', 'fromColumn': 'AID',
+                 'toTable': 'B', 'toColumn': 'BID',
+                 'joinType': 'full'}]
+        model = self._make_model(rels, tables=[
+            {'name': 'A', 'columns': [{'name': 'AID'}]},
+            {'name': 'B', 'columns': [{'name': 'BID'}]},
+        ])
+        _detect_many_to_many(model, [])
+        rel = model['model']['relationships'][0]
+        assert rel['fromCardinality'] == 'many'
+        assert rel['toCardinality'] == 'many'
+
+    def test_one_to_many_from_is_key(self):
+        """from-side is ID but to-side is not → oneToMany."""
+        rels = [{'fromTable': 'Customers', 'fromColumn': 'CustomerID',
+                 'toTable': 'Feedback', 'toColumn': 'Comment',
+                 'joinType': 'inner'}]
+        model = self._make_model(rels, tables=[
+            {'name': 'Customers', 'columns': [{'name': 'CustomerID'}]},
+            {'name': 'Feedback', 'columns': [{'name': 'Comment'}]},
+        ])
+        _detect_many_to_many(model, [])
+        rel = model['model']['relationships'][0]
+        assert rel['fromCardinality'] == 'one'
+        assert rel['toCardinality'] == 'many'
+
+    def test_set_cardinality_helper(self):
+        """_set_cardinality sets all three properties correctly."""
+        rel = {}
+        _set_cardinality(rel, 'many', 'one')
+        assert rel['fromCardinality'] == 'many'
+        assert rel['toCardinality'] == 'one'
+        assert rel['crossFilteringBehavior'] == 'oneDirection'
+
+        _set_cardinality(rel, 'many', 'many')
+        assert rel['crossFilteringBehavior'] == 'bothDirections'
+
+    def test_iskey_metadata_overrides_name_heuristic(self):
+        """isKey metadata should mark a column as unique even without ID suffix."""
+        model = self._make_model([], tables=[
+            {'name': 'Products', 'columns': [
+                {'name': 'SKU', 'isKey': True},
+                {'name': 'Description'},
+            ]},
+        ])
+        unique = _build_unique_column_set(model, [])
+        assert ('Products', 'SKU') in unique
+        assert ('Products', 'Description') not in unique
+
+    def test_datasource_metadata_used(self):
+        """Column metadata from datasources should be considered."""
+        model = self._make_model([], tables=[])
+        datasources = [{'tables': [
+            {'name': 'Inventory', 'columns': [
+                {'name': 'PartNumber', 'isPrimaryKey': True},
+                {'name': 'Warehouse'},
+            ]}
+        ]}]
+        unique = _build_unique_column_set(model, datasources)
+        assert ('Inventory', 'PartNumber') in unique
+        assert ('Inventory', 'Warehouse') not in unique
 
 
 # ══════════════════════════════════════════════════════════════════

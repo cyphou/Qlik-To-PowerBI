@@ -1433,37 +1433,142 @@ def _infer_cross_table_relationships(model):
 
 
 def _detect_many_to_many(model, datasources):
-    """
-    Determine cardinality for each relationship.
+    """Determine cardinality for each relationship using multi-signal analysis.
 
-    Strategy — based on join type:
-    - Full joins → manyToMany (ambiguous direction)
-    - Left/Inner/Right joins → manyToOne (default PBI behavior)
-      The 'to' side is the dimension/lookup table (one side).
+    Signals (in priority order):
+    1. Explicit joinType='full' → manyToMany
+    2. Column uniqueness from model metadata (primary-key flags)
+    3. ID-suffix heuristic: columns ending in ID/Id/_id are likely unique keys
+    4. Fact-table tiebreaker: when the same ID column appears on both sides,
+       the table with more columns is likely the fact table (FK, not unique)
 
-    For left/inner joins the source left table (fromTable) is typically
-    the fact table (many rows) and the right table (toTable) is the
-    lookup (unique keys).  We default to manyToOne which is safe — Power BI
-    will raise an error at refresh if the 'one' side has duplicates,
-    prompting the user to review.  Getting manyToMany wrong (when it
-    should be manyToOne) silently duplicates data, which is worse.
+    Cardinality outcomes:
+    - oneToOne  : both sides are unique key columns
+    - manyToOne : 'to' side is a unique key, 'from' side is not
+    - manyToMany: neither side is a unique key (or explicit full join)
     """
+    # Build column-uniqueness map from model tables and datasource metadata
+    unique_columns = _build_unique_column_set(model, datasources)
+
+    # Build table-column-count map for fact-table tiebreaker
+    table_col_count = {}
+    for table in model.get('model', {}).get('tables', []):
+        table_col_count[table.get('name', '')] = len(table.get('columns', []))
+
     for rel in model['model']['relationships']:
+        from_table = rel.get('fromTable', '')
+        from_col = rel.get('fromColumn', '')
         to_table = rel.get('toTable', '')
         to_col = rel.get('toColumn', '')
-        join_type = rel.get('joinType', 'left')
+        join_type = rel.get('joinType', 'inner')
 
+        # Signal 1: explicit full join → manyToMany
         if join_type == 'full':
-            rel['fromCardinality'] = 'many'
-            rel['toCardinality'] = 'many'
-            rel['crossFilteringBehavior'] = 'bothDirections'
-            print(f"  ⚠️  Relation → '{to_table}.{to_col}' set to manyToMany (full join).")
+            _set_cardinality(rel, 'many', 'many')
+            print(f"  ⚠️  {from_table}.{from_col} ↔ {to_table}.{to_col}: "
+                  f"manyToMany (full join)")
+            continue
+
+        from_unique = (from_table, from_col) in unique_columns
+        to_unique = (to_table, to_col) in unique_columns
+
+        # Fact-table tiebreaker: when both sides have ID-suffixed columns
+        # (both detected as "unique"), the table with MORE columns is likely
+        # the fact table where the column is a foreign key (not truly unique).
+        if from_unique and to_unique:
+            from_count = table_col_count.get(from_table, 0)
+            to_count = table_col_count.get(to_table, 0)
+            if from_count > to_count:
+                # from-side is the fact table → FK, not unique
+                from_unique = False
+            elif to_count > from_count:
+                # to-side is the fact table → FK, not unique
+                to_unique = False
+            # If equal column count, keep as oneToOne (can't distinguish)
+
+        if from_unique and to_unique:
+            # oneToOne — both sides are keys
+            _set_cardinality(rel, 'one', 'one')
+            print(f"  ✓  {from_table}.{from_col} → {to_table}.{to_col}: "
+                  f"oneToOne (both unique)")
+        elif to_unique:
+            # manyToOne — standard star-schema pattern (optimal)
+            _set_cardinality(rel, 'many', 'one')
+            print(f"  ✓  {from_table}.{from_col} → {to_table}.{to_col}: "
+                  f"manyToOne (lookup table)")
+        elif from_unique:
+            # oneToMany — reverse direction
+            _set_cardinality(rel, 'one', 'many')
+            print(f"  ⚠️  {from_table}.{from_col} → {to_table}.{to_col}: "
+                  f"oneToMany (from-side is key)")
         else:
-            # left, inner, right → manyToOne
-            rel['fromCardinality'] = 'many'
-            rel['toCardinality'] = 'one'
-            rel['crossFilteringBehavior'] = 'oneDirection'
-            print(f"  ✓  Relation → '{to_table}.{to_col}' set to manyToOne (lookup table).")
+            # manyToMany — neither side detected as unique
+            _set_cardinality(rel, 'many', 'many')
+            print(f"  ⚠️  {from_table}.{from_col} ↔ {to_table}.{to_col}: "
+                  f"manyToMany (no unique key detected)")
+
+
+def _set_cardinality(rel, from_card, to_card):
+    """Set cardinality and crossFilteringBehavior on a relationship."""
+    rel['fromCardinality'] = from_card
+    rel['toCardinality'] = to_card
+    # manyToMany requires bothDirections; everything else uses oneDirection
+    if from_card == 'many' and to_card == 'many':
+        rel['crossFilteringBehavior'] = 'bothDirections'
+    else:
+        rel['crossFilteringBehavior'] = 'oneDirection'
+
+
+# ── ID-suffix patterns for unique-key detection ─────────────────────
+
+_ID_SUFFIXES = ('id', '_id', 'key', '_key', 'code', '_code', 'pk', '_pk')
+
+_ID_RE = re.compile(
+    r'(?:^|_)(?:id|key|code|pk)$|'   # ends with _id, _key, _code, _pk
+    r'(?<=[a-z])(?:ID|Id|Key|Code)$',  # camelCase: CustomerID, ProductId
+    re.IGNORECASE,
+)
+
+
+def _build_unique_column_set(model, datasources):
+    """Build a set of (table, column) tuples that are likely unique keys.
+
+    Uses three signals:
+    1. Primary-key / isKey metadata from the model
+    2. ID-suffix heuristic on column names
+    3. Relationship target analysis: if the 'to' side of a manyToOne is
+       always the same column, it is probably a key
+    """
+    unique_cols = set()
+
+    # ── Signal 1: Model metadata (isKey, isPrimaryKey) ───────────────
+    for table in model.get('model', {}).get('tables', []):
+        tname = table.get('name', '')
+        for col in table.get('columns', []):
+            cname = col.get('name', '')
+            if col.get('isKey') or col.get('isPrimaryKey'):
+                unique_cols.add((tname, cname))
+
+    # ── Signal 2: ID-suffix heuristic ────────────────────────────────
+    for table in model.get('model', {}).get('tables', []):
+        tname = table.get('name', '')
+        for col in table.get('columns', []):
+            cname = col.get('name', '')
+            if _ID_RE.search(cname):
+                unique_cols.add((tname, cname))
+
+    # ── Signal 3: Datasource column metadata ─────────────────────────
+    for ds in datasources:
+        for table in ds.get('tables', []):
+            tname = table.get('name', '')
+            for col in table.get('columns', []):
+                cname = col.get('name', '')
+                if col.get('isKey') or col.get('isPrimaryKey'):
+                    unique_cols.add((tname, cname))
+                elif _ID_RE.search(cname):
+                    unique_cols.add((tname, cname))
+
+    return unique_cols
 
 
 def _fix_related_for_many_to_many(model):
@@ -3372,11 +3477,22 @@ def _write_relationships_tmdl(def_dir, relationships):
         if from_card == 'many' and to_card == 'many':
             lines.append("\tfromCardinality: many")
             lines.append("\ttoCardinality: many")
+        elif from_card == 'one' and to_card == 'one':
+            lines.append("\tfromCardinality: one")
+            lines.append("\ttoCardinality: one")
+        elif from_card == 'one' and to_card == 'many':
+            lines.append("\tfromCardinality: one")
+            lines.append("\ttoCardinality: many")
         elif from_card == 'many' and to_card == 'one':
-            pass
+            pass  # default in TMDL — omit for brevity
 
         cfb = rel.get('crossFilteringBehavior', 'oneDirection')
         lines.append(f"\tcrossFilteringBehavior: {cfb}")
+
+        # Security filtering — default oneDirection (safe)
+        sfb = rel.get('securityFilteringBehavior', '')
+        if sfb and sfb != 'oneDirection':
+            lines.append(f"\tsecurityFilteringBehavior: {sfb}")
 
         if rel.get('isActive') == False:
             lines.append("\tisActive: false")

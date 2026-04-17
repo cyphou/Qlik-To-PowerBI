@@ -311,10 +311,15 @@ def _inject_relationships(datasources: List[Dict], associations: List[Dict]):
         field1 = assoc.get('field1', assoc.get('fromField', assoc.get('fromColumn', '')))
         field2 = assoc.get('field2', assoc.get('toField', assoc.get('toColumn', '')))
 
+        # Forward join type from Qlik association metadata (default: inner)
+        # Qlik associations are natural inner joins; 'full' indicates a
+        # synthetic key or explicit many-to-many relationship.
+        join_type = assoc.get('joinType', assoc.get('type', 'inner'))
+
         rel = {
             'left': {'table': table1, 'column': field1},
             'right': {'table': table2, 'column': field2},
-            'type': 'left',
+            'type': join_type,
         }
 
         # Add to the first matching datasource

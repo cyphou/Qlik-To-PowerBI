@@ -1,9 +1,9 @@
 table Customers
-	lineageTag: a57f5099-12e1-47a9-ba29-2402bee8da94
+	lineageTag: 9da2dfaa-097e-428f-a4b2-90d063de84a6
 
 	column CustomerID
 		dataType: int64
-		lineageTag: 0c831e7f-2589-4b0d-8640-0e01914e93a6
+		lineageTag: 43e70326-2aa8-4218-9573-5a94f9d51199
 		summarizeBy: none
 		sourceColumn: CustomerID
 
@@ -11,7 +11,7 @@ table Customers
 
 	column CustomerName
 		dataType: string
-		lineageTag: eb8f0d27-672b-43b5-aa37-bce28f4ec3f9
+		lineageTag: a711306e-503e-4ddb-9af0-fdeeb2d4423c
 		summarizeBy: none
 		sourceColumn: CustomerName
 
@@ -19,7 +19,7 @@ table Customers
 
 	column Country
 		dataType: string
-		lineageTag: 84a8e74d-3dd6-44e0-bb8a-766fc78caa0c
+		lineageTag: 52d6c962-1120-460d-a6e6-8f3a48bfe4d0
 		summarizeBy: none
 		sourceColumn: Country
 		dataCategory: Country
@@ -28,7 +28,7 @@ table Customers
 
 	column City
 		dataType: string
-		lineageTag: f7934978-151f-4a0f-90ed-d03df1f13c6b
+		lineageTag: 334c24ce-1f5d-4cfa-9248-8ebe61049e1f
 		summarizeBy: none
 		sourceColumn: City
 		dataCategory: City
@@ -37,14 +37,14 @@ table Customers
 
 	column Region
 		dataType: string
-		lineageTag: 7272f3ec-81c3-485d-9b32-2b097d15dd1e
+		lineageTag: 06df3a7a-fb2e-4d44-962b-6d59bc861de7
 		summarizeBy: none
 		sourceColumn: Region
 		dataCategory: StateOrProvince
 
 		annotation SummarizationSetBy = Automatic
 
-	partition 'Customers-212d2550-bf8c-497f-8501-f36216f560d5' = m
+	partition 'Customers-9a820bbe-ff6a-4b87-a992-bbb4fb6166a7' = m
 		mode: import
 		source =
 				let

@@ -1,14 +1,14 @@
-relationship d7dad977-ad35-4bee-a487-3a47a1b8b74e
+relationship 8bc47038-d8c6-4bf5-a6a3-4dd761e458b2
 	fromColumn: Sales.OrderDate
 	toColumn: Calendar.Date
 	crossFilteringBehavior: oneDirection
 
-relationship 75e4c44d-cd7d-4038-80cb-7cae86ccbe30
+relationship 91d1adc5-c736-468b-bb4e-0d42686a105c
 	fromColumn: Sales.CustomerID
 	toColumn: Customers.CustomerID
 	crossFilteringBehavior: oneDirection
 
-relationship 9b546441-a8c5-4c74-9427-e37729264f71
+relationship 92a403d9-d440-44db-ac3b-47545d7e00ca
 	fromColumn: Sales.ProductID
 	toColumn: Products.ProductID
 	crossFilteringBehavior: oneDirection

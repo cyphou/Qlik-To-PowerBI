@@ -1,20 +1,38 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
-  "name": "2701faacd65d4a0586d6",
+  "name": "521cb3534d0441ca9a88",
   "position": {
-    "x": 0,
+    "x": 434,
     "y": 0,
-    "z": 0,
+    "z": 1000,
     "height": 411,
     "width": 846,
-    "tabOrder": 0
+    "tabOrder": 1000
   },
   "visual": {
-    "visualType": "card",
+    "visualType": "clusteredBarChart",
     "drillFilterOtherVisuals": true,
     "query": {
       "queryState": {
-        "Values": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Customers"
+                    }
+                  },
+                  "Property": "CustomerName"
+                }
+              },
+              "queryRef": "Customers.CustomerName",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
           "projections": [
             {
               "field": {
@@ -41,7 +59,7 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'CA Total'"
+                  "Value": "'Ventes par Client'"
                 }
               }
             }

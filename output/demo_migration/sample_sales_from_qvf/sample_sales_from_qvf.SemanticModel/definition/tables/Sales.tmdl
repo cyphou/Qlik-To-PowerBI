@@ -1,22 +1,22 @@
 table Sales
-	lineageTag: 7a699818-2b1f-431f-b99b-a6e16ec4d49f
+	lineageTag: 52f49e2e-e9bc-4606-937c-d94d2ca81092
 
 	measure 'CA Total' = SUM('Sales'[Amount])
 		formatString: #,0.00
 		displayFolder: Measures
-		lineageTag: 44cfccf6-58eb-4c2e-9e92-190e66e315c1
+		lineageTag: e36053bb-e444-4314-a599-acdd551c9c89
 
 	measure 'Qté Totale' = SUM('Sales'[Quantity])
 		formatString: #,0.00
 		displayFolder: Measures
-		lineageTag: 674c7544-744d-46bd-8ac5-c5d09cdc094d
+		lineageTag: 8f5a4056-a71e-476c-845e-bac73ac69940
 
 	measure 'Année en cours' = "Year(Today())"
-		lineageTag: 06c2d7da-75a7-44e5-97ef-21bccd3500d7
+		lineageTag: 843db65f-0f65-4a93-960b-bd109f4c22a9
 
 	column SaleID
 		dataType: int64
-		lineageTag: 22990535-1916-478d-8ffd-f0eb361d5ab1
+		lineageTag: 063fcbd2-4e07-4a28-b001-12b72aadfa8b
 		summarizeBy: none
 		sourceColumn: SaleID
 
@@ -24,7 +24,7 @@ table Sales
 
 	column CustomerID
 		dataType: int64
-		lineageTag: 3a00c2b0-2c54-48ad-9adc-b8281326033e
+		lineageTag: 878f9c8c-e344-4d2d-8a69-856cd33ae5bd
 		summarizeBy: none
 		sourceColumn: CustomerID
 
@@ -32,7 +32,7 @@ table Sales
 
 	column ProductID
 		dataType: int64
-		lineageTag: 7ea3b46d-d896-4c93-be28-3d029c940351
+		lineageTag: cd959656-3c01-4dea-9c97-83e6d91fb57e
 		summarizeBy: none
 		sourceColumn: ProductID
 
@@ -40,7 +40,7 @@ table Sales
 
 	column OrderDate
 		dataType: dateTime
-		lineageTag: e32db441-68cb-43a2-a191-48986020a9db
+		lineageTag: 1105607e-6f38-47cb-bc6e-050160cee118
 		summarizeBy: none
 		sourceColumn: OrderDate
 
@@ -48,7 +48,7 @@ table Sales
 
 	column Amount
 		dataType: double
-		lineageTag: 4fc3febb-76ae-4836-aad2-5087d2bd6d01
+		lineageTag: 1dff9313-af84-42a6-8b66-bd06996183e9
 		summarizeBy: none
 		sourceColumn: Amount
 
@@ -56,13 +56,13 @@ table Sales
 
 	column Quantity
 		dataType: int64
-		lineageTag: 908961c9-89ee-4264-9af9-3ea120c54113
+		lineageTag: 73abc494-179b-434d-ae03-bba3c456f772
 		summarizeBy: none
 		sourceColumn: Quantity
 
 		annotation SummarizationSetBy = Automatic
 
-	partition 'Sales-bdb8c5a8-cf25-43bf-ae2d-c3016b0a1888' = m
+	partition 'Sales-441ce27d-40ea-4efc-969a-4f04d800a668' = m
 		mode: import
 		source =
 				let
