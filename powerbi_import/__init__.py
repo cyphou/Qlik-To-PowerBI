@@ -22,10 +22,18 @@
 #   shared_model, thin_report_generator, merge_assessment,
 #   merge_config, merge_report_html, global_assessment
 #
+# Quality gates & validators:
+#   dax_validator, m_validator, cross_validator,
+#   schema_validator, preflight, rollback_engine
+#
+# Planning & feedback:
+#   migration_planner, dependency_graph, feedback_loop,
+#   connection_rewriter, subscription_generator
+#
 # Portfolio assessment:
 #   server_assessment
 #
 # Deployment subpackage (powerbi_import.deploy):
 #   auth, client, deployer, utils, config/
 #   bundle_deployer, multi_tenant, pbi_client, pbi_deployer
-__version__ = '10.1.0'
+__version__ = '11.0.0'

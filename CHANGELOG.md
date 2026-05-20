@@ -1,5 +1,37 @@
 # Changelog
 
+## v11.0.0 — Quality Gates, Planning & Feedback (TableauToPowerBI sync)
+
+### New Modules (11)
+- **`dax_validator.py`** — Lightweight DAX expression validator (balanced delimiters, Qlik function leak detection)
+- **`m_validator.py`** — Power Query M syntax validator (balanced parens/brackets, let/in matching)
+- **`cross_validator.py`** — TMDL model ↔ PBIR report cross-validation (orphan measures, missing columns)
+- **`preflight.py`** — Pre-migration rejection gate (file existence, format, size, corruption checks)
+- **`connection_rewriter.py`** — Connection string intelligence (parsing, env-based rewriting, gateway scripts)
+- **`rollback_engine.py`** — Severity-based quality gate (ship/quarantine/rollback decisions)
+- **`schema_validator.py`** — PBIR v4.0 JSON structural validator with auto-repair
+- **`migration_planner.py`** — Enterprise planning (effort estimation, wave assignment, workspace mapping)
+- **`feedback_loop.py`** — Issue reporting and regression fixture generation
+- **`dependency_graph.py`** — Data-lineage and cross-app dependency analysis with cycle/orphan detection
+- **`subscription_generator.py`** — Qlik alert/notification → Power BI subscription migration
+
+### New CLI Flags (7)
+- `--preflight` / `--force` — Pre-migration validation gate
+- `--connection-map FILE` — Connection string rewriting rules
+- `--strict` — Strict mode (rollback on any error)
+- `--cross-validate` — TMDL ↔ PBIR cross-validation
+- `--schema-validate` — PBIR JSON schema validation
+- `--report-issue DESC` — File a feedback issue from CLI
+
+### Pipeline Wiring
+- Preflight runs before extraction (rejects unsupported/corrupt inputs)
+- Schema/cross-validate/rollback/connection-rewrite run after QA pipeline
+- All new modules integrated into `migrate.py` execution flow
+
+### Stats
+- **2,605 tests** across 73 test files (was 2,427 across 62)
+- **70 powerbi_import modules** (was 59)
+
 ## v10.1.0 — Gap Closure & Pipeline Wiring
 
 ### REST API Server Fix

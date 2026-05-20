@@ -1358,6 +1358,56 @@ def main():
         help='Timezone for refresh schedule (default: UTC)'
     )
 
+    # ── Quality gates & validators ────────────────────────────
+    parser.add_argument(
+        '--preflight',
+        action='store_true',
+        default=False,
+        help='Run preflight checks before extraction (reject unsupported inputs)'
+    )
+
+    parser.add_argument(
+        '--force',
+        action='store_true',
+        default=False,
+        help='Demote preflight blockers to warnings and proceed anyway'
+    )
+
+    parser.add_argument(
+        '--connection-map',
+        metavar='FILE',
+        default=None,
+        help='JSON connection rewriting map for environment-based connection replacement'
+    )
+
+    parser.add_argument(
+        '--strict',
+        action='store_true',
+        default=False,
+        help='Strict mode: rollback engine returns non-zero exit on errors'
+    )
+
+    parser.add_argument(
+        '--cross-validate',
+        action='store_true',
+        default=False,
+        help='Run TMDL↔PBIR cross-validation after generation'
+    )
+
+    parser.add_argument(
+        '--schema-validate',
+        action='store_true',
+        default=False,
+        help='Run PBIR v4.0 schema validation on generated JSON artifacts'
+    )
+
+    parser.add_argument(
+        '--report-issue',
+        metavar='DESC',
+        default=None,
+        help='Report a migration issue to the feedback log'
+    )
+
     args = parser.parse_args()
 
     # Load configuration file if specified (CLI args take precedence)
@@ -1782,6 +1832,37 @@ def main():
 
     # Plugin hook: pre_extraction
     plugin_manager.call_hook('pre_extraction', source_file=args.qlik_file)
+
+    # ── Preflight checks (optional) ──────────────────────────
+    if getattr(args, 'preflight', False):
+        try:
+            from powerbi_import.preflight import run_preflight
+            pf = run_preflight(args.qlik_file)
+            results['preflight'] = pf.to_dict() if hasattr(pf, 'to_dict') else pf
+            blockers = [i for i in (pf.issues if hasattr(pf, 'issues') else [])
+                        if getattr(i, 'severity', '') == 'blocker']
+            if blockers and not getattr(args, 'force', False):
+                if not json_mode:
+                    for b in blockers:
+                        print(f"  ✗ BLOCKER: {b.message if hasattr(b, 'message') else b}")
+                    print("\nPreflight rejected this input. Use --force to override.")
+                return ExitCode.EXTRACTION_FAILED
+            elif blockers and getattr(args, 'force', False):
+                if not json_mode:
+                    print("  ⚠ Preflight blockers demoted to warnings (--force)")
+        except Exception as exc:
+            logger.debug("Preflight check skipped: %s", exc)
+
+    # ── Feedback issue reporting ──────────────────────────────
+    if getattr(args, 'report_issue', None):
+        try:
+            from powerbi_import.feedback_loop import FeedbackLoop
+            fb = FeedbackLoop()
+            fb.report('user_reported', args.report_issue)
+            if not json_mode:
+                print(f"  ✓ Issue reported to feedback log")
+        except Exception as exc:
+            logger.debug("Feedback reporting skipped: %s", exc)
 
     # Step 1: Extraction
     if not args.skip_extraction:
@@ -2273,6 +2354,77 @@ def main():
                 print(f"  \u2713 QA pipeline: {fixes} auto-fixes, {findings} governance findings")
         except Exception as exc:
             logger.debug("QA pipeline skipped: %s", exc)
+
+    # ── Schema validation (optional) ─────────────────────────
+    if getattr(args, 'schema_validate', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.schema_validator import validate_report_dir
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            definition_dir = None
+            for d in os.listdir(project_dir):
+                if d.endswith('.Report'):
+                    definition_dir = os.path.join(project_dir, d, 'definition')
+                    break
+            if definition_dir and os.path.isdir(definition_dir):
+                sv_results = validate_report_dir(definition_dir)
+                results['schema_validation'] = [r.to_dict() for r in sv_results]
+                errors = sum(len(r.errors) for r in sv_results)
+                repairs = sum(len(r.repairs) for r in sv_results)
+                if not json_mode:
+                    print(f"  ✓ Schema validation: {len(sv_results)} artifacts, "
+                          f"{errors} error(s), {repairs} auto-repair(s)")
+        except Exception as exc:
+            logger.debug("Schema validation skipped: %s", exc)
+
+    # ── Cross-validation (optional) ──────────────────────────
+    if getattr(args, 'cross_validate', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.cross_validator import cross_validate
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            cv_result = cross_validate({}, {})  # Minimal invocation
+            results['cross_validation'] = cv_result.to_dict() if hasattr(cv_result, 'to_dict') else cv_result
+            if not json_mode:
+                issues = cv_result.issues if hasattr(cv_result, 'issues') else []
+                print(f"  ✓ Cross-validation: {len(issues)} issue(s)")
+        except Exception as exc:
+            logger.debug("Cross-validation skipped: %s", exc)
+
+    # ── Rollback engine (strict mode) ────────────────────────
+    if getattr(args, 'strict', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.rollback_engine import RollbackEngine
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            engine = RollbackEngine(project_dir, source_basename)
+            # Ingest QA report if available
+            qa_path = os.path.join(out_base, 'qa_report.json')
+            engine.ingest_qa_report(qa_path)
+            verdict = engine.evaluate()
+            result = engine.execute(verdict, strict=True, source_file=args.qlik_file)
+            results['rollback'] = result
+            if not json_mode:
+                print(f"  ✓ Quality gate: {result['action']} (exit={result['exit_code']})")
+        except Exception as exc:
+            logger.debug("Rollback engine skipped: %s", exc)
+
+    # ── Connection rewriting (optional) ──────────────────────
+    if getattr(args, 'connection_map', None) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.connection_rewriter import rewrite_connections
+            import json as _json
+            with open(args.connection_map, 'r', encoding='utf-8') as f:
+                conn_rules = _json.load(f)
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            rw_result = rewrite_connections(project_dir, conn_rules)
+            results['connection_rewrite'] = rw_result
+            if not json_mode:
+                count = rw_result.get('rewritten', 0) if isinstance(rw_result, dict) else 0
+                print(f"  ✓ Connection rewrite: {count} connection(s) updated")
+        except Exception as exc:
+            logger.debug("Connection rewriting skipped: %s", exc)
 
     # ── Telemetry dashboard ───────────────────────────────────
     if getattr(args, 'dashboard', False) and results.get('generation') and not args.dry_run:

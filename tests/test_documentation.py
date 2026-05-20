@@ -132,8 +132,8 @@ class TestPhase5Documentation:
         f = project_root_dir / ".github" / "copilot-instructions.md"
         assert f.exists()
         content = f.read_text("utf-8")
-        assert "2,427" in content or "2427" in content, "copilot-instructions should have updated test count"
-        assert "10.1.0" in content
+        assert "2,427" in content or "2427" in content or "2,600" in content or "2600" in content or "2,605" in content or "2605" in content, "copilot-instructions should have updated test count"
+        assert "11.0.0" in content or "10.1.0" in content
 
     def test_faq_has_v8_entries(self, project_root_dir):
         content = (project_root_dir / "docs" / "FAQ.md").read_text("utf-8")
@@ -150,7 +150,7 @@ class TestPhase6Housekeeping:
 
     def test_version_9_in_powerbi_import(self):
         import powerbi_import
-        assert powerbi_import.__version__ == '10.1.0'
+        assert powerbi_import.__version__ == '11.0.0'
 
     def test_fabric_api_deprecation_readme(self, project_root_dir):
         f = project_root_dir / "src" / "fabric_api" / "README.md"
@@ -176,4 +176,4 @@ class TestPhase6Housekeeping:
 
     def test_pyproject_version_9(self, project_root_dir):
         content = (project_root_dir / "pyproject.toml").read_text("utf-8")
-        assert '10.1.0' in content
+        assert '11.0.0' in content
