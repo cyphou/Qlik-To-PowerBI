@@ -1,5 +1,56 @@
 # Changelog
 
+## v12.0.0 — Preceptorship, Self-Healing & Reporting
+
+### New Modules (14)
+
+#### Phase 1: Preceptorship & Self-Healing
+- **`preceptor.py`** — Preceptorship loop engine (6-dimension quality review, APPROVED/COACHING/ESCALATED scoring)
+- **`self_healing_v3.py`** — 11 model healers (duplicate measures, self-refs, sort-by-column, hierarchies, relationships, datatypes)
+- **`repair_strategies.py`** — Registry of deterministic repair strategies (Qlik leak cleanup, paren balancing, M if/else)
+- **`self_healing_report.py`** — JSONL audit trail of all auto-repair actions
+
+#### Phase 2: Cutover & Lineage
+- **`cutover_manager.py`** — Migration cutover orchestration (readiness checks, runbook generation)
+- **`full_lineage.py`** — End-to-end provenance tracking (Qlik field → M query → DAX → TMDL → visual)
+
+#### Phase 3: Reporting & Packaging
+- **`pdf_renderer.py`** — Migration summary PDF (weasyprint) or HTML fallback
+- **`pptx_report.py`** — PowerPoint executive summary (python-pptx) or Markdown fallback
+- **`report_packager.py`** — ZIP bundle with all migration artifacts + manifest.json
+
+#### Phase 4: Goals & Automation
+- **`goals_generator.py`** — Qlik KPIs → Power BI Goals/Metrics JSON
+- **`automation.py`** — Batch migration orchestration for multiple apps with HTML summary
+
+#### Phase 6: Script Lineage
+- **`script_lineage.py`** — Qlik load script parser → lineage graph (LOAD/FROM/RESIDENT/JOIN/MAPPING)
+- **`script_lineage_report.py`** — HTML visualization with Mermaid diagrams + JSON export
+
+### New CLI Flags (10)
+- `--preceptor-review` — Run preceptorship quality review loop
+- `--self-heal-v3` — Run v3 model healers (11 checks)
+- `--repair-strategies` — Run deterministic repair strategies
+- `--cutover-plan` — Generate migration cutover runbook
+- `--full-lineage` — End-to-end provenance lineage map
+- `--pdf-report` — PDF migration summary report
+- `--pptx-report` — PowerPoint executive summary
+- `--package` — ZIP bundle of all migration artifacts
+- `--goals` — Extract Qlik KPIs → PBI Goals/Metrics
+- `--script-lineage` — Qlik load script lineage report
+
+### Pipeline Wiring
+- Self-healing v3 runs after QA pipeline (fixes model-level issues)
+- Repair strategies run on DAX/M expressions after QA
+- Preceptor review runs post-repair as final quality gate
+- Full lineage, cutover, goals, script lineage run after generation
+- PDF/PPTX/package run as final reporting step
+
+### Stats
+- **~2,900 tests** across 86 test files (was 2,605 across 73)
+- **84 powerbi_import modules** (was 70)
+- **~101 CLI flags** (was ~91)
+
 ## v11.0.0 — Quality Gates, Planning & Feedback (TableauToPowerBI sync)
 
 ### New Modules (11)

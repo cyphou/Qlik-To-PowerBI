@@ -26,6 +26,21 @@
 #   dax_validator, m_validator, cross_validator,
 #   schema_validator, preflight, rollback_engine
 #
+# Preceptorship & self-healing:
+#   preceptor, self_healing_v3, repair_strategies,
+#   self_healing_report
+#
+# Cutover & lineage:
+#   cutover_manager, full_lineage, script_lineage,
+#   script_lineage_report
+#
+# Reporting & packaging:
+#   pdf_renderer, pptx_report, report_packager,
+#   goals_generator
+#
+# Automation:
+#   automation
+#
 # Planning & feedback:
 #   migration_planner, dependency_graph, feedback_loop,
 #   connection_rewriter, subscription_generator
@@ -36,4 +51,4 @@
 # Deployment subpackage (powerbi_import.deploy):
 #   auth, client, deployer, utils, config/
 #   bundle_deployer, multi_tenant, pbi_client, pbi_deployer
-__version__ = '11.0.0'
+__version__ = '12.0.0'

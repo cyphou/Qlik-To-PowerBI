@@ -92,6 +92,19 @@ python migrate.py app.qvf --refresh-schedule  # Generate PBI refresh config
 │   ├── fabric_semantic_model_generator.py  # DirectLake semantic model
 │   ├── fabric_project_generator.py   # Fabric artifacts orchestrator
 │   ├── calc_column_utils.py          # Calculated column classification
+│   ├── preceptor.py                  # 6-dimension quality scoring + coaching loop
+│   ├── self_healing_v3.py            # 11 model healers with JSONL audit trail
+│   ├── repair_strategies.py          # Pluggable repair registry
+│   ├── self_healing_report.py        # Self-healing JSONL/JSON reporting
+│   ├── cutover_manager.py            # Readiness checks + runbook generation
+│   ├── full_lineage.py               # End-to-end provenance (field → M → DAX → visual)
+│   ├── script_lineage.py             # Qlik load script → Mermaid lineage diagrams
+│   ├── script_lineage_report.py      # Script lineage HTML report
+│   ├── pdf_renderer.py               # PDF migration report (stdlib)
+│   ├── pptx_report.py                # PPTX migration report (stdlib)
+│   ├── report_packager.py            # ZIP bundle with manifest.json
+│   ├── goals_generator.py            # Qlik KPI → PBI Goals JSON
+│   ├── automation.py                 # Batch migration runner
 │   ├── config/                       # Migration config (pydantic-settings)
 │   └── deploy/                       # Azure deployment (auth, client, deployer,
 │       │                             #   bundle_deployer, multi_tenant,
@@ -213,12 +226,12 @@ SAP BW, Custom SQL
 - P()/E() set analysis → ALL/EXCEPT
 - Dollar-sign expression expansion `$(=expr)` with Qlik→DAX conversion
 
-## Current Stats (v11.0.0)
+## Current Stats (v12.0.0)
 
-- **2,605 tests** across 73 test files
-- **70 powerbi_import modules** (including quality gates, planning, and feedback)
+- **~2,900 tests** across 86 test files
+- **84 powerbi_import modules** (including preceptorship, self-healing, reporting)
 - **42 data connectors** in M query generator (was 25 in v9)
-- **~91 CLI flags** (added --server-url, --server-api-key, --server-cert, --server-app-id, --refresh-schedule, --refresh-timezone)
+- **~101 CLI flags** (added --preceptor-review, --self-heal-v3, --repair-strategies, --cutover-plan, --full-lineage, --pdf-report, --pptx-report, --package, --goals, --script-lineage)
 - **120+ visual type mappings** (was 75+ in v10.0)
 - **164 entries** in `_SIMPLE_FUNCTION_MAP`
 - **4 DAX stubs remaining** (Skew, Hash128/160/256, Evaluate — truly unsupported)
@@ -228,7 +241,12 @@ SAP BW, Custom SQL
 - **Progress callbacks** for pipeline visibility
 - **10 agent definitions** for multi-agent Copilot workflows (preceptorship model)
 - **5 CI workflows** (lint, test, deploy, gh-pages, publish)
-- **Lineage map** for full source-to-target provenance tracking
+- **Full lineage** — end-to-end provenance (Qlik field → M → DAX → TMDL → visual)
+- **Preceptor review** — 6-dimension quality scoring with coaching loop
+- **Self-healing v3** — 11 model healers with JSONL audit trail
+- **Cutover manager** — readiness checks + runbook generation
+- **Report packager** — ZIP bundle with manifest.json
+- **Script lineage** — Qlik load script → Mermaid lineage diagrams
 - **QA pipeline** with 17 auto-fix patterns for Qlik→DAX leaks
 - **Qlik Server client** for direct extraction (QSEoW + Cloud)
 - **GeoJSON passthrough** — auto-wired into project generation

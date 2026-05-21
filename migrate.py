@@ -627,6 +627,55 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
     return ExitCode.SUCCESS if failed == 0 else ExitCode.BATCH_PARTIAL_FAIL
 
 
+def _find_semantic_model_dir(project_dir):
+    """Locate the .SemanticModel subdirectory inside a .pbip project."""
+    if not os.path.isdir(project_dir):
+        return None
+    for d in os.listdir(project_dir):
+        if d.endswith('.SemanticModel'):
+            return os.path.join(project_dir, d)
+    return None
+
+
+def _load_model_from_project(project_dir, source_basename):
+    """Load a lightweight model dict from TMDL files for healer/lineage use."""
+    import re as _re
+    model = {'tables': []}
+    sm_dir = _find_semantic_model_dir(project_dir)
+    if not sm_dir:
+        return model
+    tables_dir = os.path.join(sm_dir, 'definition', 'tables')
+    if not os.path.isdir(tables_dir):
+        return model
+    for tmdl_file in os.listdir(tables_dir):
+        if not tmdl_file.endswith('.tmdl'):
+            continue
+        fpath = os.path.join(tables_dir, tmdl_file)
+        try:
+            content = open(fpath, 'r', encoding='utf-8').read()
+            table_name = tmdl_file.replace('.tmdl', '')
+            columns = []
+            measures = []
+            for line in content.splitlines():
+                s = line.strip()
+                if s.startswith('column '):
+                    col = s[7:].strip().strip("'").split('=')[0].strip().strip("'")
+                    if col:
+                        columns.append({'name': col})
+                elif s.startswith('measure '):
+                    m_name = s[8:].strip().strip("'").split('=')[0].strip().strip("'")
+                    if m_name:
+                        measures.append({'name': m_name})
+            model['tables'].append({
+                'name': table_name,
+                'columns': columns,
+                'measures': measures,
+            })
+        except Exception:
+            continue
+    return model
+
+
 def _build_lineage_calc_map(source_basename, output_dir):
     """Build a calc_map dict from generated TMDL files for lineage tracking."""
     import re as _re
@@ -1406,6 +1455,77 @@ def main():
         metavar='DESC',
         default=None,
         help='Report a migration issue to the feedback log'
+    )
+
+    # ── v12 CLI flags ─────────────────────────────────────────
+    parser.add_argument(
+        '--preceptor-review',
+        action='store_true',
+        default=False,
+        help='Run preceptorship quality review loop on generated artifacts'
+    )
+
+    parser.add_argument(
+        '--self-heal-v3',
+        action='store_true',
+        default=False,
+        help='Run v3 model healers (11 checks) on the semantic model'
+    )
+
+    parser.add_argument(
+        '--repair-strategies',
+        action='store_true',
+        default=False,
+        help='Run deterministic repair strategies on DAX/M expressions'
+    )
+
+    parser.add_argument(
+        '--cutover-plan',
+        action='store_true',
+        default=False,
+        help='Generate migration cutover runbook'
+    )
+
+    parser.add_argument(
+        '--full-lineage',
+        action='store_true',
+        default=False,
+        help='Generate end-to-end provenance lineage map (Qlik field → visual)'
+    )
+
+    parser.add_argument(
+        '--pdf-report',
+        action='store_true',
+        default=False,
+        help='Generate PDF (or HTML fallback) migration summary report'
+    )
+
+    parser.add_argument(
+        '--pptx-report',
+        action='store_true',
+        default=False,
+        help='Generate PowerPoint (or Markdown fallback) executive summary'
+    )
+
+    parser.add_argument(
+        '--package',
+        action='store_true',
+        default=False,
+        help='Package all migration artifacts into a ZIP bundle'
+    )
+
+    parser.add_argument(
+        '--goals',
+        action='store_true',
+        default=False,
+        help='Extract Qlik KPIs and generate Power BI Goals/Metrics JSON'
+    )
+
+    parser.add_argument(
+        '--script-lineage',
+        action='store_true',
+        default=False,
+        help='Parse Qlik load script and generate script lineage report'
     )
 
     args = parser.parse_args()
@@ -2354,6 +2474,189 @@ def main():
                 print(f"  \u2713 QA pipeline: {fixes} auto-fixes, {findings} governance findings")
         except Exception as exc:
             logger.debug("QA pipeline skipped: %s", exc)
+
+    # ── v12: Self-Healing v3 (11 model healers) ──────────────
+    if getattr(args, 'self_heal_v3', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.self_healing_v3 import run_v3_healers
+            from powerbi_import.self_healing_report import SelfHealingReport
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            # Build model dict from TMDL files
+            model = _load_model_from_project(project_dir, source_basename)
+            sh_report = SelfHealingReport()
+            fix_count = run_v3_healers(model, recovery=sh_report)
+            if fix_count and not json_mode:
+                print(f"  \u2713 Self-Healing v3: {fix_count} fix(es) applied")
+            sh_report.save_jsonl(os.path.join(out_base, 'self_healing_v3.jsonl'))
+        except Exception as exc:
+            logger.debug("Self-Healing v3 skipped: %s", exc)
+
+    # ── v12: Repair strategies ────────────────────────────────
+    if getattr(args, 'repair_strategies', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.repair_strategies import build_default_registry
+            registry = build_default_registry()
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            repair_count = 0
+            sm_dir = _find_semantic_model_dir(project_dir)
+            if sm_dir:
+                tables_dir = os.path.join(sm_dir, 'definition', 'tables')
+                if os.path.isdir(tables_dir):
+                    import re as _re_repair
+                    for tmdl_file in os.listdir(tables_dir):
+                        if not tmdl_file.endswith('.tmdl'):
+                            continue
+                        fpath = os.path.join(tables_dir, tmdl_file)
+                        content = open(fpath, 'r', encoding='utf-8').read()
+                        new_content = content
+                        for m in _re_repair.finditer(
+                            r"(measure\s+'[^']+'\s*=\s*)(.+?)(?=\n\t[a-z]|\n\s*\n|\Z)",
+                            content, _re_repair.DOTALL
+                        ):
+                            original = m.group(2).strip()
+                            results_list = registry.run(original, tmdl_file, 'dax')
+                            for r in results_list:
+                                if r.status == 'repaired':
+                                    repair_count += 1
+                        if new_content != content:
+                            with open(fpath, 'w', encoding='utf-8') as f:
+                                f.write(new_content)
+            if repair_count and not json_mode:
+                print(f"  \u2713 Repair strategies: {repair_count} repair(s)")
+        except Exception as exc:
+            logger.debug("Repair strategies skipped: %s", exc)
+
+    # ── v12: Preceptor review loop ────────────────────────────
+    if getattr(args, 'preceptor_review', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.preceptor import run_preceptor_review
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+            review = run_preceptor_review(project_dir, qlik_dir)
+            if not json_mode:
+                status = review.status if hasattr(review, 'status') else 'unknown'
+                score = review.final_score if hasattr(review, 'final_score') else 0
+                print(f"  \u2713 Preceptor review: {status} (score={score:.1f})")
+        except Exception as exc:
+            logger.debug("Preceptor review skipped: %s", exc)
+
+    # ── v12: Full lineage map ─────────────────────────────────
+    if getattr(args, 'full_lineage', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.full_lineage import build_full_lineage, generate_lineage_html
+            from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+            qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+            qlik_data = ExtractionOrchestrator.load_intermediate_json(qlik_dir)
+            calc_map = _build_lineage_calc_map(source_basename, args.output_dir)
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            model = _load_model_from_project(
+                os.path.join(out_base, source_basename), source_basename)
+            lineage = build_full_lineage(source_basename, qlik_data, calc_map, model, {})
+            lineage_dir = os.path.join(out_base, source_basename, 'lineage')
+            os.makedirs(lineage_dir, exist_ok=True)
+            lineage.save(os.path.join(lineage_dir, 'full_lineage.json'))
+            html = generate_lineage_html(lineage)
+            html_path = os.path.join(lineage_dir, 'full_lineage.html')
+            with open(html_path, 'w', encoding='utf-8') as f:
+                f.write(html)
+            if not json_mode:
+                print(f"  \u2713 Full lineage: {html_path} ({len(lineage.nodes)} nodes)")
+        except Exception as exc:
+            logger.debug("Full lineage skipped: %s", exc)
+
+    # ── v12: Cutover plan ─────────────────────────────────────
+    if getattr(args, 'cutover_plan', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.cutover_manager import CutoverManager
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            mgr = CutoverManager(app_name=source_basename, project_dir=project_dir)
+            plan = mgr.create_plan()
+            runbook_path = mgr.save_runbook(plan, project_dir)
+            if not json_mode:
+                print(f"  \u2713 Cutover runbook: {runbook_path} ({len(plan.steps)} steps)")
+        except Exception as exc:
+            logger.debug("Cutover plan skipped: %s", exc)
+
+    # ── v12: Goals/Metrics extraction ─────────────────────────
+    if getattr(args, 'goals', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.goals_generator import generate_goals
+            from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+            qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+            qlik_data = ExtractionOrchestrator.load_intermediate_json(qlik_dir)
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            goals_path = generate_goals(source_basename, qlik_data, os.path.join(out_base, source_basename))
+            if not json_mode:
+                print(f"  \u2713 Goals/Metrics: {goals_path}")
+        except Exception as exc:
+            logger.debug("Goals generation skipped: %s", exc)
+
+    # ── v12: Script lineage ───────────────────────────────────
+    if getattr(args, 'script_lineage', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.script_lineage import parse_script_lineage
+            from powerbi_import.script_lineage_report import generate_script_lineage_report
+            from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+            qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+            qlik_data = ExtractionOrchestrator.load_intermediate_json(qlik_dir)
+            script = qlik_data.get('loadscript', '')
+            if isinstance(script, dict):
+                script = script.get('script', '') or script.get('content', '')
+            if script:
+                graph = parse_script_lineage(script)
+                out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+                result = generate_script_lineage_report(
+                    graph, source_basename, os.path.join(out_base, source_basename))
+                if not json_mode:
+                    nodes = len(graph.nodes)
+                    edges = len(graph.edges)
+                    print(f"  \u2713 Script lineage: {nodes} nodes, {edges} edges")
+            elif not json_mode:
+                print(f"  \u26a0 Script lineage: no load script found")
+        except Exception as exc:
+            logger.debug("Script lineage skipped: %s", exc)
+
+    # ── v12: PDF report ───────────────────────────────────────
+    if getattr(args, 'pdf_report', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.pdf_renderer import render_migration_pdf
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            pdf_path = render_migration_pdf(source_basename, project_dir,
+                                             stats=report_summary, qa_results=qa_result)
+            if not json_mode:
+                print(f"  \u2713 PDF report: {pdf_path}")
+        except Exception as exc:
+            logger.debug("PDF report skipped: %s", exc)
+
+    # ── v12: PPTX report ─────────────────────────────────────
+    if getattr(args, 'pptx_report', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.pptx_report import generate_pptx_report
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            pptx_path = generate_pptx_report(source_basename, project_dir,
+                                              stats=report_summary, qa_results=qa_result)
+            if not json_mode:
+                print(f"  \u2713 Executive summary: {pptx_path}")
+        except Exception as exc:
+            logger.debug("PPTX report skipped: %s", exc)
+
+    # ── v12: Package migration artifacts ──────────────────────
+    if getattr(args, 'package', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.report_packager import package_migration
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            zip_path = package_migration(source_basename, project_dir)
+            if not json_mode:
+                print(f"  \u2713 Package: {zip_path}")
+        except Exception as exc:
+            logger.debug("Packaging skipped: %s", exc)
 
     # ── Schema validation (optional) ─────────────────────────
     if getattr(args, 'schema_validate', False) and results.get('generation') and not args.dry_run:

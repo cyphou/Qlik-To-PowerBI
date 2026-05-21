@@ -473,9 +473,16 @@ def stat_card(value: Any, label: str, color: str = "", accent: str = "") -> str:
 </div>"""
 
 
-def stat_grid(cards: List[str]) -> str:
+def stat_grid(cards) -> str:
     """Wrap stat cards in a grid container."""
-    return '<div class="stat-grid">\n' + "\n".join(cards) + "\n</div>"
+    rendered = []
+    for c in cards:
+        if isinstance(c, dict):
+            rendered.append(stat_card(c.get('value', ''), c.get('label', ''),
+                                      c.get('color', ''), c.get('accent', '')))
+        else:
+            rendered.append(str(c))
+    return '<div class="stat-grid">\n' + "\n".join(rendered) + "\n</div>"
 
 
 def section_open(section_id: str, title: str, icon: str = "", collapsed: bool = False) -> str:
