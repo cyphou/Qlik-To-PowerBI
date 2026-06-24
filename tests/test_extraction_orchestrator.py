@@ -102,6 +102,33 @@ class TestExtractFromJson:
         finally:
             os.unlink(path)
 
+    def test_qvf_extension_with_json_payload_fallback(self):
+        """Some samples are named .qvf but contain JSON content.
+
+        Extraction should gracefully fall back to JSON parsing instead of
+        failing with BadZipFile.
+        """
+        data = {
+            "datasources": [{"name": "Orders", "connectionType": "csv"}],
+            "sheets": [{"id": "s1", "title": "Sheet1"}],
+            "visualizations": [{"id": "v1", "type": "barchart"}],
+            "variables": [],
+            "associations": [],
+            "bookmarks": [],
+            "master_items": [],
+        }
+        with tempfile.NamedTemporaryFile(suffix=".qvf", delete=False, mode="w", encoding="utf-8") as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            orch = ExtractionOrchestrator()
+            result = orch.extract(path)
+            assert isinstance(result, dict)
+            assert "datasources" in result
+            assert len(result.get("datasources", [])) == 1
+        finally:
+            os.unlink(path)
+
 
 # ═══════════════════════════════════════════════════════════════
 #  load_intermediate_json

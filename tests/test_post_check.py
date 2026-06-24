@@ -196,6 +196,32 @@ class TestValidateVisualCompleteness(unittest.TestCase):
             errors, warnings = ArtifactValidator.validate_visual_completeness(proj)
             self.assertTrue(any("no data bindings" in w for w in warnings))
 
+    def test_visual_with_nested_query_state_ok(self):
+        visuals = [{
+            "visual": {
+                "visualType": "clusteredBarChart",
+                "query": {
+                    "queryState": {
+                        "Category": {
+                            "projections": [{"queryRef": "Sales.Category"}]
+                        },
+                        "Y": {
+                            "projections": [{"queryRef": "Sales.Amount"}]
+                        },
+                    }
+                },
+            }
+        }]
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = _make_project(
+                tmp, "App",
+                tables=[("Sales", ["Category", "Amount"], [])],
+                report_pages=[("Page1", visuals)],
+            )
+            errors, warnings = ArtifactValidator.validate_visual_completeness(proj)
+            self.assertEqual(errors, [])
+            self.assertFalse(any("no data bindings" in w for w in warnings))
+
     def test_textbox_skipped(self):
         visuals = [{"visual": {"visualType": "textbox"}}]
         with tempfile.TemporaryDirectory() as tmp:
@@ -294,6 +320,30 @@ class TestValidateVisualModelRefs(unittest.TestCase):
             )
             warnings = ArtifactValidator.validate_visual_model_refs(proj)
             self.assertTrue(any("DoesNotExist" in w for w in warnings))
+
+
+class TestAutoRebindUnboundVisuals(unittest.TestCase):
+    """Tests for ArtifactValidator.auto_rebind_unbound_visuals()."""
+
+    def test_auto_rebind_injects_query_state(self):
+        visuals = [{
+            "visual": {
+                "visualType": "clusteredBarChart",
+            }
+        }]
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = _make_project(
+                tmp, "App",
+                tables=[("Sales", ["Category", "Amount"], [("Total", "SUM([Amount])")])],
+                model_refs=["Sales"],
+                report_pages=[("Page1", visuals)],
+            )
+            fixes = ArtifactValidator.auto_rebind_unbound_visuals(proj)
+            self.assertGreaterEqual(fixes, 1)
+
+            errors, warnings = ArtifactValidator.validate_visual_completeness(proj)
+            self.assertEqual(errors, [])
+            self.assertFalse(any("no data bindings" in w for w in warnings))
 
 
 class TestValidateTmdlIntegrity(unittest.TestCase):

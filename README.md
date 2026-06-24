@@ -9,9 +9,9 @@
 Migrate your Qlik Sense applications to Power BI in seconds — fully automated, zero
 manual rework.
 
-![Tests](https://img.shields.io/badge/tests-2%2C213%20passed-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-2%2C745%20detected-brightgreen?style=flat-square)
 ![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen?style=flat-square)
-![Version](https://img.shields.io/badge/version-10.0.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-12.0.0-blue?style=flat-square)
 ![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)
 
@@ -672,6 +672,15 @@ m_query = generate_m_query({
 | 🔌 | [Plugin Development](docs/guides/PLUGIN_DEVELOPMENT.md) | Build custom migration plugins |
 | ☁️ | [Qlik Cloud Migration](docs/guides/MIGRATION_QLIK_CLOUD.md) | Migrate from Qlik Cloud |
 | 📋 | [Qlik Objects Coverage](docs/technical/QLIK_OBJECTS_COVERAGE.md) | 72 Qlik objects — 100% coverage |
+| 🧭 | [Live Dev Plan](docs/DEV_PLAN_v12.md) | Current execution plan (v12.x) |
+| ✅ | [Roadmap Status Snapshot](docs/reports/ROADMAP_STATUS_2026-06-24.md) | Reconciled status and milestones |
+| 🛠️ | [Parity Checker Script](tools/analysis/parity_status_check.py) | Automated parity/drift verification |
+| 🤝 | [Tableau Agent/Feature Parity Report](docs/reports/TABLEAU_AGENT_FEATURE_PARITY_2026-06-24.md) | Upstream parity workflow and findings |
+| 🔍 | [Agent Feature Parity Script](tools/analysis/agent_feature_parity_check.py) | Local and optional upstream parity checker |
+| 🛣️ | [Tableau Parity Sync Roadmap](docs/reports/TABLEAU_PARITY_SYNC_ROADMAP_2026-06-24.md) | Prioritized gaps and upstream alignment plan |
+| 📊 | [Parity Summary 2026-06-24](docs/reports/PARITY_SUMMARY_2026-06-24.md) | Executive summary and next-step recommendations |
+| ✅ | [Final Validation Report 2026-06-24](docs/reports/FINAL_VALIDATION_REPORT_2026-06-24.md) | Completion status and success metrics |
+| 📑 | [Parity Index 2026-06-24](docs/reports/INDEX_2026-06-24.md) | Central hub for all parity documentation and tools |
 | ❓ | [FAQ](docs/FAQ.md) | Frequently asked questions |
 | 📝 | [Changelog](CHANGELOG.md) | Release history |
 

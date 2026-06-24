@@ -1,0 +1,8 @@
+# Candidate TableauToPowerBI repositories for upstream parity scans
+# One owner/repo per line.
+
+anvssajay17/tableautopowerbi
+agarwv/TableauToPowerBI
+Mourya0/TableauToPowerBi
+mjkeeplearning-source/tableauToPowerBI
+Shreyagattikoppula/tableautopowerbi_backend

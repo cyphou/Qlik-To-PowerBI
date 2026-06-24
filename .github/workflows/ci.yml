@@ -10,6 +10,20 @@ env:
   PYTHON_VERSION: "3.11"
 
 jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run parity status check
+        run: |
+          python tools/analysis/parity_status_check.py
+
   test:
     runs-on: ubuntu-latest
     steps:

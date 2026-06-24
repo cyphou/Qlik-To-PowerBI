@@ -1,0 +1,61 @@
+name: nightly-self-heal
+
+on:
+  schedule:
+    - cron: '15 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  nightly-self-heal:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run real-sample self-heal migration (JSON output)
+        run: |
+          mkdir -p output/nightly
+          python migrate.py examples/qlik/test_samples/large/large_enterprise_sales.json \
+            --output-dir output/nightly \
+            --self-heal-v3 \
+            --repair-strategies \
+            --full-lineage \
+            --script-lineage \
+            --validate \
+            --post-check \
+            --json > output/nightly/run_result.json
+
+      - name: Quality gate (post-check warning threshold)
+        run: |
+          python tools/testing/real_sample_quality_gate.py \
+            --run-json output/nightly/run_result.json \
+            --max-postcheck-warnings 5
+
+      - name: Parity baseline check
+        run: |
+          python tools/analysis/parity_status_check.py
+
+      - name: Strict upstream parity check
+        run: |
+          python tools/analysis/agent_feature_parity_check.py \
+            --upstream-repo cyphou/Qlik-To-PowerBI \
+            --strict-upstream
+
+      - name: Upload nightly artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-self-heal-artifacts
+          path: |
+            output/nightly/**
+          if-no-files-found: warn

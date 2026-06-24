@@ -17,7 +17,7 @@ logger = logging.getLogger('qlik_to_powerbi.script_lineage')
 __all__ = [
     'ScriptNode', 'ScriptEdge', 'ScriptLineageGraph',
     'parse_script_lineage',
-]
+]  # to_mermaid is a method on ScriptLineageGraph
 
 
 @dataclass
@@ -116,6 +116,51 @@ class ScriptLineageGraph:
             'nodes': [n.to_dict() for n in self.nodes.values()],
             'edges': [e.to_dict() for e in self.edges],
         }
+
+    def to_mermaid(self, direction: str = 'LR') -> str:
+        """Generate a Mermaid flowchart string for this lineage graph.
+
+        Args:
+            direction: Mermaid graph direction. One of LR, TD, RL, BT.
+
+        Returns:
+            A Mermaid ``graph <direction>`` block as a string.
+        """
+        _SHAPE: Dict[str, str] = {
+            'source': '[("{}")] ',
+            'table': '["{}"]	',
+            'inline': '("{}")	',
+            'mapping': '{{"{}"}}	',
+            'variable': '(("{}"))',
+        }
+        _safe = re.compile(r'[^\w]')
+
+        def node_id(name: str) -> str:
+            return 'N_' + _safe.sub('_', name)[:30]
+
+        lines = [f'graph {direction}']
+        for name, node in self.nodes.items():
+            nid = node_id(name)
+            template = _SHAPE.get(node.kind, '["{}"]	')
+            label = name.replace('"', "'")
+            shape = template.format(label).strip()
+            lines.append(f'    {nid}{shape}')
+
+        _OP_ARROW: Dict[str, str] = {
+            'load': '-->',
+            'resident': '-. resident .->',
+            'join': '==>',
+            'concatenate': '--o',
+            'mapping': '-. mapping .->',
+            'store': '-.->',
+        }
+        for edge in self.edges:
+            src = node_id(edge.source)
+            tgt = node_id(edge.target)
+            arrow = _OP_ARROW.get(edge.operation, '-->')
+            lines.append(f'    {src} {arrow}|{edge.operation}| {tgt}')
+
+        return '\n'.join(lines)
 
 
 # ── Regex patterns for Qlik script parsing ──────────────────────

@@ -8,4 +8,4 @@
 #
 # Server connectivity:
 #   qlik_server_client — Qlik Sense Enterprise / Cloud REST API client
-__version__ = '9.0.0'
+__version__ = '12.0.0'

@@ -904,8 +904,14 @@ class ArtifactValidator:
                     continue
 
                 # Check for data bindings (projections or query)
-                has_projections = bool(visual.get('projections'))
-                has_query = bool(vj.get('query') or vj.get('dataTransforms'))
+                has_projections = bool(
+                    visual.get('projections') or
+                    (visual.get('query') or {}).get('queryState')
+                )
+                has_query = bool(
+                    vj.get('query') or vj.get('dataTransforms') or
+                    visual.get('query') or visual.get('dataTransforms')
+                )
                 if not has_projections and not has_query:
                     warnings.append(
                         f'Visual "{visual_dir.name}" ({visual_type}) on page '
@@ -913,6 +919,153 @@ class ArtifactValidator:
                     )
 
         return errors, warnings
+
+    @classmethod
+    def auto_rebind_unbound_visuals(cls, project_dir, recovery=None):
+        """Auto-heal visuals without data bindings using model symbol inference.
+
+        Strategy:
+        - Locate visuals with no bindings (same criteria as validate_visual_completeness)
+        - Infer a default column and measure from the semantic model
+        - Inject ``visual.query.queryState`` projections based on visual type
+
+        Returns:
+            int: number of visuals healed
+        """
+        project_dir = Path(project_dir)
+        report_name = project_dir.name
+        fix_count = 0
+
+        sm_dir = project_dir / f'{report_name}.SemanticModel'
+        report_dir = project_dir / f'{report_name}.Report'
+        if not sm_dir.exists() or not report_dir.exists():
+            return 0
+
+        symbols = cls._collect_model_symbols(str(sm_dir))
+        known_cols = symbols['columns']
+        known_measures = symbols['measures']
+
+        # Pick a stable default column and measure.
+        default_col = None
+        default_measure = None
+        for t in sorted(known_cols.keys()):
+            cols = sorted(known_cols.get(t, set()))
+            if cols:
+                default_col = (t, cols[0])
+                break
+        for t in sorted(known_measures.keys()):
+            ms = sorted(known_measures.get(t, set()))
+            if ms:
+                default_measure = (t, ms[0])
+                break
+        if default_measure is None and default_col is not None:
+            default_measure = default_col
+        if default_col is None and default_measure is not None:
+            default_col = default_measure
+        if default_col is None and default_measure is None:
+            return 0
+
+        def _projection(entity, prop, as_measure=False):
+            field_key = 'Measure' if as_measure else 'Column'
+            return {
+                'field': {
+                    field_key: {
+                        'Expression': {'SourceRef': {'Entity': entity}},
+                        'Property': prop,
+                    }
+                },
+                'queryRef': f'{entity}.{prop}',
+                'active': True,
+            }
+
+        def _infer_query_state(vtype):
+            vtype = (vtype or '').lower()
+            col_proj = _projection(default_col[0], default_col[1], as_measure=False)
+            meas_proj = _projection(default_measure[0], default_measure[1], as_measure=True)
+
+            if vtype in ('card', 'gauge', 'kpi'):
+                return {'Values': {'projections': [meas_proj]}}
+            if vtype in ('table', 'tableex', 'pivottable', 'matrix'):
+                return {'Values': {'projections': [col_proj, meas_proj]}}
+            if vtype in ('map', 'filledmap', 'azuremap'):
+                return {
+                    'Location': {'projections': [col_proj]},
+                    'Size': {'projections': [meas_proj]},
+                }
+            # Default chart pattern: category + value axis.
+            return {
+                'Category': {'projections': [col_proj]},
+                'Y': {'projections': [meas_proj]},
+            }
+
+        def_dir = report_dir / 'definition'
+        pages_dir = def_dir / 'pages' if def_dir.exists() else report_dir / 'pages'
+        if not pages_dir.exists():
+            return 0
+
+        for page_dir in sorted(pages_dir.iterdir()):
+            if not page_dir.is_dir():
+                continue
+            visuals_dir = page_dir / 'visuals'
+            if not visuals_dir.exists():
+                continue
+            for visual_dir in sorted(visuals_dir.iterdir()):
+                if not visual_dir.is_dir():
+                    continue
+                visual_json = visual_dir / 'visual.json'
+                if not visual_json.exists():
+                    continue
+
+                try:
+                    with open(visual_json, 'r', encoding='utf-8') as f:
+                        vj = json.load(f)
+                except Exception:
+                    continue
+
+                visual = vj.get('visual', vj.get('singleVisual', {}))
+                visual_type = visual.get('visualType', 'unknown')
+
+                if visual_type in ('textbox', 'actionButton', 'image', 'shape', 'basicShape'):
+                    continue
+
+                has_projections = bool(
+                    visual.get('projections') or
+                    (visual.get('query') or {}).get('queryState')
+                )
+                has_query = bool(
+                    vj.get('query') or vj.get('dataTransforms') or
+                    visual.get('query') or visual.get('dataTransforms')
+                )
+                if has_projections or has_query:
+                    continue
+
+                old_snapshot = json.dumps(visual, ensure_ascii=False)[:500]
+                visual.setdefault('query', {})
+                visual['query']['queryState'] = _infer_query_state(visual_type)
+                vj['visual'] = visual
+
+                try:
+                    with open(visual_json, 'w', encoding='utf-8') as f:
+                        json.dump(vj, f, indent=2, ensure_ascii=False)
+                    fix_count += 1
+                    if recovery is not None:
+                        recovery.record(
+                            healer='auto_rebind_unbound_visuals',
+                            category='visual',
+                            item_name=visual_dir.name,
+                            description=(
+                                f'Auto-bound visual {visual_dir.name} '
+                                f'({visual_type}) on page {page_dir.name}'
+                            ),
+                            action='Injected visual.query.queryState projections',
+                            severity='warning',
+                            original_value=old_snapshot,
+                            repaired_value=json.dumps(visual.get('query', {}), ensure_ascii=False)[:500],
+                        )
+                except Exception:
+                    continue
+
+        return fix_count
 
     @classmethod
     def validate_visual_model_refs(cls, project_dir):

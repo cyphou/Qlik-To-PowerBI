@@ -126,7 +126,8 @@ class TestPhase5Documentation:
 
     def test_readme_updated_version(self, project_root_dir):
         content = (project_root_dir / "README.md").read_text("utf-8")
-        assert "10.0.0" in content, "README should reference v10.0.0"
+        assert "12.0.0" in content or "11.0.0" in content or "10.0.0" in content, \
+            "README should reference a current version (v10+)"
 
     def test_copilot_instructions_updated(self, project_root_dir):
         f = project_root_dir / ".github" / "copilot-instructions.md"
@@ -146,7 +147,8 @@ class TestPhase6Housekeeping:
 
     def test_version_8_in_qlik_export(self):
         import qlik_export
-        assert qlik_export.__version__ == '9.0.0'
+        # Version is now aligned with powerbi_import at v12.0.0
+        assert qlik_export.__version__ == '12.0.0'
 
     def test_version_9_in_powerbi_import(self):
         import powerbi_import

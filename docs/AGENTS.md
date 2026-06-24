@@ -90,3 +90,73 @@ DRAFT (Agent)  ──→  REVIEW (@reviewer)  ──→  APPROVE? (≥ 4★?)
 - **≥ 4★ average** across all dimensions → **APPROVE**
 - **< 4★ average** → **COACH** — @reviewer provides specific feedback per dimension
 - **After 3 failed cycles** → **ESCALATE** to user
+
+## Agent Parity Workflow (TableauToPowerBI)
+
+This repository includes an automated parity workflow for agents and migration
+feature surface (modules + CLI flags).
+
+### Primary tooling
+
+- `tools/analysis/parity_status_check.py`
+       - Local governance checks (versions, required modules, required flags, docs consistency)
+- `tools/analysis/agent_feature_parity_check.py`
+       - Local agent + feature parity checks
+       - Optional upstream comparison against `OWNER/REPO`
+
+### Commands
+
+Local parity only:
+
+```bash
+py -3 tools/analysis/agent_feature_parity_check.py
+```
+
+Local + upstream parity:
+
+```bash
+py -3 tools/analysis/agent_feature_parity_check.py --upstream-repo OWNER/REPO --branch main
+```
+
+Local filesystem upstream parity:
+
+```bash
+py -3 tools/analysis/agent_feature_parity_check.py --upstream-path "C:/GitHub Project/TableauToPowerBI"
+```
+
+Scan built-in candidate repositories:
+
+```bash
+py -3 tools/analysis/agent_feature_parity_check.py --scan-default-candidates
+```
+
+Scan candidate repositories from file:
+
+```bash
+py -3 tools/analysis/agent_feature_parity_check.py --candidate-file PATH_TO_LIST
+```
+
+Strict upstream mode (non-zero exit if upstream parity fails):
+
+```bash
+py -3 tools/analysis/agent_feature_parity_check.py --upstream-repo OWNER/REPO --strict-upstream
+```
+
+Machine-readable output:
+
+```bash
+py -3 tools/analysis/agent_feature_parity_check.py --upstream-repo OWNER/REPO --json
+```
+
+### Interpretation rules
+
+- `local_agents` fail means local `.github/agents` set is incomplete.
+- `local_features` fail means required v12 modules or CLI flags drifted.
+- `upstream_agents` fail means upstream lacks one or more local agent files or paths differ.
+- `upstream_features` fail means upstream lacks one or more required modules/flags from the current parity baseline.
+
+### Current reference report
+
+- See `docs/reports/TABLEAU_AGENT_FEATURE_PARITY_2026-06-24.md` for the latest
+       snapshot and workflow notes.- See `docs/reports/TABLEAU_PARITY_SYNC_ROADMAP_2026-06-24.md` for upstream
+  alignment gaps and implementation plan.

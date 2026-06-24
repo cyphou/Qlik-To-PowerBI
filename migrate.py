@@ -2406,6 +2406,14 @@ def main():
             out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
             project_dir = os.path.join(out_base, source_basename)
             print_step(3, 3, "POST-MIGRATION CHECK")
+
+            # If self-healing is enabled, try to auto-bind unbound visuals
+            # before running post-check validation.
+            if getattr(args, 'self_heal_v3', False):
+                pre_fix_count = ArtifactValidator.auto_rebind_unbound_visuals(project_dir)
+                if pre_fix_count and not json_mode:
+                    print(f"    ✓ Pre-check visual auto-rebind: {pre_fix_count} visual(s)")
+
             pc_result = ArtifactValidator.post_check(project_dir)
             results['post_check'] = pc_result
 
@@ -2480,14 +2488,23 @@ def main():
         try:
             from powerbi_import.self_healing_v3 import run_v3_healers
             from powerbi_import.self_healing_report import SelfHealingReport
+            from powerbi_import.validator import ArtifactValidator
             out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
             project_dir = os.path.join(out_base, source_basename)
             # Build model dict from TMDL files
             model = _load_model_from_project(project_dir, source_basename)
             sh_report = SelfHealingReport()
-            fix_count = run_v3_healers(model, recovery=sh_report)
+            model_fix_count = run_v3_healers(model, recovery=sh_report)
+            visual_fix_count = ArtifactValidator.auto_rebind_unbound_visuals(
+                project_dir,
+                recovery=sh_report,
+            )
+            fix_count = model_fix_count + visual_fix_count
             if fix_count and not json_mode:
-                print(f"  \u2713 Self-Healing v3: {fix_count} fix(es) applied")
+                print(
+                    f"  \u2713 Self-Healing v3: {fix_count} fix(es) applied "
+                    f"({model_fix_count} model, {visual_fix_count} visual bindings)"
+                )
             sh_report.save_jsonl(os.path.join(out_base, 'self_healing_v3.jsonl'))
         except Exception as exc:
             logger.debug("Self-Healing v3 skipped: %s", exc)

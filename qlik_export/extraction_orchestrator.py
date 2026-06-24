@@ -22,6 +22,7 @@ Intermediate JSON contract:
 import json
 import logging
 import os
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -155,13 +156,36 @@ class ExtractionOrchestrator:
     def _extract_from_qvf(self, qvf_path: Path) -> None:
         """Extract from a .qvf file using QVFExtractor."""
         try:
-            from qvf_extractor import QVFExtractor
+            # Support both package and script execution contexts.
+            from qlik_export.qvf_extractor import QVFExtractor
         except ImportError:
-            logger.error("QVFExtractor not available — install qvf_extractor module")
-            raise
+            try:
+                from qvf_extractor import QVFExtractor
+            except ImportError:
+                logger.error("QVFExtractor not available — install qvf_extractor module")
+                raise
 
         extractor = QVFExtractor(str(qvf_path))
-        qvf_data = extractor.extract()
+        try:
+            if hasattr(extractor, "extract"):
+                qvf_data = extractor.extract()
+            elif hasattr(extractor, "extract_all"):
+                qvf_data = extractor.extract_all()
+            else:
+                raise AttributeError("QVFExtractor has neither 'extract' nor 'extract_all'")
+        except zipfile.BadZipFile as exc:
+            # Some exported examples are labelled .qvf but contain JSON payloads.
+            # Fall back to JSON extraction to keep the pipeline usable.
+            logger.warning("QVF is not a ZIP archive (%s) — trying JSON fallback", exc)
+            self._extract_from_json(qvf_path)
+            return
+
+        # Normalize known QVFExtractor key variants to orchestrator schema.
+        if isinstance(qvf_data, dict):
+            if "loadScript" in qvf_data and "loadscript" not in qvf_data:
+                qvf_data["loadscript"] = qvf_data.get("loadScript", "")
+            if "dataModel" in qvf_data and "data_model" not in qvf_data:
+                qvf_data["data_model"] = qvf_data.get("dataModel", {})
 
         # Map QVFExtractor output to intermediate schema
         self._data = {

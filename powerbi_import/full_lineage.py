@@ -18,7 +18,7 @@ logger = logging.getLogger('qlik_to_powerbi.full_lineage')
 
 __all__ = [
     'LineageNode', 'LineageEdge', 'FullLineageMap',
-    'build_full_lineage', 'generate_lineage_html',
+    'build_full_lineage', 'generate_lineage_html', '_kind_badge',
 ]
 
 
@@ -136,6 +136,77 @@ class FullLineageMap:
         logger.info("Full lineage saved to %s (%d nodes, %d edges)",
                      output_path, self.node_count, self.edge_count)
         return output_path
+
+    def to_mermaid(self, direction: str = 'LR', max_nodes: int = 120) -> str:
+        """Generate a Mermaid flowchart string for this lineage graph.
+
+        Args:
+            direction: Mermaid graph direction — LR (default), TD, RL, or BT.
+            max_nodes: Cap on nodes rendered to avoid browser freezes with huge
+                       graphs (default 120). A comment is prepended when truncated.
+
+        Returns:
+            A Mermaid ``graph <direction>`` block as a string.
+        """
+        import re as _re
+
+        _SHAPE: Dict[str, str] = {
+            'qlik_field':        '["{label}"]',
+            'qlik_measure':      '("{label}")',
+            'qlik_dimension':    '("{label}")',
+            'qlik_variable':     '(("{label}"))',
+            'qlik_sheet':        '[/"{label}"/]',
+            'qlik_visual':       '[/"{label}"/]',
+            'qlik_association':  '["{label}"]',
+            'dax_measure':       '{"{label}"}',
+            'dax_column':        '{"{label}"}',
+            'm_query':           '[("{label}")]',
+            'tmdl_table':        '[["{label}"]]',
+            'tmdl_column':       '["{label}"]',
+            'tmdl_measure':      '{"{label}"}',
+            'tmdl_relationship': '["{label}"]',
+            'pbi_page':          '[/"{label}"/]',
+            'pbi_visual':        '[/"{label}"/]',
+            'pbi_filter':        '("{label}")',
+        }
+        _safe = _re.compile(r'[^\w]')
+
+        def nid(raw: str) -> str:
+            return 'N_' + _safe.sub('_', raw)[:40]
+
+        nodes_list = list(self.nodes.values())
+        truncated = len(nodes_list) > max_nodes
+        visible: Set[str] = {n.id for n in nodes_list[:max_nodes]}
+
+        lines: List[str] = []
+        if truncated:
+            lines.append(
+                f'%% NOTE: Graph truncated to {max_nodes} of {len(self.nodes)} nodes'
+            )
+        lines.append(f'graph {direction}')
+
+        for node in nodes_list[:max_nodes]:
+            tmpl = _SHAPE.get(node.kind, '["{label}"]')
+            label = (node.label or node.id).replace('"', "'")[:50]
+            shape = tmpl.replace('{label}', label)
+            lines.append(f'    {nid(node.id)}{shape}')
+
+        _REL_ARROW: Dict[str, str] = {
+            'transforms_to': '-->',
+            'contains':      '--o',
+            'binds_to':      '-. binds .->',
+            'references':    '-. ref .->',
+            'generates':     '==>',
+        }
+        for edge in self.edges:
+            if edge.source not in visible or edge.target not in visible:
+                continue
+            arrow = _REL_ARROW.get(edge.relation, '-->')
+            lines.append(
+                f'    {nid(edge.source)} {arrow}|{edge.relation}| {nid(edge.target)}'
+            )
+
+        return '\n'.join(lines)
 
 
 def build_full_lineage(app_name: str, qlik_data: Dict[str, Any],
@@ -278,52 +349,152 @@ def build_full_lineage(app_name: str, qlik_data: Dict[str, Any],
 
 
 def generate_lineage_html(lineage: FullLineageMap) -> str:
-    """Generate an HTML visualization of the lineage graph."""
+    """Generate an HTML visualization of the full end-to-end lineage graph.
+
+    The report includes:
+    - Summary stat cards (nodes, edges, orphans, node types)
+    - Nodes-by-type breakdown table
+    - Edges table (source → target with relation)
+    - Orphan node list
+    - Interactive Mermaid flow diagram (capped at 120 nodes)
+    - Downloadable JSON lineage data
+    """
     try:
         from powerbi_import.html_template import (
             html_open, html_close, section_open, section_close,
-            data_table, stat_card, stat_grid, esc,
+            data_table, stat_card, stat_grid, badge, esc,
         )
     except ImportError:
         from html_template import (
             html_open, html_close, section_open, section_close,
-            data_table, stat_card, stat_grid, esc,
+            data_table, stat_card, stat_grid, badge, esc,
         )
+    import json as _json
 
-    html = html_open(f'Full Lineage: {lineage.app_name}',
-                     subtitle=f'{lineage.node_count} nodes, {lineage.edge_count} edges')
+    html = html_open(
+        f'Full Lineage — {lineage.app_name}' if lineage.app_name else 'Full Lineage',
+        subtitle=f'{lineage.node_count} nodes · {lineage.edge_count} edges',
+    )
 
-    # Stats
+    # ── Summary cards ──────────────────────────────────────────
     kind_counts: Dict[str, int] = {}
     for node in lineage.nodes.values():
         kind_counts[node.kind] = kind_counts.get(node.kind, 0) + 1
 
+    rel_counts: Dict[str, int] = {}
+    for edge in lineage.edges:
+        rel_counts[edge.relation] = rel_counts.get(edge.relation, 0) + 1
+
+    orphans = lineage.get_orphans()
     cards = [
         {'value': lineage.node_count, 'label': 'Total Nodes'},
         {'value': lineage.edge_count, 'label': 'Total Edges'},
-        {'value': len(lineage.get_orphans()), 'label': 'Orphan Nodes'},
+        {'value': len(orphans), 'label': 'Orphan Nodes'},
         {'value': len(kind_counts), 'label': 'Node Types'},
     ]
     html += stat_grid(cards)
 
-    # Node summary by kind
-    html += section_open('Nodes by Type', 'Nodes by Type')
-    headers = ['Kind', 'Count']
-    rows = [[k, str(v)] for k, v in sorted(kind_counts.items())]
-    html += data_table(headers, rows)
+    # ── Nodes by type ───────────────────────────────────────────
+    html += section_open('Nodes by Type', 'Count of lineage nodes per kind')
+    rows_types = [
+        [badge(k, _kind_badge(k)), str(v)]
+        for k, v in sorted(kind_counts.items(), key=lambda x: -x[1])
+    ]
+    html += data_table(['Kind', 'Count'], rows_types)
     html += section_close()
 
-    # Orphan nodes
-    orphans = lineage.get_orphans()
+    # ── Edges table ─────────────────────────────────────────────
+    html += section_open('Edges', f'All {lineage.edge_count} lineage edges')
+    rows_edges = []
+    _REL_BADGE: Dict[str, str] = {
+        'transforms_to': 'pass',
+        'contains':      'info',
+        'binds_to':      'warn',
+        'references':    '',
+        'generates':     'pass',
+    }
+    for edge in lineage.edges:
+        src_node = lineage.nodes.get(edge.source)
+        tgt_node = lineage.nodes.get(edge.target)
+        src_kind = src_node.kind if src_node else '?'
+        tgt_kind = tgt_node.kind if tgt_node else '?'
+        rows_edges.append([
+            esc(edge.source),
+            badge(src_kind, _kind_badge(src_kind)),
+            badge(edge.relation, _REL_BADGE.get(edge.relation, '')),
+            esc(edge.target),
+            badge(tgt_kind, _kind_badge(tgt_kind)),
+        ])
+    html += data_table(
+        ['Source', 'Source Kind', 'Relation', 'Target', 'Target Kind'],
+        rows_edges,
+    )
+    html += section_close()
+
+    # ── Orphan nodes ────────────────────────────────────────────
     if orphans:
-        html += section_open('Orphan Nodes', 'Orphan Nodes')
-        headers = ['Node ID', 'Kind', 'Label']
-        rows = []
-        for oid in orphans[:50]:
+        html += section_open(
+            'Orphan Nodes',
+            f'{len(orphans)} nodes with no edges — may indicate unmapped fields',
+        )
+        rows_orphans = []
+        for oid in orphans[:100]:
             node = lineage.nodes[oid]
-            rows.append([esc(node.id), esc(node.kind), esc(node.label)])
-        html += data_table(headers, rows)
+            rows_orphans.append([
+                esc(node.id), badge(node.kind, _kind_badge(node.kind)), esc(node.label),
+            ])
+        html += data_table(['Node ID', 'Kind', 'Label'], rows_orphans)
         html += section_close()
+
+    # ── Mermaid flow diagram ────────────────────────────────────
+    mermaid_text = lineage.to_mermaid(direction='LR', max_nodes=120)
+    node_cap = min(lineage.node_count, 120)
+    html += section_open(
+        'Flow Diagram',
+        f'Visual lineage graph (showing up to 120 of {lineage.node_count} nodes)',
+    )
+    html += f'''<div class="mermaid-container" style="overflow:auto;max-height:600px">
+<pre class="mermaid">
+{mermaid_text}
+</pre>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({{startOnLoad:true, maxTextSize:200000}});</script>
+'''
+    html += section_close()
+
+    # ── Downloadable JSON data ──────────────────────────────────
+    lineage_json = _json.dumps(lineage.to_dict(), indent=2)
+    encoded = lineage_json.replace('</script>', '<\\/script>')
+    html += section_open('Raw Data', 'Full lineage JSON for download/inspection')
+    html += f'''<details><summary>Show JSON ({lineage.node_count} nodes, {lineage.edge_count} edges)</summary>
+<pre style="max-height:400px;overflow:auto;font-size:12px">{esc(lineage_json[:8000])}{"..." if len(lineage_json) > 8000 else ""}</pre>
+</details>\n'''
+    html += section_close()
 
     html += html_close()
     return html
+
+
+def _kind_badge(kind: str) -> str:
+    """Return a CSS badge class for a lineage node kind."""
+    _MAP: Dict[str, str] = {
+        'qlik_field': 'warn',
+        'qlik_measure': 'warn',
+        'qlik_dimension': 'warn',
+        'qlik_variable': 'warn',
+        'qlik_sheet': 'warn',
+        'qlik_visual': 'warn',
+        'qlik_association': 'warn',
+        'dax_measure': 'info',
+        'dax_column': 'info',
+        'm_query': 'info',
+        'tmdl_table': 'pass',
+        'tmdl_column': 'pass',
+        'tmdl_measure': 'pass',
+        'tmdl_relationship': 'pass',
+        'pbi_page': '',
+        'pbi_visual': '',
+        'pbi_filter': '',
+    }
+    return _MAP.get(kind, '')
