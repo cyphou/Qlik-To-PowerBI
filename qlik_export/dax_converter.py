@@ -128,7 +128,6 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bReplace\s*\(', 'SUBSTITUTE('),
     (r'\bSubStringCount\s*\(', '(LEN({0}) - LEN(SUBSTITUTE({0}, {1}, ""))) / LEN({1})'),
     (r'\bPurgeChar\s*\(', 'SUBSTITUTE('),
-    (r'\bKeepChar\s*\(', '/* KeepChar: approximate — strips non-alphanumeric; refine SUBSTITUTE chain for specific chars */ SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE({0}, " ", ""), "-", ""), "_", ""), ".", ""), ",", ""), ";", "")'),
     (r'\bRepeat\s*\(', 'REPT('),
     (r'\bCapitalize\s*\(', '/* Capitalize: no direct DAX */ UPPER(LEFT({0}, 1)) & LOWER(MID({0}, 2, LEN({0})))'),
     (r'\bTextBetween\s*\(', 'MID({0}, SEARCH({1}, {0}) + LEN({1}), SEARCH({2}, {0}, SEARCH({1}, {0}) + LEN({1})) - SEARCH({1}, {0}) - LEN({1}))'),
@@ -299,6 +298,9 @@ def convert_qlik_expression_to_dax(
     # Phase 5: Evaluate() handling policy
     dax = _convert_evaluate(dax, evaluate_policy)
 
+    # Phase 5b: KeepChar() deterministic conversion
+    dax = _convert_keepchar(dax)
+
     # Phase 6: Simple function mapping (175+ replacements)
     for pattern, replacement in _COMPILED_FUNCTION_MAP:
         if _TEMPLATE_RE.search(replacement):
@@ -380,6 +382,61 @@ def _convert_evaluate(expr: str, policy: Optional[str] = None) -> str:
                 depth -= 1
             i += 1
         expr = expr[:m.start()] + _replacement(m) + expr[i:]
+    return expr
+
+
+def _to_dax_text_expression(arg: str) -> str:
+    """Return a DAX text expression for a KeepChar argument."""
+    value = arg.strip()
+    if len(value) >= 2 and ((value[0] == '"' and value[-1] == '"') or (value[0] == "'" and value[-1] == "'")):
+        literal = value[1:-1].replace('"', '""')
+        return f'"{literal}"'
+    return f'FORMAT({value}, "")'
+
+
+def _convert_keepchar(expr: str) -> str:
+    """Convert Qlik KeepChar(text, keep_chars) to deterministic DAX text filtering."""
+    pattern = re.compile(r'\bKeepChar\s*\(', re.IGNORECASE)
+    matches = list(pattern.finditer(expr))
+    for m in reversed(matches):
+        depth = 1
+        i = m.end()
+        while i < len(expr) and depth > 0:
+            if expr[i] == '(':
+                depth += 1
+            elif expr[i] == ')':
+                depth -= 1
+            i += 1
+
+        inner = expr[m.end():i - 1]
+        args = _split_top_level_args(inner)
+        if not args:
+            continue
+
+        source = args[0].strip()
+        keep_chars = args[1].strip() if len(args) > 1 else '""'
+
+        src_expr = f'FORMAT({source}, "")'
+        keep_expr = _to_dax_text_expression(keep_chars)
+        replacement = (
+            f'VAR __keepchar_src = {src_expr} '
+            f'VAR __keepchar_allowed = {keep_expr} '
+            'RETURN CONCATENATEX('
+            'FILTER('
+            'ADDCOLUMNS('
+            'GENERATESERIES(1, LEN(__keepchar_src)), '
+            '"__keepchar_ch", MID(__keepchar_src, [Value], 1)'
+            '), '
+            'CONTAINSSTRING(__keepchar_allowed, [__keepchar_ch])'
+            '), '
+            '[__keepchar_ch], '
+            '"", '
+            '[Value], '
+            'ASC'
+            ')'
+        )
+        expr = expr[:m.start()] + replacement + expr[i:]
+
     return expr
 
 

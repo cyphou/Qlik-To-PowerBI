@@ -173,17 +173,18 @@ class TestDaxStubNetWorkDays:
 
 
 class TestDaxStubKeepChar:
-    """KeepChar() → SUBSTITUTE chain (approximate)."""
+    """KeepChar() → deterministic text filter via CONCATENATEX."""
 
     def test_keepchar_produces_substitute(self):
         result = dax("KeepChar(Name, 'ABC')")
-        assert "SUBSTITUTE(" in result
+        assert "CONCATENATEX(" in result
+        assert "CONTAINSSTRING(" in result
 
     def test_keepchar_not_passthrough(self):
         """KeepChar should not just pass through the input unchanged."""
         result = dax("KeepChar(Name, 'ABC')")
-        # Should have actual SUBSTITUTE logic, not just the original input
-        assert "SUBSTITUTE(" in result
+        # Should have actual deterministic filtering logic, not just the original input
+        assert "CONCATENATEX(" in result
 
 
 class TestDaxStubMapSubstring:

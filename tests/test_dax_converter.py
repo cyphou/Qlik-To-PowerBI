@@ -449,7 +449,8 @@ class TestStubFunctions:
 
     def test_keepchar_passthrough(self):
         result = dax("KeepChar(Name, 'ABC')")
-        assert "KeepChar" in result or "manual" in result.lower()
+        assert "CONCATENATEX(" in result
+        assert "CONTAINSSTRING(" in result
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -56,8 +56,8 @@ class TestNetWorkDaysStub:
 class TestKeepCharStub:
     def test_keepchar_documented(self):
         result = convert_qlik_expression_to_dax("KeepChar(Name, 'abc')")
-        assert "SUBSTITUTE" in result
-        assert "approximate" in result.lower() or "KeepChar" in result
+        assert "CONCATENATEX" in result
+        assert "CONTAINSSTRING" in result
 
 
 class TestSubFieldStub:

@@ -249,8 +249,8 @@ class TestInterval(unittest.TestCase):
 class TestUnsupportedStubs(unittest.TestCase):
     def test_keepchar(self):
         result = dax("KeepChar([Name], 'ABC')")
-        self.assertIn("SUBSTITUTE", result)
-        self.assertIn("KeepChar", result)
+        self.assertIn("CONCATENATEX", result)
+        self.assertIn("CONTAINSSTRING", result)
 
     def test_skew(self):
         result = dax("Skew([Values])")
