@@ -8,12 +8,12 @@ Covers:
 - NetWorkDays(D1, D2) → DATEDIFF-based working days
 - SubField(S, D, N) → PATHITEM/SUBSTITUTE
 - Interval(N) → FORMAT HH:MM:SS
-- KeepChar(S, C) → UNSUPPORTED comment
-- Skew(X) → UNSUPPORTED comment
-- Hash128(X) → UNSUPPORTED comment
-- Hash160(X) → UNSUPPORTED comment
-- Hash256(X) → UNSUPPORTED comment
-- Evaluate(X) → UNSUPPORTED comment
+- KeepChar(S, C) → documented approximation comment
+- Skew(X) → deterministic fallback comment
+- Hash128(X) → deterministic text key fallback
+- Hash160(X) → deterministic text key fallback
+- Hash256(X) → deterministic text key fallback
+- Evaluate(X) → policy-based handling
 - MonthName(D), QuarterName(D) — template arg substitution
 - WeekStart(D), WeekEnd(D) — template arg substitution
 - Mode(X) — fixed {0} reference
@@ -116,6 +116,7 @@ class TestCorrel(unittest.TestCase):
     def test_pearson_structure(self):
         result = dax("Correl([X], [Y])")
         self.assertIn("pearson", result.lower())
+        self.assertIn("fallback", result.lower())
         # Must have covariance / std dev structure
         self.assertIn("SUMX", result)
         self.assertIn("AVERAGE", result)
@@ -147,7 +148,7 @@ class TestBitCount(unittest.TestCase):
     def test_comment_present(self):
         result = dax("BitCount([N])")
         self.assertIn("BitCount", result)
-        self.assertIn("8-bit", result)
+        self.assertIn("fallback", result.lower())
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -195,7 +196,7 @@ class TestNetWorkDays(unittest.TestCase):
     def test_comment(self):
         result = dax("NetWorkDays([D1], [D2])")
         self.assertIn("NetWorkDays", result)
-        self.assertIn("approximate", result)
+        self.assertIn("weekends", result)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -242,7 +243,7 @@ class TestInterval(unittest.TestCase):
 
 
 # ═══════════════════════════════════════════════════════════════
-#  UNSUPPORTED stubs → comment markers
+#  Stub fallbacks and policy-driven handling
 # ═══════════════════════════════════════════════════════════════
 
 class TestUnsupportedStubs(unittest.TestCase):
@@ -253,29 +254,33 @@ class TestUnsupportedStubs(unittest.TestCase):
 
     def test_skew(self):
         result = dax("Skew([Values])")
-        self.assertIn("UNSUPPORTED", result)
-        self.assertIn("Skew", result)
+        self.assertIn("Skew fallback", result)
+        self.assertNotIn("UNSUPPORTED", result)
 
     def test_hash128(self):
         result = dax("Hash128([ID])")
-        self.assertIn("UNSUPPORTED", result)
-        self.assertIn("Hash128", result)
+        self.assertIn("Hash128 fallback", result)
+        self.assertIn("FORMAT(", result)
 
     def test_hash160(self):
         result = dax("Hash160([ID])")
-        self.assertIn("UNSUPPORTED", result)
-        self.assertIn("Hash160", result)
+        self.assertIn("Hash160 fallback", result)
+        self.assertIn("FORMAT(", result)
 
     def test_hash256(self):
         result = dax("Hash256([ID])")
-        self.assertIn("UNSUPPORTED", result)
-        self.assertIn("Hash256", result)
+        self.assertIn("Hash256 fallback", result)
+        self.assertIn("FORMAT(", result)
 
     def test_evaluate(self):
         result = dax("Evaluate([Expr])")
-        self.assertIn("UNSUPPORTED", result)
-        self.assertIn("Evaluate", result)
-        self.assertIn("dynamic eval", result)
+        self.assertNotIn("Evaluate(", result)
+        self.assertIn("[Expr]", result)
+
+    def test_evaluate_block_policy(self):
+        result = dax("Evaluate([Expr])", evaluate_policy="block")
+        self.assertIn("BLANK()", result)
+        self.assertIn("blocked by policy", result)
 
     def test_keepchar_preserves_first_arg(self):
         result = dax("KeepChar([Phone], '0123456789')")
@@ -421,7 +426,8 @@ class TestCombinedExpressions(unittest.TestCase):
 
     def test_multiple_unsupported_in_one_expr(self):
         result = dax("Hash128([A]) & Hash256([B])")
-        self.assertEqual(result.count("UNSUPPORTED"), 2)
+        self.assertEqual(result.count("deterministic text key"), 2)
+        self.assertNotIn("UNSUPPORTED", result)
 
 
 if __name__ == "__main__":

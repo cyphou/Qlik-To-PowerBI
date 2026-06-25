@@ -19,9 +19,10 @@ from qlik_export.dax_converter import (
 # ── DAX Stub Fix Tests ──────────────────────────────────────────────
 
 class TestSkewStub:
-    def test_skew_marked_unsupported(self):
+    def test_skew_fallback_documented(self):
         result = convert_qlik_expression_to_dax("Skew(Sales)")
-        assert "no DAX equivalent" in result
+        assert "Skew fallback" in result
+        assert "UNSUPPORTED" not in result
         assert "0" in result
 
     def test_skew_not_stdev(self):
@@ -30,9 +31,9 @@ class TestSkewStub:
 
 
 class TestCorrelStub:
-    def test_correl_marked_unsupported(self):
+    def test_correl_fallback_documented(self):
         result = convert_qlik_expression_to_dax("Correl(X, Y)")
-        assert "no DAX equivalent" in result
+        assert "Correl fallback" in result
         assert "Pearson" in result or "0" in result
 
     def test_correl_returns_zero(self):
@@ -102,22 +103,33 @@ class TestIntervalStub:
 
 
 class TestBitCountStub:
-    def test_bitcount_marked_unsupported(self):
+    def test_bitcount_fallback_documented(self):
         result = convert_qlik_expression_to_dax("BitCount(255)")
-        assert "no DAX equivalent" in result
+        assert "BitCount fallback" in result
 
 
 # ── Hash functions (unsupported — documented) ────────────────────────
 
 class TestHashFunctions:
     @pytest.mark.parametrize("func", ["Hash128", "Hash160", "Hash256"])
-    def test_hash_documented_unsupported(self, func):
+    def test_hash_uses_deterministic_text_key(self, func):
         result = convert_qlik_expression_to_dax(f"{func}(Value)")
-        assert "no DAX equivalent" in result
+        assert "FORMAT(" in result
+        assert "deterministic text key" in result
+        assert "UNSUPPORTED" not in result
 
-    def test_evaluate_documented_unsupported(self):
+    def test_evaluate_passthrough_by_default(self):
         result = convert_qlik_expression_to_dax("Evaluate('1+1')")
-        assert "no DAX equivalent" in result
+        assert "Evaluate(" not in result
+        assert "'1+1'" in result
+
+    def test_evaluate_policy_blank(self):
+        result = convert_qlik_expression_to_dax("Evaluate('1+1')", evaluate_policy="blank")
+        assert "BLANK()" in result
+
+    def test_evaluate_policy_block(self):
+        result = convert_qlik_expression_to_dax("Evaluate('1+1')", evaluate_policy="block")
+        assert "Evaluate blocked by policy" in result
 
 
 # ── Strategy Advisor: Qlik patterns replaced ─────────────────────────

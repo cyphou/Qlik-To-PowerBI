@@ -1437,6 +1437,13 @@ def main():
     )
 
     parser.add_argument(
+        '--evaluate-policy',
+        choices=['passthrough', 'blank', 'block'],
+        default='passthrough',
+        help='Policy for Qlik Evaluate(expr) conversion: passthrough (default), blank, block'
+    )
+
+    parser.add_argument(
         '--cross-validate',
         action='store_true',
         default=False,
@@ -1569,6 +1576,7 @@ def main():
 
     # Setup structured logging
     json_mode = getattr(args, 'json', False)
+    os.environ['QLIK_EVALUATE_POLICY'] = args.evaluate_policy
     setup_logging(verbose=args.verbose, log_file=args.log_file,
                   quiet=getattr(args, 'quiet', False) or json_mode)
 

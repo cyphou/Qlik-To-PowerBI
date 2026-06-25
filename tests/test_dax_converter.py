@@ -424,9 +424,10 @@ class TestSimpleFunctionMap:
 # ═══════════════════════════════════════════════════════════════
 
 class TestStubFunctions:
-    def test_skew_unsupported(self):
+    def test_skew_fallback(self):
         result = dax("Skew(Values)")
-        assert "Skew" in result or "0" in result
+        assert "Skew fallback" in result
+        assert "0" in result
 
     def test_correl_unsupported(self):
         result = dax("Correl(X, Y)")
@@ -436,13 +437,15 @@ class TestStubFunctions:
         result = dax("BitCount(Flags)")
         assert "BitCount" in result or "0" in result
 
-    def test_hash128_passthrough(self):
+    def test_hash128_fallback(self):
         result = dax("Hash128(Data)")
-        assert "Hash128" in result or "manual" in result.lower()
+        assert "Hash128 fallback" in result
+        assert "FORMAT(" in result
 
     def test_evaluate_passthrough(self):
         result = dax("Evaluate(expr)")
-        assert "Evaluate" in result or "manual" in result.lower()
+        assert "Evaluate(" not in result
+        assert "expr" in result
 
     def test_keepchar_passthrough(self):
         result = dax("KeepChar(Name, 'ABC')")

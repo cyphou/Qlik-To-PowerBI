@@ -52,10 +52,23 @@ jobs:
             --upstream-repo cyphou/Qlik-To-PowerBI \
             --strict-upstream
 
+      - name: Run all phases orchestrator
+        run: |
+          python tools/analysis/run_all_phases.py
+
+      - name: Enforce parity backlog gate
+        run: |
+          python tools/analysis/parity_backlog_gate.py
+
+      - name: Weekly parity dashboard artifact
+        run: |
+          python tools/analysis/generate_weekly_parity_dashboard.py
+
       - name: Upload nightly artifacts
         uses: actions/upload-artifact@v4
         with:
           name: nightly-self-heal-artifacts
           path: |
             output/nightly/**
+            artifacts/reports/phases/**
           if-no-files-found: warn

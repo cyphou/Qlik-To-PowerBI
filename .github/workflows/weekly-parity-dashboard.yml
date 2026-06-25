@@ -1,0 +1,54 @@
+name: weekly-parity-dashboard
+
+on:
+  schedule:
+    - cron: '30 3 * * 1'
+  workflow_dispatch:
+
+jobs:
+  weekly-parity-dashboard:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run all phases
+        run: |
+          python tools/analysis/run_all_phases.py
+
+      - name: Enforce parity backlog gate
+        run: |
+          python tools/analysis/parity_backlog_gate.py
+
+      - name: Capture pytest warning trend
+        run: |
+          mkdir -p output/weekly
+          python -m pytest tests/ -q --tb=short > output/weekly/pytest.log
+          python tools/analysis/pytest_warning_summary.py \
+            --pytest-log output/weekly/pytest.log \
+            --output-json artifacts/reports/phases/pytest_warning_summary_latest.json \
+            --output-md artifacts/reports/phases/pytest_warning_summary_latest.md
+
+      - name: Generate weekly parity dashboard
+        run: |
+          python tools/analysis/generate_weekly_parity_dashboard.py
+
+      - name: Upload weekly parity artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-parity-artifacts
+          path: |
+            artifacts/reports/phases/**
+            output/weekly/**
+          if-no-files-found: warn

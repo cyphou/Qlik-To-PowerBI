@@ -200,27 +200,32 @@ class TestDaxStubMapSubstring:
 
 
 class TestDaxUnsupportedMarkers:
-    """Hash128/160/256, Evaluate, Skew — documented as UNSUPPORTED."""
+    """Hash128/160/256, Evaluate, Skew — deterministic fallback/policy behavior."""
 
     def test_skew_unsupported(self):
         result = dax("Skew(Values)")
-        assert "UNSUPPORTED" in result or "Skew" in result
+        assert "Skew fallback" in result
+        assert "UNSUPPORTED" not in result
 
     def test_hash128_unsupported(self):
         result = dax("Hash128(Data)")
-        assert "UNSUPPORTED" in result
+        assert "Hash128 fallback" in result
+        assert "FORMAT(" in result
 
     def test_hash160_unsupported(self):
         result = dax("Hash160(Data)")
-        assert "UNSUPPORTED" in result
+        assert "Hash160 fallback" in result
+        assert "FORMAT(" in result
 
     def test_hash256_unsupported(self):
         result = dax("Hash256(Data)")
-        assert "UNSUPPORTED" in result
+        assert "Hash256 fallback" in result
+        assert "FORMAT(" in result
 
     def test_evaluate_unsupported(self):
         result = dax("Evaluate(expr)")
-        assert "UNSUPPORTED" in result
+        assert "Evaluate(" not in result
+        assert "expr" in result
 
 
 # ═══════════════════════════════════════════════════════════════

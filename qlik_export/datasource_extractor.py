@@ -92,6 +92,7 @@ def convert_formula_to_dax(
     calc_datatype=None,
     partition_fields=None,
     compute_using=None,
+    evaluate_policy=None,
 ):
     """Convert a Qlik expression to DAX.
 
@@ -112,6 +113,7 @@ def convert_formula_to_dax(
         col_table_map=column_table_map,
         is_calculated_column=is_calc_column,
         variables=variables,
+        evaluate_policy=evaluate_policy,
     )
 
 

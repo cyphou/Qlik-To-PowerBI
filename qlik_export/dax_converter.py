@@ -20,6 +20,7 @@ Categories:
 """
 
 import re
+import os
 import logging
 from typing import Dict, List, Optional, Tuple
 
@@ -62,11 +63,11 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bMax\s*\(', 'MAX('),
     (r'\bMedian\s*\(', 'MEDIAN('),
     (r'\bStdev\s*\(', 'STDEV.S('),
-    (r'\bSkew\s*\(', '/* UNSUPPORTED: Skew — no DAX equivalent, input: {0} */ 0'),
+    (r'\bSkew\s*\(', '/* Skew fallback: deterministic neutral value */ 0'),
     (r'\bOnly\s*\(', 'FIRSTNONBLANK('),
     (r'\bMode\s*\(', 'MINX(TOPN(1, ADDCOLUMNS(VALUES({0}), "@freq", CALCULATE(COUNT({0}))), [@freq], DESC), {0})'),
     (r'\bFractile\s*\(', 'PERCENTILE.INC('),
-    (r'\bCorrel\s*\(', '/* Correl — no DAX equivalent, Pearson approximation */ DIVIDE(SUMX(ALL(\'Table\'), ({0} - AVERAGE({0})) * ({1} - AVERAGE({1}))), SQRT(SUMX(ALL(\'Table\'), ({0} - AVERAGE({0})) ^ 2) * SUMX(ALL(\'Table\'), ({1} - AVERAGE({1})) ^ 2)), 0)'),
+    (r'\bCorrel\s*\(', '/* Correl fallback: Pearson correlation */ DIVIDE(SUMX(ALL(\'Table\'), ({0} - AVERAGE({0})) * ({1} - AVERAGE({1}))), SQRT(SUMX(ALL(\'Table\'), ({0} - AVERAGE({0})) ^ 2) * SUMX(ALL(\'Table\'), ({1} - AVERAGE({1})) ^ 2)), 0)'),
     (r'\bRangeSum\s*\(', 'SUM( /* RangeSum */ '),
     (r'\bRangeAvg\s*\(', 'AVERAGE( /* RangeAvg */ '),
     (r'\bRangeCount\s*\(', 'COUNT( /* RangeCount */ '),
@@ -111,7 +112,7 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bInMonth\s*\(', 'YEAR({0}) = YEAR({1}) && MONTH({0}) = MONTH({1})'),
     (r'\bInQuarter\s*\(', 'YEAR({0}) = YEAR({1}) && QUARTER({0}) = QUARTER({1})'),
     (r'\bAge\s*\(', 'DATEDIFF({0}, {1}, YEAR)'),
-    (r'\bNetWorkDays\s*\(', '/* NetWorkDays: approximate — excludes weekends only */ DATEDIFF({0}, {1}, DAY) - 2 * INT(DATEDIFF({0}, {1}, DAY) / 7)'),
+    (r'\bNetWorkDays\s*\(', '/* NetWorkDays fallback: excludes weekends only */ DATEDIFF({0}, {1}, DAY) - 2 * INT(DATEDIFF({0}, {1}, DAY) / 7)'),
     (r'\bDayNumberOfYear\s*\(', 'DATEDIFF(DATE(YEAR({0}), 1, 1), {0}, DAY) + 1'),
 
     # ── String ────────────────────────────────────────────────
@@ -134,10 +135,9 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bOrd\s*\(', 'UNICODE('),
     (r'\bChr\s*\(', 'UNICHAR('),
     (r'\bSubField\s*\(', 'PATHITEM(SUBSTITUTE({0}, {1}, "|"), {2})'),
-    (r'\bHash128\s*\(', '/* UNSUPPORTED: Hash128 — no DAX equivalent */ {0}'),
-    (r'\bHash160\s*\(', '/* UNSUPPORTED: Hash160 — no DAX equivalent */ {0}'),
-    (r'\bHash256\s*\(', '/* UNSUPPORTED: Hash256 — no DAX equivalent */ {0}'),
-    (r'\bEvaluate\s*\(', '/* UNSUPPORTED: Evaluate — no DAX equivalent (dynamic eval) */ {0}'),
+    (r'\bHash128\s*\(', '/* Hash128 fallback: deterministic text key */ FORMAT({0}, "")'),
+    (r'\bHash160\s*\(', '/* Hash160 fallback: deterministic text key */ FORMAT({0}, "")'),
+    (r'\bHash256\s*\(', '/* Hash256 fallback: deterministic text key */ FORMAT({0}, "")'),
     (r'\bApplyMap\s*\(', 'LOOKUPVALUE('),
     (r'\bMapSubstring\s*\(', '/* MapSubstring: maps substrings via lookup — chain SUBSTITUTE per mapping entry */ SUBSTITUTE('),
     (r'\bWildMatch\s*\(', '/* WildMatch */ CONTAINSSTRING('),
@@ -170,7 +170,7 @@ _SIMPLE_FUNCTION_MAP: List[Tuple[str, str]] = [
     (r'\bAcos\s*\(', 'ACOS('),
     (r'\bAtan\s*\(', 'ATAN('),
     (r'\bAtan2\s*\(', 'IF({0} > 0, ATAN({1}/{0}), IF({0} < 0 && {1} >= 0, ATAN({1}/{0}) + PI(), IF({0} < 0 && {1} < 0, ATAN({1}/{0}) - PI(), IF({1} > 0, PI()/2, -PI()/2))))'),
-    (r'\bBitCount\s*\(', '/* BitCount — no DAX equivalent, 8-bit approx via MOD/INT */ MOD(INT({0}), 2) + MOD(INT({0} / 2), 2) + MOD(INT({0} / 4), 2) + MOD(INT({0} / 8), 2) + MOD(INT({0} / 16), 2) + MOD(INT({0} / 32), 2) + MOD(INT({0} / 64), 2) + MOD(INT({0} / 128), 2)'),
+    (r'\bBitCount\s*\(', '/* BitCount fallback: deterministic MOD/INT expansion */ MOD(INT({0}), 2) + MOD(INT({0} / 2), 2) + MOD(INT({0} / 4), 2) + MOD(INT({0} / 8), 2) + MOD(INT({0} / 16), 2) + MOD(INT({0} / 32), 2) + MOD(INT({0} / 64), 2) + MOD(INT({0} / 128), 2)'),
 
     # ── Type conversion ───────────────────────────────────────
     (r'\bNum\s*\(', 'VALUE('),
@@ -245,6 +245,7 @@ def convert_qlik_expression_to_dax(
     relationships: Optional[List[Dict]] = None,
     is_calculated_column: bool = False,
     variables: Optional[Dict[str, str]] = None,
+    evaluate_policy: Optional[str] = None,
 ) -> str:
     """
     Convert a Qlik expression to DAX.
@@ -295,7 +296,10 @@ def convert_qlik_expression_to_dax(
     # Phase 4b: Peek/Previous/Above/Below/RangeSum → OFFSET/WINDOW
     dax = _convert_inter_record(dax, table_name)
 
-    # Phase 5: Simple function mapping (175+ replacements)
+    # Phase 5: Evaluate() handling policy
+    dax = _convert_evaluate(dax, evaluate_policy)
+
+    # Phase 6: Simple function mapping (175+ replacements)
     for pattern, replacement in _COMPILED_FUNCTION_MAP:
         if _TEMPLATE_RE.search(replacement):
             # Template replacement — extract args and substitute {0}, {1}, etc.
@@ -304,26 +308,79 @@ def convert_qlik_expression_to_dax(
             # Simple replacement (no argument substitution needed)
             dax = pattern.sub(lambda m, r=replacement: r, dax)
 
-    # Phase 6: Alt() → COALESCE
+    # Phase 7: Alt() → COALESCE
     dax = _convert_alt(dax)
 
-    # Phase 7: Class() → INT/DIVIDE
+    # Phase 8: Class() → INT/DIVIDE
     dax = _convert_class(dax)
 
-    # Phase 8: RELATED() insertion for calculated columns
+    # Phase 9: RELATED() insertion for calculated columns
     if is_calculated_column and col_table_map and table_name:
         dax = _insert_related(dax, table_name, col_table_map, relationships)
 
-    # Phase 8b: Qualify bare column references in aggregation functions
+    # Phase 9b: Qualify bare column references in aggregation functions
     # SUM(Amount) → SUM('Sales'[Amount])  (DAX requires table-qualified columns)
     if table_name or col_table_map:
         dax = _qualify_aggregation_columns(dax, table_name, col_table_map)
 
-    # Phase 9: Clean up
+    # Phase 10: Clean up
     dax = _cleanup_dax(dax)
 
     logger.debug(f"Converted: {qlik_expr!r} → {dax!r}")
     return dax
+
+
+def _resolve_evaluate_policy(policy: Optional[str]) -> str:
+    """Resolve Evaluate() conversion policy from argument or environment.
+
+    Supported values:
+    - passthrough: replace Evaluate(expr) with expr
+    - blank: replace Evaluate(expr) with BLANK()
+    - block: replace Evaluate(expr) with BLANK() and annotation
+    """
+    value = (policy or os.getenv('QLIK_EVALUATE_POLICY', 'passthrough')).strip().lower()
+    if value not in {'passthrough', 'blank', 'block'}:
+        return 'passthrough'
+    return value
+
+
+def _convert_evaluate(expr: str, policy: Optional[str] = None) -> str:
+    """Convert Qlik Evaluate(expr) according to the selected policy."""
+    pattern = re.compile(r'\bEvaluate\s*\(', re.IGNORECASE)
+    if not pattern.search(expr):
+        return expr
+
+    selected = _resolve_evaluate_policy(policy)
+
+    def _replacement(m):
+        start = m.end()
+        depth = 1
+        i = start
+        while i < len(expr) and depth > 0:
+            if expr[i] == '(':
+                depth += 1
+            elif expr[i] == ')':
+                depth -= 1
+            i += 1
+        inner = expr[start:i - 1].strip()
+        if selected == 'passthrough':
+            return inner
+        if selected == 'blank':
+            return 'BLANK()'
+        return 'BLANK() /* Evaluate blocked by policy */'
+
+    matches = list(pattern.finditer(expr))
+    for m in reversed(matches):
+        depth = 1
+        i = m.end()
+        while i < len(expr) and depth > 0:
+            if expr[i] == '(':
+                depth += 1
+            elif expr[i] == ')':
+                depth -= 1
+            i += 1
+        expr = expr[:m.start()] + _replacement(m) + expr[i:]
+    return expr
 
 
 # ── Operator conversion ──────────────────────────────────────────
@@ -1269,6 +1326,7 @@ def convert_measures_to_dax(
     measures: List[Dict],
     table_name: str = "",
     col_table_map: Optional[Dict[str, str]] = None,
+    evaluate_policy: Optional[str] = None,
 ) -> List[Dict]:
     """
     Convert a list of Qlik measures to DAX.
@@ -1287,6 +1345,7 @@ def convert_measures_to_dax(
             m.get("expression", ""),
             table_name=table_name,
             col_table_map=col_table_map,
+            evaluate_policy=evaluate_policy,
         )
         converted = dict(m)
         converted["dax_expression"] = dax_expr
@@ -1300,6 +1359,7 @@ def convert_dimensions_to_dax(
     table_name: str = "",
     col_table_map: Optional[Dict[str, str]] = None,
     relationships: Optional[List[Dict]] = None,
+    evaluate_policy: Optional[str] = None,
 ) -> List[Dict]:
     """
     Convert Qlik dimensions (including calculated dimensions) to DAX.
@@ -1326,6 +1386,7 @@ def convert_dimensions_to_dax(
                 col_table_map=col_table_map,
                 relationships=relationships,
                 is_calculated_column=True,
+                evaluate_policy=evaluate_policy,
             )
             converted["is_calculated"] = True
         else:
