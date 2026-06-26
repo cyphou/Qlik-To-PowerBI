@@ -1,0 +1,11 @@
+{
+  "source_manifest": "artifacts/manifests/repo_ready/all_apps_manifest.json",
+  "ready_manifest": "artifacts/manifests/repo_ready/all_apps_manifest_ready.json",
+  "ready_entries": 1,
+  "skipped": [
+    {
+      "file": "examples/qlik/test_samples/cloud_format/Demo App - Qlik Cloud Reporting.qvf",
+      "reason": "invalid_qvf_not_zip"
+    }
+  ]
+}

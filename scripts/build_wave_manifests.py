@@ -16,7 +16,9 @@ import argparse
 import csv
 import json
 import os
+import zipfile
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 
@@ -148,6 +150,80 @@ def _sanitize_wave_name(name: str) -> str:
     return sanitized or "Wave-0"
 
 
+def _resolve_entry_source(file_value: str, manifest_dir: Path, repo_root: Path) -> Path:
+    """Resolve an entry source file path.
+
+    Resolution order for relative paths:
+    1. repo_root / file
+    2. manifest_dir / file
+    """
+    raw = Path(file_value)
+    if raw.is_absolute():
+        return raw
+
+    repo_candidate = (repo_root / raw).resolve()
+    if repo_candidate.exists():
+        return repo_candidate
+
+    return (manifest_dir / raw).resolve()
+
+
+def _is_valid_qvf_zip(path: Path) -> bool:
+    """Return True when .qvf is a valid zip container."""
+    if path.suffix.lower() != ".qvf":
+        return True
+    try:
+        with zipfile.ZipFile(path, "r"):
+            return True
+    except zipfile.BadZipFile:
+        return False
+
+
+def _emit_ready_manifest(manifest_path: Path, payload: dict[str, Any], repo_root: Path) -> tuple[Path, Path, int]:
+    """Write a normalized ready manifest and a skip report for one manifest."""
+    entries = payload.get("entries", [])
+    ready_entries: list[dict[str, Any]] = []
+    skipped: list[dict[str, str]] = []
+
+    for entry in entries:
+        file_value = _norm_text(entry.get("file"))
+        if not file_value:
+            skipped.append({"file": file_value, "reason": "empty"})
+            continue
+
+        abs_path = _resolve_entry_source(file_value, manifest_path.parent, repo_root)
+        if not abs_path.exists():
+            skipped.append({"file": file_value, "reason": "not_found"})
+            continue
+
+        if not _is_valid_qvf_zip(abs_path):
+            skipped.append({"file": file_value, "reason": "invalid_qvf_not_zip"})
+            continue
+
+        normalized_file = os.path.relpath(str(abs_path), str(manifest_path.parent)).replace("\\", "/")
+        new_entry = dict(entry)
+        new_entry["file"] = normalized_file
+        ready_entries.append(new_entry)
+
+    ready_payload = dict(payload)
+    ready_payload["entries"] = ready_entries
+
+    ready_path = manifest_path.with_name(manifest_path.stem + "_ready.json")
+    report_path = manifest_path.with_name(manifest_path.stem + "_ready_report.json")
+
+    _write_json(str(ready_path), ready_payload)
+    _write_json(
+        str(report_path),
+        {
+            "source_manifest": manifest_path.as_posix(),
+            "ready_manifest": ready_path.as_posix(),
+            "ready_entries": len(ready_entries),
+            "skipped": skipped,
+        },
+    )
+    return ready_path, report_path, len(skipped)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Build migration manifest(s) from a Qlik app portfolio CSV/JSON.",
@@ -191,6 +267,19 @@ def main() -> int:
         "--include-profiles-template",
         action="store_true",
         help="Inject standard profile templates (fast/strict/regulated).",
+    )
+    parser.add_argument(
+        "--make-ready",
+        action="store_true",
+        help=(
+            "Also emit *_ready manifests with source file paths normalized "
+            "relative to each manifest and skip invalid/missing QVF entries."
+        ),
+    )
+    parser.add_argument(
+        "--repo-root",
+        default=".",
+        help="Repository root used to resolve entry source paths when --make-ready is enabled.",
     )
     parser.add_argument(
         "--dry-run",
@@ -271,6 +360,7 @@ def main() -> int:
     _write_json(all_path, all_manifest)
 
     emitted_paths = [all_path]
+    emitted_payloads: list[tuple[str, dict[str, Any]]] = [(all_path, all_manifest)]
     for wave_name in sorted(wave_entries.keys()):
         payload = {
             "defaults": defaults,
@@ -281,10 +371,30 @@ def main() -> int:
         wave_path = os.path.join(args.output_dir, wave_file)
         _write_json(wave_path, payload)
         emitted_paths.append(wave_path)
+        emitted_payloads.append((wave_path, payload))
+
+    ready_paths: list[str] = []
+    skipped_total = 0
+    if args.make_ready:
+        repo_root = Path(args.repo_root).resolve()
+        for manifest_path_str, payload in emitted_payloads:
+            ready_path, report_path, skipped_count = _emit_ready_manifest(
+                Path(manifest_path_str),
+                payload,
+                repo_root,
+            )
+            ready_paths.append(str(ready_path))
+            ready_paths.append(str(report_path))
+            skipped_total += skipped_count
 
     print("Generated manifest files:")
     for path in emitted_paths:
         print(f"  - {path}")
+    if ready_paths:
+        print("Generated ready manifests/reports:")
+        for path in ready_paths:
+            print(f"  - {path}")
+        print(f"Skipped invalid/missing entries in ready outputs: {skipped_total}")
     print(f"Total entries: {len(all_entries)}")
     print(f"Skipped missing source_path/file: {skipped_missing_file}")
 

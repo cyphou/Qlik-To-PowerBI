@@ -1,0 +1,33 @@
+{
+  "defaults": {},
+  "profiles": {
+    "fast": {
+      "mode": "import",
+      "bridge_tables": "none",
+      "output_format": "pbip"
+    },
+    "strict": {
+      "mode": "import",
+      "bridge_tables": "auto",
+      "output_format": "pbip"
+    },
+    "regulated": {
+      "mode": "import",
+      "bridge_tables": "auto",
+      "output_format": "pbip",
+      "culture": "en-US"
+    }
+  },
+  "entries": [
+    {
+      "file": "examples/qlik/test_samples/cloud_format/Demo App - Qlik Cloud Reporting.qvf",
+      "profile": "fast",
+      "output_dir": "artifacts/powerbi_projects/migrated\\Default-Workspace"
+    },
+    {
+      "file": "output/test_results/test_files/sample_sales.qvf",
+      "profile": "fast",
+      "output_dir": "artifacts/powerbi_projects/migrated\\Sales-Workspace"
+    }
+  ]
+}
