@@ -102,6 +102,9 @@ python migrate.py --web-ui --web-port 8501
 
 # ⚡ Parallel batch migration
 python migrate.py "MonApp.qvf" --batch exports/ --workers 4
+
+# 📦 Profile-based multi-app manifest migration
+python migrate.py --migration-manifest examples/migration_manifest.example.json
 ```
 
 ---

@@ -41,7 +41,12 @@ Usage::
 
 import json
 import logging
+import os
+import random
+import socket
 import ssl
+import string
+import time
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -85,8 +90,24 @@ class QlikServerClient:
         # Detect platform
         self._is_cloud = 'qlikcloud.com' in server.lower() or api_key or jwt_token
 
+        # QSEoW QRS API mandates a 16-char Xrfkey (CSRF token) in both the
+        # query string and the X-Qlik-Xrfkey header on every request.
+        self._xrfkey = ''.join(
+            random.choices(string.ascii_letters + string.digits, k=16)
+        )
+
         # Build SSL context
-        self._ssl_context = self._build_ssl_context()
+        self._ssl_context_error = None
+        try:
+            self._ssl_context = self._build_ssl_context()
+        except (ssl.SSLError, OSError) as exc:
+            # Keep the client constructible so test_connection() can return
+            # a structured diagnostic instead of failing in __init__.
+            self._ssl_context_error = str(exc)
+            self._ssl_context = ssl.create_default_context()
+            if not self.verify_ssl:
+                self._ssl_context.check_hostname = False
+                self._ssl_context.verify_mode = ssl.CERT_NONE
 
     def _build_ssl_context(self):
         """Build SSL context for HTTPS connections."""
@@ -124,6 +145,21 @@ class QlikServerClient:
 
         return headers
 
+    def _apply_qrs_xrfkey(self, path, headers):
+        """Append the mandatory Xrfkey to QSEoW QRS requests.
+
+        The QRS API rejects any request that lacks a matching 16-char
+        ``xrfkey`` query parameter and ``X-Qlik-Xrfkey`` header (HTTP 400).
+        Cloud (``/api/v1``) endpoints do not use it.
+        """
+        if self._is_cloud or not path.startswith('/qrs'):
+            return path, headers
+        sep = '&' if '?' in path else '?'
+        path = f'{path}{sep}xrfkey={self._xrfkey}'
+        headers = dict(headers)
+        headers['X-Qlik-Xrfkey'] = self._xrfkey
+        return path, headers
+
     def _request(self, method, path, data=None):
         """Make an HTTP request to the Qlik API.
 
@@ -138,8 +174,17 @@ class QlikServerClient:
         Raises:
             QlikApiError: On HTTP error responses.
         """
-        url = f'{self.server}{path}'
+        if self._ssl_context_error:
+            raise QlikApiError(
+                0,
+                method,
+                path,
+                f'Invalid TLS/certificate configuration: {self._ssl_context_error}',
+            )
+
         headers = self._build_headers()
+        path, headers = self._apply_qrs_xrfkey(path, headers)
+        url = f'{self.server}{path}'
 
         body = json.dumps(data).encode('utf-8') if data else None
 
@@ -154,11 +199,207 @@ class QlikServerClient:
                 return {}
         except urllib.error.HTTPError as e:
             error_body = e.read().decode('utf-8', errors='replace') if e.fp else ''
-            logger.error("Qlik API error %d: %s %s — %s", e.code, method, path, error_body)
+            log_body = error_body if len(error_body) <= 500 else error_body[:500] + '…'
+            logger.error("Qlik API error %d: %s %s — %s", e.code, method, path, log_body)
             raise QlikApiError(e.code, method, path, error_body) from e
         except urllib.error.URLError as e:
             logger.error("Qlik API connection error: %s — %s", path, e.reason)
             raise QlikApiError(0, method, path, str(e.reason)) from e
+
+    # ── Connection / TLS / Certificate Diagnostics ────────────────
+
+    def test_connection(self):
+        """Run non-destructive connection, TLS, certificate and auth checks.
+
+        Never raises — every problem is captured as a structured check so the
+        caller can render a full diagnostic report. Performs, in order:
+
+        1. URL/scheme validation (HTTPS expected).
+        2. Client certificate / key / root-CA file validation (QSEoW).
+        3. TCP reachability to host:port.
+        4. TLS handshake — trusted (respecting ``verify_ssl``) plus an
+           unverified read of the presented server certificate to report the
+           subject, issuer and expiry regardless of trust.
+        5. Authentication — a lightweight authenticated endpoint
+           (``/api/v1/users/me`` for Cloud, ``/qrs/about`` for QSEoW).
+
+        Returns:
+            dict: ``{'ok', 'server', 'platform', 'auth_method', 'checks': [...]}``
+            where each check is ``{'name', 'status': pass|warn|fail, 'message'}``.
+        """
+        checks = []
+
+        def add(name, status, message):
+            checks.append({'name': name, 'status': status, 'message': message})
+
+        parts = urllib.parse.urlsplit(self.server)
+        host = parts.hostname or ''
+        port = parts.port or (443 if parts.scheme == 'https' else 80)
+        platform = 'cloud' if self._is_cloud else 'qseow'
+        auth_method = (
+            'api_key' if self.api_key else
+            'jwt' if self.jwt_token else
+            'certificate' if self.cert_path else
+            'none'
+        )
+
+        # 1. Scheme
+        if parts.scheme == 'https':
+            add('url', 'pass', f'HTTPS endpoint {host}:{port}')
+        elif parts.scheme == 'http':
+            add('url', 'warn', 'Endpoint uses plain HTTP — traffic is not encrypted')
+        else:
+            add('url', 'fail', f'Invalid/unsupported URL: {self.server!r}')
+            return {'ok': False, 'server': self.server, 'platform': platform,
+                    'auth_method': auth_method, 'checks': checks}
+
+        # 2. Client certificate material (QSEoW certificate auth)
+        if self.cert_path or self.key_path:
+            if self.cert_path and not os.path.isfile(self.cert_path):
+                add('client_cert', 'fail', f'Certificate file not found: {self.cert_path}')
+            elif self.cert_path and not self.key_path:
+                add('client_cert', 'fail',
+                    'Client certificate provided without a private key (key_path)')
+            else:
+                try:
+                    probe = ssl.create_default_context()
+                    probe.load_cert_chain(self.cert_path, self.key_path)
+                    add('client_cert', 'pass',
+                        f'Client certificate + key loaded ({os.path.basename(self.cert_path)})')
+                except (ssl.SSLError, OSError) as exc:
+                    add('client_cert', 'fail', f'Failed to load client cert/key: {exc}')
+        if self.root_cert_path:
+            if not os.path.isfile(self.root_cert_path):
+                add('root_ca', 'fail', f'Root CA file not found: {self.root_cert_path}')
+            else:
+                try:
+                    probe = ssl.create_default_context()
+                    probe.load_verify_locations(self.root_cert_path)
+                    add('root_ca', 'pass', f'Root CA loaded ({os.path.basename(self.root_cert_path)})')
+                except (ssl.SSLError, OSError) as exc:
+                    add('root_ca', 'fail', f'Failed to load root CA: {exc}')
+
+        # 3. TCP reachability
+        try:
+            with socket.create_connection((host, port), timeout=self.timeout):
+                add('tcp', 'pass', f'TCP connection to {host}:{port} succeeded')
+        except OSError as exc:
+            add('tcp', 'fail', f'Cannot reach {host}:{port} — {exc}')
+            return {'ok': False, 'server': self.server, 'platform': platform,
+                    'auth_method': auth_method, 'checks': checks}
+
+        # 4. TLS handshake + certificate inspection (HTTPS only)
+        if parts.scheme == 'https':
+            # 4a. Trusted handshake using the configured context.
+            try:
+                with socket.create_connection((host, port), timeout=self.timeout) as sock:
+                    with self._ssl_context.wrap_socket(sock, server_hostname=host) as ss:
+                        proto = ss.version()
+                if not self.verify_ssl:
+                    add('tls', 'warn',
+                        f'TLS {proto} handshake OK but certificate verification is DISABLED')
+                else:
+                    add('tls', 'pass', f'TLS {proto} handshake succeeded (certificate trusted)')
+            except ssl.SSLCertVerificationError as exc:
+                add('tls', 'fail', f'Certificate verification failed: {exc.verify_message or exc}')
+            except (ssl.SSLError, OSError) as exc:
+                add('tls', 'fail', f'TLS handshake failed: {exc}')
+
+            # 4b. Read the presented certificate (unverified) for reporting.
+            cert = self._read_peer_certificate(host, port)
+            if cert:
+                self._append_cert_checks(cert, host, add)
+            else:
+                add('certificate', 'warn', 'Could not read server certificate details')
+
+        # 5. Authenticated endpoint
+        endpoint = '/api/v1/users/me' if self._is_cloud else '/qrs/about'
+        try:
+            self._request('GET', endpoint)
+            add('auth', 'pass', f'Authenticated request to {endpoint} succeeded ({auth_method})')
+        except QlikApiError as exc:
+            if exc.status_code in (401, 403):
+                add('auth', 'fail', f'Authentication rejected (HTTP {exc.status_code}) using {auth_method}')
+            elif exc.status_code == 0:
+                add('auth', 'fail', f'Connection error during auth probe: {exc.message}')
+            else:
+                add('auth', 'warn',
+                    f'Auth probe returned HTTP {exc.status_code}; endpoint may differ on this server')
+
+        ok = all(c['status'] != 'fail' for c in checks)
+        return {'ok': ok, 'server': self.server, 'platform': platform,
+                'auth_method': auth_method, 'checks': checks}
+
+    def _read_peer_certificate(self, host, port):
+        """Read the server certificate via an unverified TLS connection.
+
+        Returns the parsed certificate dict (subject/issuer/notAfter/SAN) or
+        ``None`` on failure. Uses an unverified context so expiry and issuer
+        can be reported even when the chain is untrusted.
+        """
+        try:
+            ctx = ssl._create_unverified_context()
+            with socket.create_connection((host, port), timeout=self.timeout) as sock:
+                with ctx.wrap_socket(sock, server_hostname=host) as ss:
+                    der = ss.getpeercert(binary_form=True)
+            if not der:
+                return None
+            pem = ssl.DER_cert_to_PEM_cert(der)
+            tmp = None
+            try:
+                import tempfile
+                with tempfile.NamedTemporaryFile(
+                        'w', suffix='.pem', delete=False, encoding='utf-8') as fh:
+                    fh.write(pem)
+                    tmp = fh.name
+                # Private but stable CPython helper that parses a PEM file.
+                return ssl._ssl._test_decode_cert(tmp)
+            finally:
+                if tmp and os.path.isfile(tmp):
+                    os.unlink(tmp)
+        except Exception as exc:  # noqa: BLE001 - diagnostics must not raise
+            logger.debug("Peer certificate read failed: %s", exc)
+            return None
+
+    @staticmethod
+    def _append_cert_checks(cert, host, add):
+        """Add subject/issuer/expiry/SAN checks from a parsed certificate."""
+        def _rdn(field):
+            for rdn in cert.get(field, ()):  # tuple of tuples of (k, v)
+                for k, v in rdn:
+                    if k in ('commonName', 'organizationName'):
+                        return v
+            return '?'
+
+        subject_cn = _rdn('subject')
+        issuer_cn = _rdn('issuer')
+        add('cert_subject', 'pass', f'Subject: {subject_cn} | Issuer: {issuer_cn}')
+
+        not_after = cert.get('notAfter')
+        if not_after:
+            try:
+                expiry = ssl.cert_time_to_seconds(not_after)
+                days = int((expiry - time.time()) / 86400)
+                if days < 0:
+                    add('cert_expiry', 'fail', f'Certificate EXPIRED {-days} day(s) ago ({not_after})')
+                elif days <= 30:
+                    add('cert_expiry', 'warn', f'Certificate expires in {days} day(s) ({not_after})')
+                else:
+                    add('cert_expiry', 'pass', f'Certificate valid for {days} more day(s) ({not_after})')
+            except (ValueError, OverflowError):
+                add('cert_expiry', 'warn', f'Could not parse notAfter: {not_after}')
+
+        # Hostname / SAN coverage (ssl.match_hostname was removed in 3.12)
+        sans = [v for typ, v in cert.get('subjectAltName', ()) if typ == 'DNS']
+        if sans:
+            covered = any(
+                host == s or (s.startswith('*.') and host.endswith(s[1:]))
+                for s in sans
+            )
+            status = 'pass' if covered else 'warn'
+            add('cert_hostname', status,
+                f'SAN DNS: {", ".join(sans[:5])}'
+                + ('' if covered else f' (does not cover {host})'))
 
     # ── App Operations ────────────────────────────────────────────
 

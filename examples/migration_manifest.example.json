@@ -1,0 +1,37 @@
+{
+  "defaults": {
+    "output_dir": "artifacts/powerbi_projects/migrated",
+    "skip_extraction": false,
+    "mode": "import",
+    "output_format": "pbip",
+    "bridge_tables": "none"
+  },
+  "profiles": {
+    "strict": {
+      "culture": "fr-FR",
+      "bridge_tables": "auto",
+      "paginated": true
+    },
+    "fast": {
+      "skip_extraction": true,
+      "bridge_tables": "none"
+    }
+  },
+  "entries": [
+    {
+      "file": "examples/qlik/sample_sales_from_qvf.qvf",
+      "profile": "strict",
+      "transform_files": [
+        "examples/plugins/custom_visual_mapper.py"
+      ],
+      "config_files": [
+        "config.example.json"
+      ]
+    },
+    {
+      "file": "examples/qlik/qlik_sales_discovery_demo.json",
+      "profile": "fast",
+      "culture": "en-US"
+    }
+  ]
+}

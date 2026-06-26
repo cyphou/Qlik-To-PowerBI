@@ -437,6 +437,22 @@ class TestPowerQueryFileGeneration(unittest.TestCase):
             content = f.read()
         self.assertTrue(content.endswith('\n'))
 
+    def test_mirrors_pq_to_project_power_query_folder(self):
+        project_root = os.path.join(self.tmpdir, 'MyProject')
+        semantic_model_dir = os.path.join(project_root, 'Test.SemanticModel')
+        definition_dir = os.path.join(semantic_model_dir, 'definition')
+        os.makedirs(definition_dir, exist_ok=True)
+
+        tables = [{
+            'name': 'Sales',
+            'partitions': [{'source': {'type': 'm', 'expression': 'let Source = 1 in Source'}}]
+        }]
+
+        self.write_pq(definition_dir, tables, output_dir=semantic_model_dir)
+
+        mirrored = os.path.join(project_root, 'power_query', 'Sales.pq')
+        self.assertTrue(os.path.isfile(mirrored))
+
 
 # ═══════════════════════════════════════════════════════════════════
 # Geo Passthrough Tests

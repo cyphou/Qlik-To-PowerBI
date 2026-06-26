@@ -185,6 +185,10 @@ class TestCLIParsing:
         rc, stdout, stderr = self._run_cli("--help")
         assert "--batch-config" in stdout
 
+    def test_migration_manifest_flag_accepted(self):
+        rc, stdout, stderr = self._run_cli("--help")
+        assert "--migration-manifest" in stdout
+
     def test_dry_run_flag_accepted(self):
         rc, stdout, stderr = self._run_cli("--help")
         assert "--dry-run" in stdout
@@ -336,6 +340,81 @@ class TestBatchMigration:
         )
         result = _run_batch_config(args)
         assert result == ExitCode.GENERAL_ERROR
+
+    def test_manifest_invalid_json(self, tmp_dir):
+        """Migration manifest with invalid JSON should error."""
+        p = tmp_dir / "bad_manifest.json"
+        p.write_text("not json", encoding="utf-8")
+        from migrate import _run_migration_manifest
+        import argparse
+        args = argparse.Namespace(
+            migration_manifest=str(p),
+            skip_extraction=False,
+            output_dir=None,
+            calendar_start=None,
+            calendar_end=None,
+            culture=None,
+            paginated=False,
+            mode='import',
+            output_format='pbip',
+            bridge_tables='none',
+            sample_data=None,
+        )
+        result = _run_migration_manifest(args)
+        assert result == ExitCode.GENERAL_ERROR
+
+    def test_manifest_with_profile_runs(self, tmp_dir):
+        """Manifest profiles/defaults/entry overrides should run without error."""
+        qvf = tmp_dir / "sales.qvf"
+        qvf.write_bytes(b"PK\x03\x04fake_qvf_content")
+
+        cfg = tmp_dir / "rules.json"
+        cfg.write_text('{"strict": true}', encoding='utf-8')
+        tr = tmp_dir / "steps.m"
+        tr.write_text("let Source = 1 in Source\n", encoding='utf-8')
+
+        manifest = tmp_dir / "manifest.json"
+        manifest.write_text(json.dumps({
+            "defaults": {
+                "output_dir": str(tmp_dir / "out"),
+                "skip_extraction": False,
+            },
+            "profiles": {
+                "strict": {
+                    "culture": "fr-FR",
+                    "bridge_tables": "auto",
+                }
+            },
+            "entries": [{
+                "file": "sales.qvf",
+                "profile": "strict",
+                "config_files": ["rules.json"],
+                "transform_files": ["steps.m"],
+            }]
+        }), encoding="utf-8")
+
+        from migrate import _run_migration_manifest
+        import argparse
+        args = argparse.Namespace(
+            migration_manifest=str(manifest),
+            skip_extraction=False,
+            output_dir=None,
+            calendar_start=None,
+            calendar_end=None,
+            culture=None,
+            paginated=False,
+            mode='import',
+            output_format='pbip',
+            bridge_tables='none',
+            sample_data=None,
+        )
+
+        with patch('migrate.run_extraction', return_value=True), \
+             patch('migrate.run_generation', return_value=True), \
+             patch('migrate.run_migration_report', return_value={'fidelity_score': 99}):
+            result = _run_migration_manifest(args)
+
+        assert result == ExitCode.SUCCESS
 
 
 # ── DAX optimizer default / opt-out tests ────────────────────────────

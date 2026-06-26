@@ -23,10 +23,13 @@ import os
 import sys
 import glob
 import json
+import csv
+import base64
 import logging
 import argparse
 import time
 import shutil
+import re
 import concurrent.futures
 from datetime import datetime
 from enum import IntEnum
@@ -477,6 +480,267 @@ def _load_json(filepath):
     return []
 
 
+def _find_project_dir(report_name, output_dir=None):
+    """Resolve generated project directory path for a migrated report."""
+    base_dir = output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+    return os.path.join(base_dir, report_name)
+
+
+def _find_semantic_model_definition_dir(project_dir):
+    """Find ``<project>.SemanticModel/definition`` in a generated project."""
+    if not os.path.isdir(project_dir):
+        return None
+    for child in os.listdir(project_dir):
+        if child.endswith('.SemanticModel'):
+            candidate = os.path.join(project_dir, child, 'definition')
+            if os.path.isdir(candidate):
+                return candidate
+    return None
+
+
+def _scan_image_values(node, json_path='$'):
+    """Recursively scan a JSON-like object for image references.
+
+    Returns tuples: (path, value, kind) where kind is one of:
+    - ``data_uri`` for ``data:image/...;base64,...``
+    - ``url`` for http(s) image URLs
+    - ``path`` for likely image file paths
+    """
+    results = []
+    image_exts = ('.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp', '.ico')
+
+    if isinstance(node, dict):
+        for key, value in node.items():
+            child_path = f"{json_path}.{key}"
+            results.extend(_scan_image_values(value, child_path))
+    elif isinstance(node, list):
+        for i, value in enumerate(node):
+            child_path = f"{json_path}[{i}]"
+            results.extend(_scan_image_values(value, child_path))
+    elif isinstance(node, str):
+        raw = node.strip()
+        low = raw.lower()
+        if low.startswith('data:image/') and ';base64,' in low:
+            results.append((json_path, raw, 'data_uri'))
+        elif low.startswith('http://') or low.startswith('https://'):
+            if any(ext in low.split('?')[0] for ext in image_exts):
+                results.append((json_path, raw, 'url'))
+        elif any(ext in low for ext in image_exts):
+            results.append((json_path, raw, 'path'))
+
+    return results
+
+
+def _decode_data_uri_image(data_uri, target_dir, index):
+    """Decode a ``data:image`` URI into a file in ``target_dir``.
+
+    Returns relative filename on success, or empty string on failure.
+    """
+    try:
+        header, b64_data = data_uri.split(',', 1)
+        m = re.match(r'data:image/([a-zA-Z0-9.+-]+);base64', header, flags=re.IGNORECASE)
+        ext = (m.group(1).lower() if m else 'bin').replace('jpeg', 'jpg')
+        filename = f'embedded_{index:03d}.{ext}'
+        out_path = os.path.join(target_dir, filename)
+        with open(out_path, 'wb') as f:
+            f.write(base64.b64decode(b64_data))
+        return filename
+    except Exception:
+        return ''
+
+
+def export_embedded_images(report_name, output_dir=None):
+    """Export image references to ``images/embedded_images.csv``.
+
+    Also decodes base64 embedded images into ``images/embedded/``.
+    """
+    project_dir = _find_project_dir(report_name, output_dir)
+    if not os.path.isdir(project_dir):
+        return None
+
+    qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+    sources = {
+        'visualizations': _load_json(os.path.join(qlik_dir, 'visualizations.json')),
+        'sheets': _load_json(os.path.join(qlik_dir, 'sheets.json')),
+        'app_metadata': _load_json(os.path.join(qlik_dir, 'app_metadata.json')),
+    }
+
+    images_dir = os.path.join(project_dir, 'images')
+    embedded_dir = os.path.join(images_dir, 'embedded')
+    os.makedirs(embedded_dir, exist_ok=True)
+
+    rows = []
+    data_uri_counter = 0
+    for source_name, payload in sources.items():
+        for path, value, kind in _scan_image_values(payload):
+            extracted_file = ''
+            if kind == 'data_uri':
+                data_uri_counter += 1
+                extracted_file = _decode_data_uri_image(value, embedded_dir, data_uri_counter)
+            rows.append({
+                'source': source_name,
+                'json_path': path,
+                'kind': kind,
+                'reference': value,
+                'extracted_file': extracted_file,
+            })
+
+    csv_path = os.path.join(images_dir, 'embedded_images.csv')
+    with open(csv_path, 'w', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=['source', 'json_path', 'kind', 'reference', 'extracted_file'],
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+    return {
+        'csv_path': csv_path,
+        'images_dir': embedded_dir,
+        'row_count': len(rows),
+        'decoded_images': data_uri_counter,
+    }
+
+
+def _parse_roles_tmdl(roles_tmdl_path):
+    """Parse ``roles.tmdl`` into normalized row dictionaries."""
+    if not os.path.isfile(roles_tmdl_path):
+        return []
+
+    rows = []
+    current_role = ''
+    current_perm = 'read'
+    current_table = ''
+
+    def _unquote(name):
+        name = name.strip()
+        if name.startswith("'") and name.endswith("'"):
+            return name[1:-1]
+        return name
+
+    with open(roles_tmdl_path, 'r', encoding='utf-8') as f:
+        for raw_line in f:
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line.startswith('role '):
+                current_role = _unquote(line[5:])
+                current_perm = 'read'
+                current_table = ''
+            elif line.startswith('modelPermission:'):
+                current_perm = line.split(':', 1)[1].strip()
+            elif line.startswith('tablePermission '):
+                current_table = _unquote(line[len('tablePermission '):])
+                rows.append({
+                    'source': 'powerbi',
+                    'role_name': current_role,
+                    'model_permission': current_perm,
+                    'table': current_table,
+                    'filter_expression': '',
+                    'omit_fields': '',
+                    'reduce_values': '',
+                    'security_type': 'rls_table_permission',
+                })
+            elif line.startswith('filterExpression =') and rows:
+                rows[-1]['filter_expression'] = line.split('=', 1)[1].strip()
+
+    return rows
+
+
+def export_security_csv(report_name, output_dir=None):
+    """Export Qlik Section Access + generated Power BI RLS metadata to CSV."""
+    project_dir = _find_project_dir(report_name, output_dir)
+    if not os.path.isdir(project_dir):
+        return None
+
+    qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
+    security_rows = []
+
+    try:
+        from qlik_export.format_adapter import adapt_qlik_for_generation
+        from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+
+        extracted = ExtractionOrchestrator.load_intermediate_json(qlik_dir)
+        adapted = adapt_qlik_for_generation(extracted)
+        for uf in adapted.get('user_filters', []) or []:
+            security_rows.append({
+                'source': 'qlik',
+                'role_name': uf.get('name', ''),
+                'model_permission': uf.get('modelPermission', ''),
+                'table': ';'.join(uf.get('tables', []) or []),
+                'filter_expression': uf.get('filter_expression', ''),
+                'omit_fields': ';'.join(uf.get('omit_fields', []) or []),
+                'reduce_values': ';'.join(uf.get('reduce_values', []) or []),
+                'security_type': uf.get('type', 'user_filter'),
+            })
+    except Exception:
+        pass
+
+    def_dir = _find_semantic_model_definition_dir(project_dir)
+    if def_dir:
+        roles_tmdl = os.path.join(def_dir, 'roles.tmdl')
+        security_rows.extend(_parse_roles_tmdl(roles_tmdl))
+
+    security_dir = os.path.join(project_dir, 'security')
+    os.makedirs(security_dir, exist_ok=True)
+    csv_path = os.path.join(security_dir, 'security_extract.csv')
+
+    with open(csv_path, 'w', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                'source', 'role_name', 'model_permission', 'table',
+                'filter_expression', 'omit_fields', 'reduce_values', 'security_type',
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(security_rows)
+
+    return {
+        'csv_path': csv_path,
+        'row_count': len(security_rows),
+    }
+
+
+def export_power_query_folder(report_name, output_dir=None):
+    """Create a dedicated folder with all Power Query artifacts.
+
+    Consolidates M queries in ``<project>/power_query/`` by copying generated
+    ``definition/expressions/*.pq`` files and the semantic model
+    ``definition/expressions.tmdl`` parameter file.
+    """
+    project_dir = _find_project_dir(report_name, output_dir)
+    if not os.path.isdir(project_dir):
+        return None
+
+    def_dir = _find_semantic_model_definition_dir(project_dir)
+    if not def_dir:
+        return None
+
+    pq_dir = os.path.join(project_dir, 'power_query')
+    os.makedirs(pq_dir, exist_ok=True)
+
+    copied = 0
+    expr_src = os.path.join(def_dir, 'expressions')
+    if os.path.isdir(expr_src):
+        for name in os.listdir(expr_src):
+            if not name.lower().endswith('.pq'):
+                continue
+            src = os.path.join(expr_src, name)
+            dst = os.path.join(pq_dir, name)
+            shutil.copy2(src, dst)
+            copied += 1
+
+    expr_tmdl_src = os.path.join(def_dir, 'expressions.tmdl')
+    if os.path.isfile(expr_tmdl_src):
+        shutil.copy2(expr_tmdl_src, os.path.join(pq_dir, 'expressions.tmdl'))
+
+    return {
+        'folder': pq_dir,
+        'query_files': copied,
+    }
+
+
 def _build_calc_map_from_tmdl(report_name, output_dir=None):
     """Scan generated TMDL table files to build a calculation→DAX map.
 
@@ -879,6 +1143,221 @@ def _run_batch_config(args):
     return ExitCode.SUCCESS if failed == 0 else ExitCode.BATCH_PARTIAL_FAIL
 
 
+def _merge_entry_dicts(base, extra):
+    """Return a shallow merged dict where ``extra`` overrides ``base``."""
+    out = dict(base or {})
+    out.update(extra or {})
+    return out
+
+
+def _copy_manifest_artifacts(entry, project_dir, base_dir):
+    """Copy transform/config artifacts declared in a manifest entry.
+
+    Supported keys on each entry:
+    - ``transform_files``: list of files copied to ``<project>/transforms/``
+    - ``config_files``: list of files copied to ``<project>/config/``
+
+    Returns:
+        dict: counts and copied paths for reporting.
+    """
+    copied = {
+        'transform_files': 0,
+        'config_files': 0,
+        'copied_paths': [],
+    }
+
+    def _copy_list(key, subdir):
+        files = entry.get(key, [])
+        if not isinstance(files, list):
+            return
+        dest_dir = os.path.join(project_dir, subdir)
+        os.makedirs(dest_dir, exist_ok=True)
+        for p in files:
+            src = p if os.path.isabs(p) else os.path.join(base_dir, p)
+            if not os.path.isfile(src):
+                logger.warning("Manifest %s not found: %s", key, src)
+                continue
+            dst = os.path.join(dest_dir, os.path.basename(src))
+            shutil.copy2(src, dst)
+            copied[key] += 1
+            copied['copied_paths'].append(dst)
+
+    _copy_list('transform_files', 'transforms')
+    _copy_list('config_files', 'config')
+    return copied
+
+
+def _run_migration_manifest(args):
+    """Run migrations using a profile-based manifest JSON file.
+
+    Manifest schema:
+    {
+      "defaults": { ... per-entry options ... },
+      "profiles": {
+        "strict": { ... options ... },
+        "fast":   { ... options ... }
+      },
+      "entries": [
+        {
+          "file": "apps/sales.qvf",
+          "profile": "strict",
+          "culture": "fr-FR",
+          "transform_files": ["transforms/sales_steps.m"],
+          "config_files": ["configs/sales_rules.json"]
+        }
+      ]
+    }
+    """
+    manifest_path = args.migration_manifest
+    try:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
+            manifest = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Error: Cannot load migration manifest: {exc}")
+        return ExitCode.GENERAL_ERROR
+
+    if not isinstance(manifest, dict):
+        print("Error: migration manifest must be a JSON object")
+        return ExitCode.GENERAL_ERROR
+
+    defaults = manifest.get('defaults', {})
+    profiles = manifest.get('profiles', {})
+    entries = manifest.get('entries', manifest.get('apps', []))
+
+    if not isinstance(entries, list):
+        print("Error: migration manifest entries/apps must be a JSON array")
+        return ExitCode.GENERAL_ERROR
+    if not isinstance(defaults, dict) or not isinstance(profiles, dict):
+        print("Error: manifest defaults/profiles must be JSON objects")
+        return ExitCode.GENERAL_ERROR
+
+    manifest_dir = os.path.dirname(os.path.abspath(manifest_path))
+
+    print_header("QLIK TO POWER BI MANIFEST MIGRATION")
+    print(f"  Manifest:     {manifest_path}")
+    print(f"  Entries:      {len(entries)}")
+    print(f"  Profiles:     {len(profiles)}")
+    print()
+
+    global _stats
+    batch_start = datetime.now()
+    results = {}
+
+    for i, raw_entry in enumerate(entries, 1):
+        if not isinstance(raw_entry, dict):
+            print(f"  [{i}/{len(entries)}] SKIP — entry is not an object")
+            continue
+
+        profile_name = raw_entry.get('profile')
+        profile_cfg = profiles.get(profile_name, {}) if profile_name else {}
+        if profile_name and not isinstance(profile_cfg, dict):
+            print(f"  [{i}/{len(entries)}] SKIP — invalid profile '{profile_name}'")
+            continue
+
+        entry = _merge_entry_dicts(defaults, profile_cfg)
+        entry = _merge_entry_dicts(entry, raw_entry)
+
+        raw_file = entry.get('file', '')
+        if not raw_file:
+            print(f"  [{i}/{len(entries)}] SKIP — missing 'file' key")
+            continue
+
+        qlik_file = raw_file if os.path.isabs(raw_file) else os.path.join(manifest_dir, raw_file)
+        if not os.path.isfile(qlik_file):
+            print(f"  [{i}/{len(entries)}] SKIP — file not found: {raw_file}")
+            results[raw_file] = {'success': False, 'error': 'file_not_found'}
+            continue
+
+        resolved_file, resolution_msg, unresolved_qvw = _resolve_qvw_input(qlik_file)
+        if resolution_msg:
+            print(f"  [{i}/{len(entries)}] {resolution_msg}")
+        if unresolved_qvw:
+            results[raw_file] = {'success': False, 'error': 'qvw_requires_conversion'}
+            continue
+        qlik_file = resolved_file
+
+        basename = os.path.splitext(os.path.basename(qlik_file))[0]
+        print(f"\n{'=' * 80}")
+        print(f"  [{i}/{len(entries)}] Migrating: {basename}")
+        if profile_name:
+            print(f"  Profile: {profile_name}")
+        print(f"{'=' * 80}")
+
+        _stats = MigrationStats()
+
+        skip = entry.get('skip_extraction', args.skip_extraction)
+        out_dir = entry.get('output_dir', args.output_dir)
+        cal_start = entry.get('calendar_start', args.calendar_start)
+        cal_end = entry.get('calendar_end', args.calendar_end)
+        culture = entry.get('culture', args.culture)
+        paginated = entry.get('paginated', getattr(args, 'paginated', False))
+        model_mode = entry.get('mode', getattr(args, 'mode', 'import'))
+        output_format = entry.get('output_format', getattr(args, 'output_format', 'pbip'))
+        bridge_tables = entry.get('bridge_tables', getattr(args, 'bridge_tables', 'none'))
+        sample_data = entry.get('sample_data', getattr(args, 'sample_data', None))
+
+        file_results = {}
+
+        if not skip:
+            file_results['extraction'] = run_extraction(qlik_file)
+            if not file_results['extraction']:
+                results[basename] = {'success': False, 'error': 'extraction'}
+                continue
+        else:
+            file_results['extraction'] = True
+
+        file_results['generation'] = run_generation(
+            report_name=basename,
+            output_dir=out_dir,
+            calendar_start=cal_start,
+            calendar_end=cal_end,
+            culture=culture,
+            model_mode=model_mode,
+            output_format=output_format,
+            paginated=paginated,
+            sample_data=sample_data,
+            bridge_tables=bridge_tables,
+        )
+
+        report_summary = None
+        copied_artifacts = None
+        if file_results.get('generation'):
+            report_summary = run_migration_report(report_name=basename, output_dir=out_dir)
+
+            project_base = out_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(project_base, basename)
+            copied_artifacts = _copy_manifest_artifacts(entry, project_dir, manifest_dir)
+
+        all_ok = all(v for v in file_results.values() if v is not None)
+        results[basename] = {
+            'success': all_ok,
+            'stats': _stats.to_dict(),
+            'fidelity': report_summary.get('fidelity_score') if report_summary else None,
+            'profile': profile_name,
+            'artifact_pack': copied_artifacts,
+        }
+
+    batch_duration = datetime.now() - batch_start
+    succeeded = sum(1 for r in results.values() if r.get('success'))
+    failed = len(results) - succeeded
+
+    print_header("MANIFEST MIGRATION SUMMARY")
+    print(f"  Total entries: {len(results)}")
+    print(f"  Succeeded:     {succeeded}")
+    print(f"  Failed:        {failed}")
+    print(f"  Duration:      {batch_duration}")
+    print()
+    for name, res in results.items():
+        status = "[OK]" if res.get('success') else "[FAIL]"
+        fid = res.get('fidelity')
+        profile = res.get('profile')
+        profile_str = f" profile={profile}" if profile else ""
+        fid_str = f"  (fidelity: {fid}%)" if fid is not None else ""
+        print(f"  {status} {name}{profile_str}{fid_str}")
+
+    return ExitCode.SUCCESS if failed == 0 else ExitCode.BATCH_PARTIAL_FAIL
+
+
 # ── Main entry point ────────────────────────────────────────────────
 
 def main():
@@ -1032,6 +1511,23 @@ def main():
             'Path to a JSON batch configuration file. '
             'Example: [{"file": "sales.qvf", "culture": "fr-FR"}]'
         )
+    )
+
+    parser.add_argument(
+        '--migration-manifest',
+        metavar='FILE',
+        default=None,
+        help=(
+            'Path to a profile-based manifest JSON for multi-app migration. '
+            'Supports defaults, profiles, entries/apps, plus transform_files/config_files per entry.'
+        )
+    )
+
+    parser.add_argument(
+        '--profile',
+        metavar='NAME',
+        default=None,
+        help='Optional profile name override for single-file migration (for external orchestrators)'
     )
 
     parser.add_argument(
@@ -1454,6 +1950,60 @@ def main():
     )
 
     parser.add_argument(
+        '--server-key',
+        metavar='PATH',
+        help='Client private key path (QSEoW certificate authentication)'
+    )
+
+    parser.add_argument(
+        '--server-root-cert',
+        metavar='PATH',
+        help='Root CA certificate path to trust (QSEoW self-signed servers)'
+    )
+
+    parser.add_argument(
+        '--server-jwt',
+        metavar='TOKEN',
+        help='JWT bearer token for Qlik Cloud authentication'
+    )
+
+    parser.add_argument(
+        '--server-user-directory',
+        metavar='DIR',
+        default='INTERNAL',
+        help='Qlik user directory for QSEoW (default: INTERNAL)'
+    )
+
+    parser.add_argument(
+        '--server-user-id',
+        metavar='ID',
+        default='sa_api',
+        help='Qlik user ID for QSEoW (default: sa_api)'
+    )
+
+    parser.add_argument(
+        '--server-no-verify',
+        action='store_true',
+        default=False,
+        help='Disable TLS certificate verification (insecure; lab/self-signed only)'
+    )
+
+    parser.add_argument(
+        '--server-timeout',
+        type=int,
+        metavar='SECONDS',
+        default=30,
+        help='Qlik server request timeout in seconds (default: 30)'
+    )
+
+    parser.add_argument(
+        '--server-test',
+        action='store_true',
+        default=False,
+        help='Run connection/TLS/certificate/auth diagnostics against --server-url and exit'
+    )
+
+    parser.add_argument(
         '--server-app-id',
         metavar='APP_ID',
         help='Qlik app ID to extract from server (required with --server-url)'
@@ -1661,6 +2211,10 @@ def main():
     # ── Batch-config migration mode ───────────────────────────
     if args.batch_config:
         return _run_batch_config(args)
+
+    # ── Manifest migration mode ───────────────────────────────
+    if getattr(args, 'migration_manifest', None):
+        return _run_migration_manifest(args)
 
     # ── Web UI mode ───────────────────────────────────────────
     if getattr(args, 'web_ui', False):
@@ -1947,16 +2501,51 @@ def main():
         try:
             from qlik_export.qlik_server_client import QlikServerClient
 
-            print_header("QLIK SERVER EXTRACTION")
             server_url = args.server_url
             api_key = getattr(args, 'server_api_key', None)
             cert_path = getattr(args, 'server_cert', None)
+            key_path = getattr(args, 'server_key', None)
+            root_cert_path = getattr(args, 'server_root_cert', None)
+            jwt_token = getattr(args, 'server_jwt', None)
             app_id = getattr(args, 'server_app_id', None)
 
+            client = QlikServerClient(
+                server_url,
+                api_key=api_key,
+                cert_path=cert_path,
+                key_path=key_path,
+                root_cert_path=root_cert_path,
+                jwt_token=jwt_token,
+                user_directory=getattr(args, 'server_user_directory', 'INTERNAL'),
+                user_id=getattr(args, 'server_user_id', 'sa_api'),
+                verify_ssl=not getattr(args, 'server_no_verify', False),
+                timeout=getattr(args, 'server_timeout', 30),
+            )
+
+            # ── Connection / TLS / certificate diagnostics ──────
+            if getattr(args, 'server_test', False):
+                print_header("QLIK SERVER CONNECTION TEST")
+                diag = client.test_connection()
+                print(f"  Server:       {diag['server']}")
+                print(f"  Platform:     {diag['platform'].upper()}")
+                print(f"  Auth method:  {diag['auth_method']}")
+                print()
+                glyph = {'pass': '\u2713', 'warn': '\u26a0', 'fail': '\u2717'}
+                for c in diag['checks']:
+                    print(f"  {glyph.get(c['status'], '?')} [{c['status'].upper():4}] "
+                          f"{c['name']}: {c['message']}")
+                if json_mode:
+                    print(json.dumps(diag, indent=2, ensure_ascii=False))
+                if diag['ok']:
+                    print("\n\u2713 Connection test passed")
+                    return ExitCode.SUCCESS
+                print("\n\u2717 Connection test failed")
+                return ExitCode.EXTRACTION_FAILED
+
+            print_header("QLIK SERVER EXTRACTION")
             if not app_id:
                 parser.error('--server-app-id is required with --server-url')
 
-            client = QlikServerClient(server_url, api_key=api_key, cert_path=cert_path)
             print(f"  Server:  {server_url}")
             print(f"  App ID:  {app_id}")
 
@@ -2259,6 +2848,35 @@ def main():
         # Plugin hook: post_generation
         if results.get('generation'):
             plugin_manager.call_hook('post_generation', project_dir=_stats.pbip_path)
+
+    # ── Security / images / Power Query exports ─────────────
+    if results.get('generation') and not args.dry_run:
+        try:
+            sec_info = export_security_csv(source_basename, args.output_dir)
+            if sec_info and not json_mode:
+                print(f"  ✓ Security CSV: {sec_info['csv_path']} ({sec_info['row_count']} rows)")
+        except Exception as exc:
+            logger.debug("Security CSV export skipped: %s", exc)
+
+        try:
+            img_info = export_embedded_images(source_basename, args.output_dir)
+            if img_info and not json_mode:
+                print(
+                    f"  ✓ Embedded images: {img_info['csv_path']} "
+                    f"({img_info['row_count']} refs, {img_info['decoded_images']} decoded)"
+                )
+        except Exception as exc:
+            logger.debug("Embedded images export skipped: %s", exc)
+
+        try:
+            pq_info = export_power_query_folder(source_basename, args.output_dir)
+            if pq_info and not json_mode:
+                print(
+                    f"  ✓ Power Query folder: {pq_info['folder']} "
+                    f"({pq_info['query_files']} .pq files)"
+                )
+        except Exception as exc:
+            logger.debug("Power Query folder export skipped: %s", exc)
 
     # ── Lineage map generation ────────────────────────────────
     if results.get('generation') and not args.dry_run:
