@@ -279,3 +279,6 @@ Operations KPIs:
 - [Migration Guide](../guides/MIGRATION_GUIDE.md)
 - [Roadmap Status 2026-06-24](ROADMAP_STATUS_2026-06-24.md)
 - [Parity Index 2026-06-24](INDEX_2026-06-24.md)
+- [Qlik App Portfolio CSV Template](../templates/QLIK_APP_PORTFOLIO_TEMPLATE.csv)
+- [Qlik App Portfolio JSON Template](../templates/qlik_app_portfolio.template.json)
+- [Wave Execution Plan Template](../templates/WAVE_EXECUTION_PLAN_TEMPLATE.md)

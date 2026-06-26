@@ -1,0 +1,4 @@
+app_id,app_name,source_path,business_owner,criticality,data_volume_tier,complexity_tier,set_analysis_depth,inter_record_functions,custom_extensions,section_access_complexity,target_workspace,target_wave,profile,planned_start,planned_end,status,fidelity_target,notes
+APP-001,Sales Executive,qlik_apps/sales_executive.qvf,alice@company.com,high,M,B,medium,true,false,medium,Sales-Workspace,Wave-0,strict,2026-07-01,2026-07-03,planned,95,High business priority
+APP-002,Finance Ops,qlik_apps/finance_ops.qvf,bob@company.com,high,L,C,high,true,true,high,Finance-Workspace,Wave-1,regulated,2026-07-04,2026-07-10,planned,93,Requires extended validation
+APP-003,HR Snapshot,qlik_apps/hr_snapshot.qvf,carol@company.com,medium,S,A,low,false,false,low,HR-Workspace,Wave-0,fast,2026-07-01,2026-07-02,planned,90,Good pilot candidate

@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "created_at": "2026-06-26",
+    "description": "Qlik app portfolio tracker for wave-based migration orchestration"
+  },
+  "defaults": {
+    "fidelity_target": 92,
+    "status": "planned",
+    "target_wave": "Wave-0",
+    "profile": "strict"
+  },
+  "apps": [
+    {
+      "app_id": "APP-001",
+      "app_name": "Sales Executive",
+      "source_path": "qlik_apps/sales_executive.qvf",
+      "business_owner": "alice@company.com",
+      "criticality": "high",
+      "data_volume_tier": "M",
+      "complexity_tier": "B",
+      "complexity_signals": {
+        "set_analysis_depth": "medium",
+        "inter_record_functions": true,
+        "custom_extensions": false,
+        "section_access_complexity": "medium"
+      },
+      "target_workspace": "Sales-Workspace",
+      "target_wave": "Wave-0",
+      "profile": "strict",
+      "planned_start": "2026-07-01",
+      "planned_end": "2026-07-03",
+      "status": "planned",
+      "fidelity_target": 95,
+      "quality_gates": {
+        "extract_integrity": true,
+        "schema_validate": true,
+        "cross_validate": true,
+        "security_review": true,
+        "owner_signoff": false
+      },
+      "notes": "High business priority"
+    }
+  ]
+}
