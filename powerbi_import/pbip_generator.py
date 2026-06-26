@@ -232,7 +232,11 @@ class PowerBIProjectGenerator:
                 culture=getattr(self, '_culture', None),
                 model_mode=getattr(self, '_model_mode', 'import'),
             )
-            
+
+            # Capture measure renames (measure/column collision fix) so the
+            # report generator can update stale visual bindings.
+            self._measure_renames = stats.get('measure_renames', {}) or {}
+
             print(f"  \u2713 TMDL model created with:")
             print(f"    - {stats['tables']} tables")
             print(f"    - {stats['columns']} columns")
@@ -1378,11 +1382,32 @@ class PowerBIProjectGenerator:
                 query_state["Category"] = self._make_projection(dim_fields[0])
             if mea_fields:
                 query_state["Size"] = self._make_projection(mea_fields[0])
-        elif visual_type in ('tableEx', 'table', 'matrix'):
+        elif visual_type in ('tableEx', 'table'):
             all_fields = dim_fields + mea_fields
             if all_fields:
                 query_state["Values"] = {
                     "projections": [self._make_projection_entry(f) for f in all_fields]
+                }
+        elif visual_type in ('pivotTable', 'matrix'):
+            # Power BI's matrix visual (visualType "pivotTable") uses the
+            # Rows / Columns / Values data roles. Emitting Category/Y here
+            # leaves every well empty and PBI rejects the visual with
+            # DataViewMappingError_ConditionRangeTooSmall ("too few columns
+            # in the Values bucket"). First dim → Rows, second dim → Columns,
+            # measures → Values.
+            if dim_fields:
+                query_state["Rows"] = self._make_projection(dim_fields[0])
+            if len(dim_fields) >= 2:
+                query_state["Columns"] = self._make_projection(dim_fields[1])
+            if mea_fields:
+                query_state["Values"] = {
+                    "projections": [self._make_projection_entry(m) for m in mea_fields[:6]]
+                }
+            elif len(dim_fields) >= 2:
+                # No measures: keep Rows as the grouping and place the
+                # remaining dimensions in Values so the matrix still renders.
+                query_state["Values"] = {
+                    "projections": [self._make_projection_entry(d) for d in dim_fields[1:]]
                 }
         elif visual_type == 'scatterChart':
             # Scatter chart: dims → Category (Details), measures → X/Y (aggregated)
@@ -1483,6 +1508,11 @@ class PowerBIProjectGenerator:
         )
 
         if is_bim_measure:
+            # A measure may have been renamed to avoid a measure/column name
+            # collision (e.g. Profit -> Total Profit). Bind to the new name.
+            renames = getattr(self, '_measure_renames', None)
+            if renames and prop in renames:
+                prop = renames[prop]
             field_ref = {
                 "Measure": {
                     "Expression": {"SourceRef": {"Entity": entity}},
@@ -1532,6 +1562,11 @@ class PowerBIProjectGenerator:
         is_bim_measure = hasattr(self, '_bim_measure_names') and (
             clean_name in self._bim_measure_names or prop in self._bim_measure_names
         )
+        if is_bim_measure:
+            # Honor measure/column collision renames (e.g. Profit -> Total Profit).
+            renames = getattr(self, '_measure_renames', None)
+            if renames and prop in renames:
+                prop = renames[prop]
         field_type = "Measure" if is_bim_measure else "Column"
         
         return {

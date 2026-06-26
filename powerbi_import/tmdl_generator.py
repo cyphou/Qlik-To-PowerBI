@@ -440,6 +440,7 @@ def generate_tmdl(datasources, report_name, extra_objects, output_dir,
         'hierarchies': sum(len(t.get('hierarchies', [])) for t in tables),
         'roles': len(model.get('model', {}).get('roles', [])),
         'relationship_report': model.get('_relationship_report', {}),
+        'measure_renames': model.get('_measure_renames', {}),
     }
     return stats
 
@@ -951,6 +952,10 @@ def _resolve_measure_column_collisions(model):
             all_measures_ci.discard(mname.lower())
             all_measures_ci.add(new_name.lower())
             m["name"] = new_name
+
+    # Expose the rename map so the report generator can update visual
+    # bindings that still reference the original (pre-rename) measure names.
+    model['_measure_renames'] = dict(rename_map)
 
     if not rename_map:
         return 0

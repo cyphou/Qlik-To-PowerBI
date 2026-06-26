@@ -92,6 +92,73 @@ class TestVisualLimitRemoval(unittest.TestCase):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+class TestVisualQueryRoles(unittest.TestCase):
+    """Role assignment in _build_visual_query for matrix and renamed measures."""
+
+    def _gen(self):
+        from powerbi_import.pbip_generator import PowerBIProjectGenerator
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        gen = PowerBIProjectGenerator(output_dir=tmp)
+        # Minimal field-map state so measures classify correctly.
+        gen._field_map = {
+            'CustomerName': ('Customers', 'CustomerName'),
+            'Segment': ('Customers', 'Segment'),
+            'Sales': ('Orders', 'Sales'),
+        }
+        gen._measure_names = {'Sales'}
+        gen._bim_measure_names = {'Sales'}
+        gen._main_table = 'Orders'
+        return gen
+
+    def test_pivottable_uses_matrix_roles(self):
+        """pivotTable must use Rows/Columns/Values, never Category/Y.
+
+        Category/Y leaves the matrix wells empty and PBI raises
+        DataViewMappingError_ConditionRangeTooSmall.
+        """
+        gen = self._gen()
+        ws = {
+            'chart_type': 'pivotTable',
+            'fields': [
+                {'name': 'CustomerName', 'role': 'dimension'},
+                {'name': 'Segment', 'role': 'dimension'},
+                {'name': 'Sales', 'role': 'measure'},
+            ],
+        }
+        qs = gen._build_visual_query(ws)['queryState']
+        self.assertIn('Rows', qs)
+        self.assertIn('Columns', qs)
+        self.assertIn('Values', qs)
+        self.assertNotIn('Category', qs)
+        self.assertNotIn('Y', qs)
+
+    def test_pivottable_single_dim_single_measure(self):
+        """One dim + one measure → Rows + Values (no empty wells)."""
+        gen = self._gen()
+        ws = {
+            'chart_type': 'pivotTable',
+            'fields': [
+                {'name': 'CustomerName', 'role': 'dimension'},
+                {'name': 'Sales', 'role': 'measure'},
+            ],
+        }
+        qs = gen._build_visual_query(ws)['queryState']
+        self.assertIn('Rows', qs)
+        self.assertIn('Values', qs)
+        self.assertNotIn('Category', qs)
+
+    def test_renamed_measure_binding_in_projection(self):
+        """A measure renamed by the collision fix binds to the new name."""
+        gen = self._gen()
+        gen._measure_renames = {'Sales': 'Total Sales'}
+        entry = gen._make_projection_entry({'name': 'Sales', 'role': 'measure'})
+        field = entry['field']
+        self.assertIn('Measure', field)
+        self.assertEqual(field['Measure']['Property'], 'Total Sales')
+        self.assertEqual(entry['queryRef'], 'Orders.Total Sales')
+
+
 # ════════════════════════════════════════════════════════════════════
 #  Load Script Converter Wiring Tests
 # ════════════════════════════════════════════════════════════════════
