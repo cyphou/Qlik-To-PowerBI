@@ -878,6 +878,12 @@ def _build_semantic_model(datasources, report_name="Report", extra_objects=None,
                 unique_measures.append(measure)
         table["measures"] = unique_measures
 
+    # Phase 11c: Resolve measure/column name collisions
+    # Power BI forbids a measure and a column sharing a name in the model.
+    n_renamed = _resolve_measure_column_collisions(model)
+    if n_renamed:
+        print(f"  ✓ Renamed {n_renamed} measure(s) to avoid column-name collisions")
+
     # Phase 12: Auto-generate perspectives from table list
     all_table_names = [t.get('name', '') for t in model["model"]["tables"]]
     model["model"]["perspectives"] = [{
@@ -886,6 +892,84 @@ def _build_semantic_model(datasources, report_name="Report", extra_objects=None,
     }]
 
     return model
+
+
+def _resolve_measure_column_collisions(model):
+    """Rename measures that collide with a column name anywhere in the model.
+
+    Power BI forbids a measure and a column sharing the same name. When a
+    master measure (e.g. ``Sales = SUM('Orders'[Sales])``) duplicates a
+    physical column name, the project fails to load with
+    "The '<name>' measure cannot be created because a column with the same
+    name already exists." This pass renames the offending measure and rewrites
+    every unqualified ``[OldName]`` reference across all measure expressions.
+
+    Returns:
+        int: number of measures renamed.
+    """
+    tables = model.get("model", {}).get("tables", [])
+
+    # Column names across the whole model (case-insensitive — Power BI is
+    # case-insensitive for identifier collisions).
+    all_columns_ci = set()
+    for t in tables:
+        for c in t.get("columns", []):
+            cn = c.get("name", "")
+            if cn:
+                all_columns_ci.add(cn.lower())
+
+    # Measure names across the whole model (case-insensitive).
+    all_measures_ci = set()
+    for t in tables:
+        for m in t.get("measures", []):
+            mn = m.get("name", "")
+            if mn:
+                all_measures_ci.add(mn.lower())
+
+    rename_map = {}  # old_name -> new_name
+    for t in tables:
+        for m in t.get("measures", []):
+            mname = m.get("name", "")
+            if not mname or mname.lower() not in all_columns_ci:
+                continue
+            # Pick a non-colliding alternative name.
+            new_name = None
+            for cand in (f"Total {mname}", f"{mname} Measure",
+                         f"{mname} Value", f"{mname} (Measure)"):
+                if (cand.lower() not in all_columns_ci
+                        and cand.lower() not in all_measures_ci):
+                    new_name = cand
+                    break
+            if new_name is None:
+                new_name = f"{mname} Measure"
+                i = 2
+                while (new_name.lower() in all_columns_ci
+                       or new_name.lower() in all_measures_ci):
+                    new_name = f"{mname} Measure {i}"
+                    i += 1
+            rename_map[mname] = new_name
+            all_measures_ci.discard(mname.lower())
+            all_measures_ci.add(new_name.lower())
+            m["name"] = new_name
+
+    if not rename_map:
+        return 0
+
+    # Rewrite unqualified [OldName] measure references in all measure
+    # expressions. Qualified column refs like 'Orders'[Sales] are preceded by
+    # a quote and therefore excluded by the negative lookbehind.
+    def _rewrite(expr):
+        for old, new in rename_map.items():
+            pattern = r"(?<![\w'])\[" + re.escape(old) + r"\]"
+            expr = re.sub(pattern, f"[{new}]", expr)
+        return expr
+
+    for t in tables:
+        for m in t.get("measures", []):
+            if m.get("expression"):
+                m["expression"] = _rewrite(m["expression"])
+
+    return len(rename_map)
 
 
 def _build_m_transform_steps(columns, col_metadata_map):

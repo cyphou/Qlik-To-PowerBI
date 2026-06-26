@@ -22,6 +22,7 @@ from powerbi_import.tmdl_generator import (
     _validate_bridge_tables,
     _optimize_cross_filter_direction,
     _validate_relationships,
+    _resolve_measure_column_collisions,
 )
 
 
@@ -49,6 +50,71 @@ def _simple_ds():
             {"name": "TotalSales", "formula": "SUM('Orders'[Amount])", "table": "Orders"},
         ],
     }]
+
+
+def test_resolve_measure_column_collision_renames_and_rewrites():
+    """A measure that shares a column name is renamed and references rewritten."""
+    model = {
+        "model": {
+            "tables": [
+                {
+                    "name": "Orders",
+                    "columns": [
+                        {"name": "Sales"},
+                        {"name": "Profit"},
+                    ],
+                    "measures": [
+                        {"name": "Sales", "expression": "SUM('Orders'[Sales])"},
+                        {"name": "Margin",
+                         "expression": "SUM('Orders'[Profit]) / SUM('Orders'[Sales])"},
+                    ],
+                },
+                {
+                    "name": "Calendar",
+                    "columns": [{"name": "Date"}],
+                    "measures": [
+                        {"name": "YTD",
+                         "expression": "TOTALYTD([Sales], 'Calendar'[Date])"},
+                    ],
+                },
+            ]
+        }
+    }
+    n = _resolve_measure_column_collisions(model)
+    assert n == 1
+    orders = model["model"]["tables"][0]
+    cal = model["model"]["tables"][1]
+    # Measure renamed away from the column name.
+    meas_names = [m["name"] for m in orders["measures"]]
+    assert "Sales" not in meas_names
+    assert "Total Sales" in meas_names
+    # Qualified column reference left untouched.
+    margin = next(m for m in orders["measures"] if m["name"] == "Margin")
+    assert "'Orders'[Sales]" in margin["expression"]
+    # Unqualified measure reference rewritten.
+    ytd = cal["measures"][0]
+    assert "[Total Sales]" in ytd["expression"]
+    assert "[Sales]" not in ytd["expression"].replace("[Total Sales]", "")
+
+
+def test_resolve_measure_column_collision_noop_when_no_clash():
+    """No rename when measure names do not collide with columns."""
+    model = {
+        "model": {
+            "tables": [
+                {
+                    "name": "Orders",
+                    "columns": [{"name": "Sales"}],
+                    "measures": [
+                        {"name": "Total Sales",
+                         "expression": "SUM('Orders'[Sales])"},
+                    ],
+                }
+            ]
+        }
+    }
+    assert _resolve_measure_column_collisions(model) == 0
+    assert model["model"]["tables"][0]["measures"][0]["name"] == "Total Sales"
 
 
 def _multi_ds():
