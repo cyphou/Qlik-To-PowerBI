@@ -24,6 +24,62 @@ Out of scope:
 
 ---
 
+## Qlik Apps Portfolio Strategy
+
+This roadmap treats Qlik apps as first-class migration units with explicit
+inventory, prioritization, and wave controls.
+
+### App inventory model
+
+Track each Qlik app with:
+- app id / source file
+- business owner
+- criticality (low/medium/high)
+- data volume tier (S/M/L)
+- complexity indicators:
+  - set analysis depth
+  - inter-record/table calc usage
+  - custom visuals/extensions
+  - section access complexity
+- target workspace and deployment wave
+
+### App tiering (execution class)
+
+- Tier A (simple): standard visuals, limited calc complexity
+- Tier B (moderate): multiple sheets, moderate DAX conversion complexity
+- Tier C (complex): dense set analysis, advanced security, or extension-heavy
+
+### Wave planning for Qlik apps
+
+1. Wave 0 (pilot): 3–5 apps across A/B/C tiers
+2. Wave 1: high-value Tier A + stable Tier B apps
+3. Wave 2: remaining Tier B apps with governance hardening
+4. Wave 3: Tier C apps with expanded validation and manual review buffers
+
+### Per-app acceptance gates
+
+Each app must pass:
+- extraction integrity checks
+- model generation and validation checks
+- RLS/security extraction review
+- visual coverage sanity checks
+- fidelity threshold and owner sign-off
+
+### Recommended app-level commands
+
+```bash
+# App diagnostics (server/TLS/auth)
+python migrate.py --server-url https://qlik.example.com --server-test
+
+# Single app migration with strict quality gates
+python migrate.py <app.qvf> --qa --cross-validate --schema-validate --preceptor-review --self-heal-v3
+
+# Multi-app wave run through manifest
+python migrate.py --migration-manifest examples/migration_manifest.example.json
+```
+
+---
+
 ## Target Workspace Operating Model
 
 ### Workspace layout
