@@ -203,6 +203,117 @@ def run_server_assessment(
     return result
 
 
+# File-name substrings that indicate generated/intermediate JSON, not app exports
+_NON_APP_JSON_MARKERS = (
+    'migration_report', 'portfolio_assessment', 'assessment_',
+    'lineage_map', 'migration_metadata', 'batch_report', 'merge_assessment',
+    'diagramlayout', 'definition', 'version', 'page', 'visual', 'report.json',
+    'pages.json', 'bookmarks', 'config.example',
+)
+
+
+def _discover_app_exports(directory: str) -> List[str]:
+    """Find Qlik app exports (*.json / *.qvf) in a directory (one level deep).
+
+    Skips generated/intermediate JSON files so a folder that also contains
+    migration output is still assessable.
+    """
+    import glob
+
+    candidates: List[str] = []
+    for pattern in ('*.json', '*.qvf'):
+        candidates.extend(glob.glob(os.path.join(directory, pattern)))
+        candidates.extend(glob.glob(os.path.join(directory, '*', pattern)))
+
+    app_files: List[str] = []
+    for path in sorted(set(candidates)):
+        base = os.path.basename(path).lower()
+        if path.lower().endswith('.json') and any(
+            marker in base for marker in _NON_APP_JSON_MARKERS
+        ):
+            continue
+        app_files.append(path)
+    return app_files
+
+
+def assess_portfolio(
+    directory: str,
+    output_dir: Optional[str] = None,
+) -> dict:
+    """Run a portfolio-level assessment over a folder of Qlik app exports.
+
+    Discovers every ``*.json`` / ``*.qvf`` app export in ``directory`` (and one
+    sub-level), extracts and adapts each, runs :func:`run_server_assessment`,
+    and — when ``output_dir`` is given — writes an executive HTML report.
+
+    Args:
+        directory: Folder containing Qlik app exports.
+        output_dir: Optional folder to write ``portfolio_assessment.html``.
+
+    Returns:
+        ``ServerAssessment.to_dict()`` augmented with short CLI aliases
+        (``green``/``yellow``/``red``/``readiness_pct``) and, when generated,
+        an ``html_report`` path plus the list of ``apps`` / ``skipped`` files.
+    """
+    if not os.path.isdir(directory):
+        raise ValueError(f"Not a directory: {directory}")
+
+    try:
+        from qlik_export.extraction_orchestrator import ExtractionOrchestrator
+        from qlik_export.format_adapter import adapt_qlik_for_generation
+    except ImportError:  # pragma: no cover - script execution context
+        from extraction_orchestrator import ExtractionOrchestrator  # type: ignore
+        from format_adapter import adapt_qlik_for_generation  # type: ignore
+
+    app_files = _discover_app_exports(directory)
+    if not app_files:
+        raise ValueError(
+            f"No Qlik app exports (*.json / *.qvf) found in {directory}"
+        )
+
+    # Extraction writes 11 intermediate JSONs; isolate them in qlik_export/.
+    qlik_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'qlik_export')
+
+    all_adapted: List[dict] = []
+    app_names: List[str] = []
+    skipped: List[str] = []
+    for path in app_files:
+        try:
+            orchestrator = ExtractionOrchestrator(output_dir=qlik_dir)
+            extracted = orchestrator.extract(path)
+            adapted = adapt_qlik_for_generation(extracted)
+            all_adapted.append(adapted)
+            app_names.append(os.path.splitext(os.path.basename(path))[0])
+        except Exception as exc:  # noqa: BLE001 - skip unparseable apps
+            logger.warning("Skipping %s: %s", path, exc)
+            skipped.append(path)
+
+    if not all_adapted:
+        raise ValueError("No apps could be extracted for assessment")
+
+    result = run_server_assessment(all_adapted, app_names)
+    data = result.to_dict()
+    # Short aliases consumed by the CLI summary block.
+    data['green'] = result.green_count
+    data['yellow'] = result.yellow_count
+    data['red'] = result.red_count
+    data['readiness_pct'] = result.readiness_pct
+    data['apps'] = app_names
+    if skipped:
+        data['skipped'] = skipped
+
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        html_path = os.path.join(output_dir, 'portfolio_assessment.html')
+        try:
+            generate_server_html_report(result, html_path)
+            data['html_report'] = html_path
+        except Exception as exc:  # noqa: BLE001 - HTML is best-effort
+            logger.warning("Portfolio HTML report generation failed: %s", exc)
+
+    return data
+
+
 def _assess_single_app(wb_name: str, extracted: dict) -> WorkbookReadiness:
     """Run assessment on a single app and produce readiness result."""
     report = run_assessment(extracted)

@@ -1820,19 +1820,25 @@ def main():
             from powerbi_import.server_assessment import assess_portfolio
 
             print_header("PORTFOLIO ASSESSMENT")
-            result = assess_portfolio(args.assess_server)
+            out_dir = args.output_dir or os.path.join('output', 'assessments')
+            result = assess_portfolio(args.assess_server, output_dir=out_dir)
 
             print(f"  Apps analyzed:  {result.get('total_apps', 0)}")
             print(f"  GREEN:          {result.get('green', 0)}")
             print(f"  YELLOW:         {result.get('yellow', 0)}")
             print(f"  RED:            {result.get('red', 0)}")
+            print(f"  Readiness:      {result.get('readiness_pct', 0)}%")
+            print(f"  Est. effort:    {result.get('total_effort_hours', 0)}h")
+            if result.get('skipped'):
+                print(f"  Skipped:        {len(result['skipped'])} file(s)")
 
-            out_dir = args.output_dir or os.path.join('output', 'assessments')
             os.makedirs(out_dir, exist_ok=True)
             report_path = os.path.join(out_dir, 'portfolio_assessment.json')
             with open(report_path, 'w', encoding='utf-8') as f:
                 json.dump(result, f, indent=2, ensure_ascii=False)
             print(f"\n\u2713 Portfolio assessment: {report_path}")
+            if result.get('html_report'):
+                print(f"\u2713 HTML report:          {result['html_report']}")
 
             if json_mode:
                 print(json.dumps(result, indent=2, ensure_ascii=False))
