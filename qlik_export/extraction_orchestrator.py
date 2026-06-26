@@ -252,6 +252,11 @@ class ExtractionOrchestrator:
                     self._data["loadscript"] = {"script": ls}
                 elif isinstance(ls, dict):
                     self._data["loadscript"] = ls
+            # Pull master dimensions/measures from Qlik 'properties' lists
+            # (qDimensionList / qMeasureList) when not already provided as
+            # top-level keys. Without this the visual binding inference has
+            # no catalog to match against and every visual is rendered empty.
+            self._merge_property_master_items(raw)
             # Auto-extract visualizations from sheet cells when not explicitly provided
             if not self._data.get("visualizations"):
                 self._data["visualizations"] = self._extract_visuals_from_sheets(
@@ -381,6 +386,200 @@ class ExtractionOrchestrator:
             result.append(v)
         return result
 
+    # ─────────────────────────────────────────────────────────────
+    # Master-item extraction + visual binding inference
+    # ─────────────────────────────────────────────────────────────
+
+    def _merge_property_master_items(self, raw: Dict) -> None:
+        """Populate dimensions/measures from Qlik ``properties`` lists.
+
+        Qlik Sense exports keep master dimensions and measures under
+        ``properties.qDimensionList.qItems`` and
+        ``properties.qMeasureList.qItems``.  The direct-format branch only
+        copies top-level keys, so these catalogs would otherwise be lost,
+        leaving visuals with nothing to bind to.
+        """
+        props = raw.get("properties", {})
+        if not isinstance(props, dict):
+            return
+
+        if not self._data.get("dimensions"):
+            dim_items = props.get("qDimensionList", {}).get("qItems", [])
+            dims: List[Dict] = []
+            for it in dim_items:
+                q_dim = it.get("qDim", {})
+                field_defs = q_dim.get("qFieldDefs", [])
+                field_labels = q_dim.get("qFieldLabels", [])
+                meta = it.get("qMeta", {})
+                dims.append({
+                    "id": it.get("qInfo", {}).get("qId", ""),
+                    "name": meta.get("title", field_defs[0] if field_defs else ""),
+                    "field": field_defs[0] if field_defs else "",
+                    "label": meta.get("title", field_labels[0] if field_labels else ""),
+                    "description": meta.get("description", ""),
+                    "grouping": q_dim.get("qGrouping", "N"),
+                    "fields": list(field_defs),
+                })
+            if dims:
+                self._data["dimensions"] = dims
+
+        if not self._data.get("measures"):
+            meas_items = props.get("qMeasureList", {}).get("qItems", [])
+            meas: List[Dict] = []
+            for it in meas_items:
+                q_meas = it.get("qMeasure", {})
+                meta = it.get("qMeta", {})
+                title = meta.get("title", "")
+                meas.append({
+                    "id": it.get("qInfo", {}).get("qId", ""),
+                    "name": title,
+                    "expression": q_meas.get("qDef", ""),
+                    "label": title,
+                    "description": meta.get("description", ""),
+                    "formatString": q_meas.get("qNumFormat", {}).get("qFmt", ""),
+                })
+            if meas:
+                self._data["measures"] = meas
+
+    def _build_measure_catalog(self) -> List[Dict]:
+        """Return measures available for binding inference (title + expression)."""
+        catalog: List[Dict] = []
+        seen = set()
+        for src in (self._data.get("measures", []),
+                    self._data.get("master_items", [])):
+            for item in src:
+                if item.get("type") and item.get("type") != "measure":
+                    continue
+                title = item.get("name") or item.get("title") or ""
+                expr = item.get("expression", "")
+                if not title or title.lower() in seen:
+                    continue
+                seen.add(title.lower())
+                catalog.append({"name": title, "expression": expr})
+        return catalog
+
+    def _build_dimension_catalog(self) -> List[Dict]:
+        """Return dimensions available for binding inference (title + field)."""
+        catalog: List[Dict] = []
+        seen = set()
+        for src in (self._data.get("dimensions", []),
+                    self._data.get("master_items", [])):
+            for item in src:
+                if item.get("type") and item.get("type") != "dimension":
+                    continue
+                title = item.get("name") or item.get("title") or ""
+                field = item.get("field") or ""
+                if not field and item.get("fields"):
+                    field = item["fields"][0]
+                if not field:
+                    continue
+                key = (title.lower(), field.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+                catalog.append({"name": title or field, "field": field})
+        return catalog
+
+    @staticmethod
+    def _infer_visual_bindings(title: str, vtype: str,
+                               measure_catalog: List[Dict],
+                               dim_catalog: List[Dict]):
+        """Infer dimension/measure bindings for a visual from its title.
+
+        Heuristics:
+          * Match measure / dimension catalog names that appear in the title.
+          * Honour an explicit ``X by Y`` pattern (Y = dimension).
+          * Apply sensible per-visual-type defaults so every visual is bound
+            to at least one field and renders populated in Power BI.
+        Returns ``(dimensions, measures)`` lists in the cell-binding shape.
+        """
+        title_l = (title or "").lower()
+        vtype_l = (vtype or "").lower()
+
+        # ── Measure matches (longest catalog name first) ──────────
+        matched_measures: List[Dict] = []
+        for m in sorted(measure_catalog, key=lambda x: -len(x["name"])):
+            if m["name"] and m["name"].lower() in title_l:
+                if all(m["name"] != mm["name"] for mm in matched_measures):
+                    matched_measures.append(m)
+
+        # ── Dimension matches, preferring the "... by <dim>" tail ──
+        matched_dims: List[Dict] = []
+        by_tail = ""
+        for sep in (" by ", " per ", " across "):
+            if sep in title_l:
+                by_tail = title_l.split(sep, 1)[1]
+                break
+        ordered_dims = sorted(dim_catalog, key=lambda x: -len(x["name"]))
+        if by_tail:
+            for d in ordered_dims:
+                if d["name"].lower() in by_tail or d["field"].lower() in by_tail:
+                    matched_dims.append(d)
+                    break
+        if not matched_dims:
+            for d in ordered_dims:
+                if d["name"].lower() in title_l or d["field"].lower() in title_l:
+                    matched_dims.append(d)
+                    break
+
+        # ── Per-type role requirements ────────────────────────────
+        value_only = vtype_l in ("kpi", "card", "gauge", "text-image", "textbox")
+        needs_two_measures = vtype_l in ("scatter", "scatterplot") or \
+            any(s in title_l for s in (" vs ", " versus ", " & "))
+        is_table = vtype_l in ("table", "pivot-table", "pivottable", "tableex")
+
+        def _default_measure():
+            return measure_catalog[0] if measure_catalog else None
+
+        def _default_dimension():
+            # Prefer a date dimension for trend/line visuals.
+            if vtype_l in ("linechart", "line", "combo", "area") or "trend" in title_l:
+                for d in dim_catalog:
+                    if "date" in d["field"].lower() or "date" in d["name"].lower():
+                        return d
+            return dim_catalog[0] if dim_catalog else None
+
+        out_measures: List[Dict] = []
+        out_dims: List[Dict] = []
+
+        # Measures
+        chosen_measures = matched_measures[:]
+        if not chosen_measures and _default_measure():
+            chosen_measures = [_default_measure()]
+        if needs_two_measures and len(chosen_measures) < 2:
+            for m in measure_catalog:
+                if all(m["name"] != cm["name"] for cm in chosen_measures):
+                    chosen_measures.append(m)
+                    if len(chosen_measures) >= 2:
+                        break
+        for m in chosen_measures:
+            out_measures.append({
+                "name": m["name"],
+                "label": m["name"],
+                "expression": m.get("expression", ""),
+            })
+
+        # Dimensions (skip for value-only visuals like cards/KPIs)
+        if not value_only:
+            chosen_dims = matched_dims[:]
+            if not chosen_dims and _default_dimension():
+                chosen_dims = [_default_dimension()]
+            if is_table:
+                # Tables benefit from a couple of extra dimensions.
+                for d in dim_catalog:
+                    if len(chosen_dims) >= 3:
+                        break
+                    if all(d["field"] != cd["field"] for cd in chosen_dims):
+                        chosen_dims.append(d)
+            for d in chosen_dims:
+                out_dims.append({
+                    "field": d["field"],
+                    "name": d["field"],
+                    "label": d["name"],
+                })
+
+        return out_dims, out_measures
+
     def _build_sheets(self, qvf: Dict) -> List[Dict]:
         sheets = qvf.get("sheets", [])
         result = []
@@ -405,6 +604,9 @@ class ExtractionOrchestrator:
         of visualization dicts compatible with the downstream pipeline.
         """
         visuals: List[Dict] = []
+        # Build catalogs for binding inference (title → field / expression).
+        measure_catalog = self._build_measure_catalog()
+        dim_catalog = self._build_dimension_catalog()
         for idx, sheet in enumerate(sheets):
             # Resolve sheet id from multiple possible locations
             sheet_id = (
@@ -429,13 +631,25 @@ class ExtractionOrchestrator:
             cells = sheet.get("cells", [])
             for cell_idx, cell in enumerate(cells):
                 vis_id = cell.get("name", cell.get("id", f"{sheet_id}_vis_{cell_idx}"))
+                dimensions = cell.get("dimensions", [])
+                measures = cell.get("measures", [])
+                # Infer field bindings from the visual title when the cell
+                # carries none, so the generated Power BI visual is populated
+                # instead of showing "Select or add data to populate".
+                if not dimensions and not measures:
+                    dimensions, measures = self._infer_visual_bindings(
+                        cell.get("title", ""),
+                        cell.get("type", "unknown"),
+                        measure_catalog,
+                        dim_catalog,
+                    )
                 vis = {
                     "id": vis_id,
                     "type": cell.get("type", "unknown"),
                     "title": cell.get("title", ""),
                     "sheetId": sheet_id,
-                    "dimensions": cell.get("dimensions", []),
-                    "measures": cell.get("measures", []),
+                    "dimensions": dimensions,
+                    "measures": measures,
                     "settings": cell.get("properties", cell.get("settings", {})),
                     "position": cell.get("position", cell.get("bounds", {})),
                 }
