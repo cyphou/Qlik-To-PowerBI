@@ -397,8 +397,11 @@ class TestMultiPageReports:
             report = json.loads(
                 (out / "TestBM.Report" / "definition" / "report.json").read_text("utf-8")
             )
-            assert "bookmarks" in report
-            assert len(report["bookmarks"]) == 2
+            assert "bookmarks" not in report
+            generated = json.loads(
+                (out / "TestBM.Report" / "definition" / "bookmarks.generated.json").read_text("utf-8")
+            )
+            assert len(generated["bookmarks"]) == 2
 
 
 # ==================================================================

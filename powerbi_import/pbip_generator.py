@@ -856,7 +856,12 @@ class PowerBIProjectGenerator:
         all_bookmarks.extend(dz_bookmarks)
 
         if all_bookmarks:
-            report_json["bookmarks"] = all_bookmarks
+            # PBIR report schema 3.1.0 rejects a root-level "bookmarks" property.
+            # Persist generated bookmarks in a sidecar file for migration traceability.
+            _write_json(
+                os.path.join(def_dir, 'bookmarks.generated.json'),
+                {"bookmarks": all_bookmarks}
+            )
         
         _write_json(os.path.join(def_dir, 'report.json'), report_json)
         

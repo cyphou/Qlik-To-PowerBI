@@ -324,7 +324,12 @@ class TestRetailStarSchema:
                 (out / "RetailDashboard.Report" / "definition" / "report.json")
                 .read_text("utf-8")
             )
-            assert len(report["bookmarks"]) == 2
+            assert "bookmarks" not in report
+            generated = json.loads(
+                (out / "RetailDashboard.Report" / "definition" / "bookmarks.generated.json")
+                .read_text("utf-8")
+            )
+            assert len(generated["bookmarks"]) == 2
 
             # Check theme file exists
             theme_dir = (out / "RetailDashboard.Report" / "definition"

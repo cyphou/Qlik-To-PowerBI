@@ -334,11 +334,14 @@ class TestBookmarkWiring:
         report_dir = gen.create_report_structure(str(tmp_path), 'BmTest', co)
         with open(os.path.join(report_dir, 'definition', 'report.json'), encoding='utf-8') as f:
             report = json.load(f)
-        assert 'bookmarks' in report
-        assert len(report['bookmarks']) == 2
-        assert report['bookmarks'][0]['displayName'] == 'January'
+        assert 'bookmarks' not in report
+
+        with open(os.path.join(report_dir, 'definition', 'bookmarks.generated.json'), encoding='utf-8') as f:
+            generated = json.load(f)
+        assert len(generated['bookmarks']) == 2
+        assert generated['bookmarks'][0]['displayName'] == 'January'
         # First bookmark has filter state
-        assert 'filters' in report['bookmarks'][0]['explorationState']
+        assert 'filters' in generated['bookmarks'][0]['explorationState']
 
     def test_no_stories_no_bookmarks(self, tmp_path):
         gen = PowerBIProjectGenerator(str(tmp_path))
@@ -354,6 +357,7 @@ class TestBookmarkWiring:
         with open(os.path.join(report_dir, 'definition', 'report.json'), encoding='utf-8') as f:
             report = json.load(f)
         assert 'bookmarks' not in report
+        assert not os.path.exists(os.path.join(report_dir, 'definition', 'bookmarks.generated.json'))
 
 
 # ═══════════════════════════════════════════════════════════════

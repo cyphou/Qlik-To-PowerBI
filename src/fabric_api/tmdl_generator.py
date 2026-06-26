@@ -517,7 +517,8 @@ class TMDLGenerator:
                 }
                 bm_list.append(bm_entry)
             if bm_list:
-                report_json["bookmarks"] = bm_list
+                # Keep report.json schema-compliant by writing bookmarks to a sidecar.
+                _write_json(def_dir / "bookmarks.generated.json", {"bookmarks": bm_list})
 
         _write_json(def_dir / "report.json", report_json)
 

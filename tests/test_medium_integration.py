@@ -465,8 +465,13 @@ class TestTMDLMultiPageVisuals:
             report = json.loads(
                 (out / "BM.Report" / "definition" / "report.json").read_text("utf-8")
             )
-            assert len(report["bookmarks"]) == 2
-            assert report["bookmarks"][0]["displayName"] == "Default View"
+            assert "bookmarks" not in report
+
+            generated = json.loads(
+                (out / "BM.Report" / "definition" / "bookmarks.generated.json").read_text("utf-8")
+            )
+            assert len(generated["bookmarks"]) == 2
+            assert generated["bookmarks"][0]["displayName"] == "Default View"
 
 
 # ══════════════════════════════════════════════════════════════════
