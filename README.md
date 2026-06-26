@@ -105,6 +105,18 @@ python migrate.py "MonApp.qvf" --batch exports/ --workers 4
 
 # 📦 Profile-based multi-app manifest migration
 python migrate.py --migration-manifest examples/migration_manifest.example.json
+
+# 🔐 Qlik server TLS/auth diagnostics (no migration run)
+python migrate.py --server-url https://qlik.example.com --server-test
+
+# 🌐 Direct server extraction then migration
+python migrate.py --server-url https://qlik.example.com --server-app-id abc123
+
+# 📁 Post-processing artifact exports in generated project
+# (created automatically during migration when available)
+# - security/security_extract.csv
+# - images/embedded_images.csv and images/embedded/*
+# - power_query/*.pq
 ```
 
 ---
@@ -665,6 +677,7 @@ m_query = generate_m_query({
 | | Guide | Description |
 |:--|:---|:---|
 | 📖 | [Quick Start](docs/guides/QUICK_START.md) | Get up and running (English) |
+| 🧰 | [CLI Reference](docs/guides/CLI_REFERENCE.md) | Complete command-line guide (all flags) |
 | 🗺️ | [Migration Guide](docs/guides/MIGRATION_GUIDE.md) | Full migration walkthrough |
 | 🔢 | [175+ DAX Functions](docs/QLIK_TO_DAX_REFERENCE.md) | Complete Qlik→DAX reference |
 | ⚡ | [Power Query M Reference](docs/QLIK_TO_POWERQUERY_REFERENCE.md) | Qlik→M property reference |

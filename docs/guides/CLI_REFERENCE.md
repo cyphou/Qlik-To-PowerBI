@@ -1,0 +1,222 @@
+# CLI Reference
+
+This page documents the current command-line interface of `migrate.py`.
+
+## Quick Usage
+
+```bash
+python migrate.py <qlik_file> [options]
+```
+
+`<qlik_file>` can be:
+- `.qvf`
+- `.json` export
+- `.qvw` (with converted sibling `.json`/`.qvf`)
+
+## High-Value Command Patterns
+
+### Single app migration
+
+```bash
+python migrate.py sales.qvf
+python migrate.py sales.qvf --output-dir artifacts/powerbi_projects/migrated
+python migrate.py sales.qvf --skip-extraction
+```
+
+### Batch migration
+
+```bash
+python migrate.py --batch exports/
+python migrate.py --batch exports/ --workers 4 --resume
+```
+
+### Batch migration from config file
+
+```bash
+python migrate.py --batch-config config/batch.json
+```
+
+### Profile-based manifest migration
+
+```bash
+python migrate.py --migration-manifest examples/migration_manifest.example.json
+```
+
+### Direct extraction from Qlik server/cloud
+
+```bash
+python migrate.py --server-url https://qlik.example.com --server-app-id <app_id>
+python migrate.py --server-url https://tenant.region.qlikcloud.com --server-app-id <app_id> --server-api-key <key>
+```
+
+### Connection and TLS diagnostics (no migration)
+
+```bash
+python migrate.py --server-url https://qlik.example.com --server-test
+```
+
+### Shared semantic model / merge workflows
+
+```bash
+python migrate.py --shared-model app1.qvf app2.qvf --model-name SharedSales
+python migrate.py --merge app1.json app2.json
+python migrate.py --assess-server exports/
+```
+
+### Governance / QA / validation
+
+```bash
+python migrate.py sales.qvf --qa
+python migrate.py sales.qvf --validate --post-check --cross-validate --schema-validate
+python migrate.py sales.qvf --governance --governance-config config/governance.json
+```
+
+### Deployment
+
+```bash
+python migrate.py sales.qvf --deploy <workspace_id> --deploy-refresh
+python migrate.py --shared-model app1.qvf app2.qvf --deploy-bundle <workspace_id> --bundle-refresh
+```
+
+### Reports and packaging
+
+```bash
+python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package --goals --script-lineage
+```
+
+---
+
+## Full Option Index
+
+### Core input/output and execution
+- `--skip-extraction`
+- `--wizard`
+- `--output-dir`
+- `--verbose`, `-v`
+- `--quiet`, `-q`
+- `--log-file`
+- `--batch`
+- `--dry-run`
+- `--calendar-start`
+- `--calendar-end`
+- `--culture`
+- `--assess`
+- `--mode` (`import`, `directquery`, `composite`)
+- `--rollback`
+- `--output-format` (`pbip`, `tmdl`, `pbir`, `fabric`)
+- `--config`
+- `--incremental`
+- `--telemetry`
+- `--paginated`
+- `--batch-config`
+- `--migration-manifest`
+- `--profile`
+- `--validate`
+- `--post-check`
+- `--json`
+- `--plugins`
+
+### Merge, portfolio, and shared model
+- `--merge`
+- `--assess-server`
+- `--shared-model`
+- `--model-name`
+- `--assess-merge`
+- `--force-merge`
+- `--strict-merge`
+- `--merge-preview`
+- `--save-merge-config`
+- `--merge-config`
+- `--global-assess`
+
+### Comparison, quality, and governance
+- `--compare`
+- `--no-compare`
+- `--dashboard`
+- `--optimize-dax`
+- `--no-optimize-dax`
+- `--time-intelligence` (`auto`, `none`)
+- `--qa`
+- `--governance`
+- `--governance-config`
+- `--monitor`
+- `--check-drift`
+- `--sla-config`
+- `--validate-data`
+- `--bridge-tables` (`auto`, `none`)
+- `--preflight`
+- `--force`
+- `--connection-map`
+- `--strict`
+- `--evaluate-policy` (`passthrough`, `blank`, `block`)
+- `--cross-validate`
+- `--schema-validate`
+- `--report-issue`
+
+### Deployment and runtime behavior
+- `--deploy`
+- `--deploy-refresh`
+- `--deploy-bundle`
+- `--bundle-refresh`
+- `--multi-tenant`
+- `--workers`
+- `--parallel`
+- `--resume`
+- `--jsonl-log`
+- `--web-ui`
+- `--web-port`
+- `--endorse` (`promoted`, `certified`)
+- `--manifest`
+- `--languages`
+- `--rolling`
+- `--consolidate`
+- `--skip-conversion`
+- `--sync`
+- `--sample-data`
+
+### LLM-assisted refinement
+- `--llm-refine`
+- `--llm-provider` (`openai`, `anthropic`, `azure`)
+- `--llm-model`
+- `--llm-key`
+- `--llm-endpoint`
+- `--llm-max-calls`
+- `--llm-dry-run`
+
+### Qlik server/cloud extraction and diagnostics
+- `--server-url`
+- `--server-api-key`
+- `--server-cert`
+- `--server-key`
+- `--server-root-cert`
+- `--server-jwt`
+- `--server-user-directory`
+- `--server-user-id`
+- `--server-no-verify`
+- `--server-timeout`
+- `--server-test`
+- `--server-app-id`
+
+### Refresh schedule generation
+- `--refresh-schedule`
+- `--refresh-timezone`
+
+### v12 quality/post-processing options
+- `--preceptor-review`
+- `--self-heal-v3`
+- `--repair-strategies`
+- `--cutover-plan`
+- `--full-lineage`
+- `--pdf-report`
+- `--pptx-report`
+- `--package`
+- `--goals`
+- `--script-lineage`
+
+---
+
+## Notes
+
+- Use `python migrate.py --help` for the live, authoritative help text.
+- `--batch-config` and `--migration-manifest` are mutually exclusive execution paths and are evaluated before standard single-file processing.
+- `--server-test` runs diagnostics and exits without executing migration generation.

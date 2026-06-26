@@ -16,6 +16,7 @@ Complete technical reference for migrating Qlik Sense applications to Power BI u
 8. [Visual Mapping](#visual-mapping)
 9. [Advanced Features](#advanced-features)
 10. [Troubleshooting](#troubleshooting)
+11. [Manifest Orchestration](#manifest-orchestration)
 
 ---
 
@@ -78,6 +79,9 @@ python migrate.py app.qvf --plugins my_plugin.ServerRenamer
 
 ### CLI Options
 
+For the complete and up-to-date list of supported flags, see
+[CLI Reference](CLI_REFERENCE.md).
+
 | Flag | Description |
 |------|-------------|
 | `--output-dir DIR` | Custom output directory |
@@ -86,6 +90,23 @@ python migrate.py app.qvf --plugins my_plugin.ServerRenamer
 | `--plugins MODULE...` | Load plugin modules (space-separated) |
 | `--dry-run` | Show what would be done without executing |
 | `--verbose` | Enable detailed logging |
+| `--batch-config FILE` | Run batch migration from JSON config entries |
+| `--migration-manifest FILE` | Run profile-based multi-app orchestration |
+| `--profile NAME` | Optional profile override (orchestrator use) |
+| `--server-test` | Run Qlik connectivity/TLS/auth diagnostics and exit |
+
+### Qlik Server / Cloud Commands
+
+```bash
+# Connectivity + TLS/certificate/auth diagnostics
+python migrate.py --server-url https://qlik.example.com --server-test
+
+# Extract directly from Qlik server/cloud and continue migration
+python migrate.py --server-url https://qlik.example.com --server-app-id <app_id>
+
+# Qlik Cloud with API key
+python migrate.py --server-url https://tenant.region.qlikcloud.com --server-app-id <app_id> --server-api-key <key>
+```
 
 ---
 
@@ -257,6 +278,60 @@ Qlik `$(=expression)` patterns are expanded with the expression converted to DAX
 ### Model doesn't load in Power BI Desktop
 - Ensure Power BI Desktop is April 2024 or later
 - Open the `.pbip` file (not individual TMDL files)
+
+---
+
+## Manifest Orchestration
+
+Use manifest mode for large migrations where each app can inherit defaults,
+use named profiles, and package per-app config/transform artifacts.
+
+### Run command
+
+```bash
+python migrate.py --migration-manifest examples/migration_manifest.example.json
+```
+
+### Minimal manifest schema
+
+```json
+{
+	"defaults": {
+		"output_dir": "artifacts/powerbi_projects/migrated",
+		"skip_extraction": false,
+		"mode": "import",
+		"output_format": "pbip"
+	},
+	"profiles": {
+		"strict": {
+			"culture": "fr-FR",
+			"bridge_tables": "auto",
+			"paginated": true
+		}
+	},
+	"entries": [
+		{
+			"file": "examples/qlik/sample_sales_from_qvf.qvf",
+			"profile": "strict",
+			"config_files": ["config.example.json"],
+			"transform_files": ["examples/plugins/custom_visual_mapper.py"]
+		}
+	]
+}
+```
+
+### Merge precedence
+
+Settings are applied in this order:
+1. `defaults`
+2. profile selected by entry `profile`
+3. explicit entry-level overrides
+
+### Packaged artifacts in output project
+
+For each entry, migration copies:
+- `config_files` → `<project>/config/`
+- `transform_files` → `<project>/transforms/`
 
 ### Measures show errors
 - Check the DAX syntax in `tables/*.tmdl`
