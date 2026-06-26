@@ -694,6 +694,7 @@ m_query = generate_m_query({
 | 🗂️ | [Qlik App Portfolio Template (CSV)](docs/templates/QLIK_APP_PORTFOLIO_TEMPLATE.csv) | Portfolio tracker for Qlik app wave planning |
 | 🧱 | [Qlik App Portfolio Template (JSON)](docs/templates/qlik_app_portfolio.template.json) | Structured app inventory with quality-gate fields |
 | 🌊 | [Wave Execution Plan Template](docs/templates/WAVE_EXECUTION_PLAN_TEMPLATE.md) | Reusable runbook for migration wave execution |
+| ⚙️ | [Wave Manifest Builder](scripts/build_wave_manifests.py) | Generate `all_apps_manifest.json` + per-wave manifest files |
 | 🛠️ | [Parity Checker Script](tools/analysis/parity_status_check.py) | Automated parity/drift verification |
 | 🤝 | [Tableau Agent/Feature Parity Report](docs/reports/TABLEAU_AGENT_FEATURE_PARITY_2026-06-24.md) | Upstream parity workflow and findings |
 | 🔍 | [Agent Feature Parity Script](tools/analysis/agent_feature_parity_check.py) | Local and optional upstream parity checker |

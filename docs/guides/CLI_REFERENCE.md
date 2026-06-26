@@ -42,6 +42,19 @@ python migrate.py --batch-config config/batch.json
 python migrate.py --migration-manifest examples/migration_manifest.example.json
 ```
 
+### Build wave manifests from portfolio templates
+
+```bash
+# CSV portfolio -> all_apps_manifest.json + wave_*.json
+python scripts/build_wave_manifests.py --input docs/templates/QLIK_APP_PORTFOLIO_TEMPLATE.csv --output-dir artifacts/manifests --include-profiles-template
+
+# JSON portfolio + auto wave split by criticality/complexity
+python scripts/build_wave_manifests.py --input docs/templates/qlik_app_portfolio.template.json --output-dir artifacts/manifests --auto-wave
+
+# Run a generated wave manifest
+python migrate.py --migration-manifest artifacts/manifests/wave_Wave-0_manifest.json
+```
+
 ### Direct extraction from Qlik server/cloud
 
 ```bash
@@ -220,3 +233,4 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 - Use `python migrate.py --help` for the live, authoritative help text.
 - `--batch-config` and `--migration-manifest` are mutually exclusive execution paths and are evaluated before standard single-file processing.
 - `--server-test` runs diagnostics and exits without executing migration generation.
+- `scripts/build_wave_manifests.py` generates manifest files from portfolio templates; it is intended as a pre-step before `--migration-manifest` runs.

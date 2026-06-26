@@ -199,6 +199,13 @@ Definition of done:
 python migrate.py --migration-manifest examples/migration_manifest.example.json
 ```
 
+### Build wave manifests from portfolio inventory
+
+```bash
+python scripts/build_wave_manifests.py --input docs/templates/QLIK_APP_PORTFOLIO_TEMPLATE.csv --output-dir artifacts/manifests --include-profiles-template
+python migrate.py --migration-manifest artifacts/manifests/wave_Wave-0_manifest.json
+```
+
 ### Strict quality gate run
 
 ```bash
