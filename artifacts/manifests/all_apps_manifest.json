@@ -1,0 +1,38 @@
+{
+  "defaults": {},
+  "profiles": {
+    "fast": {
+      "mode": "import",
+      "bridge_tables": "none",
+      "output_format": "pbip"
+    },
+    "strict": {
+      "mode": "import",
+      "bridge_tables": "auto",
+      "output_format": "pbip"
+    },
+    "regulated": {
+      "mode": "import",
+      "bridge_tables": "auto",
+      "output_format": "pbip",
+      "culture": "en-US"
+    }
+  },
+  "entries": [
+    {
+      "file": "qlik_apps/sales_executive.qvf",
+      "profile": "strict",
+      "output_dir": "artifacts/powerbi_projects/migrated\\Sales-Workspace"
+    },
+    {
+      "file": "qlik_apps/hr_snapshot.qvf",
+      "profile": "fast",
+      "output_dir": "artifacts/powerbi_projects/migrated\\HR-Workspace"
+    },
+    {
+      "file": "qlik_apps/finance_ops.qvf",
+      "profile": "regulated",
+      "output_dir": "artifacts/powerbi_projects/migrated\\Finance-Workspace"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+relationship a57f8e5a-9d35-4c25-91c3-df3ddd93346b
+	fromColumn: Orders.CustomerID
+	toColumn: Customers.CustomerID
+	crossFilteringBehavior: oneDirection
+
+relationship 0a3ada54-763d-4279-b3b5-d0e78f1de7dc
+	fromColumn: Orders.ProductID
+	toColumn: Products.ProductID
+	crossFilteringBehavior: oneDirection
+
+relationship 2955497b-50de-4ab6-a3bf-1a3adbee3219
+	fromColumn: Orders.SalesRepID
+	toColumn: SalesReps.SalesRepID
+	crossFilteringBehavior: oneDirection
+
+relationship 831e45de-92dc-4905-8100-df7bebd9f257
+	fromColumn: Targets.Region
+	toColumn: Orders.Region
+	fromCardinality: many
+	toCardinality: many
+	crossFilteringBehavior: bothDirections
+
+relationship 8bf04bca-aa9a-46f1-b1bd-9d002c991f09
+	fromColumn: Orders.OrderDate
+	toColumn: Calendar.Date
+	crossFilteringBehavior: oneDirection
+
+relationship be69bfb6-3572-48c8-9f6c-1026ddf2f8d4
+	fromColumn: SalesReps.HireDate
+	toColumn: Calendar.Date
+	crossFilteringBehavior: oneDirection
+	isActive: false
+

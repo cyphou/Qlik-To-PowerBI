@@ -1,0 +1,76 @@
+{
+  "node_count": 7,
+  "edge_count": 2,
+  "source_tables": [
+    "lib://DataFiles/Products.csv",
+    "lib://DataFiles/Orders.csv"
+  ],
+  "derived_tables": [
+    "Products",
+    "Orders"
+  ],
+  "nodes": [
+    {
+      "name": "DateFormat",
+      "kind": "variable"
+    },
+    {
+      "name": "ThousandSep",
+      "kind": "variable"
+    },
+    {
+      "name": "DecimalSep",
+      "kind": "variable"
+    },
+    {
+      "name": "lib://DataFiles/Orders.csv",
+      "kind": "source"
+    },
+    {
+      "name": "Orders",
+      "kind": "table",
+      "fields": [
+        "OrderID",
+        "OrderDate",
+        "ShipDate",
+        "ShipMode",
+        "CustomerID",
+        "Segment",
+        "Region",
+        "Country",
+        "City",
+        "Sales",
+        "Quantity",
+        "Discount",
+        "Profit"
+      ]
+    },
+    {
+      "name": "lib://DataFiles/Products.csv",
+      "kind": "source"
+    },
+    {
+      "name": "Products",
+      "kind": "table",
+      "fields": [
+        "ProductID",
+        "ProductName",
+        "Category",
+        "SubCategory",
+        "UnitCost"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "lib://DataFiles/Orders.csv",
+      "target": "Orders",
+      "operation": "load"
+    },
+    {
+      "source": "lib://DataFiles/Products.csv",
+      "target": "Products",
+      "operation": "load"
+    }
+  ]
+}

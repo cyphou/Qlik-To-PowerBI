@@ -1,0 +1,58 @@
+table Products
+	lineageTag: 787d70c1-7dd3-4f4a-83ac-b0e46f829bbb
+
+	column ProductID
+		dataType: int64
+		lineageTag: ab566ee4-eae8-43a4-b35a-4ca7c56ad92c
+		summarizeBy: none
+		sourceColumn: ProductID
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProductName
+		dataType: string
+		lineageTag: 36de7f22-bf82-4fd4-8d05-9132d2bd452d
+		summarizeBy: none
+		sourceColumn: ProductName
+
+		annotation SummarizationSetBy = Automatic
+
+	column Category
+		dataType: string
+		lineageTag: 40dd2fee-65d9-403c-9a45-f7d3ae47d50a
+		summarizeBy: none
+		sourceColumn: Category
+
+		annotation SummarizationSetBy = Automatic
+
+	column SubCategory
+		dataType: string
+		lineageTag: 8e9d87bf-0364-44c3-98b3-742b6d6a6177
+		summarizeBy: none
+		sourceColumn: SubCategory
+
+		annotation SummarizationSetBy = Automatic
+
+	column UnitCost
+		dataType: double
+		lineageTag: 690df773-1271-4a8a-a166-421b8c611de0
+		summarizeBy: none
+		sourceColumn: UnitCost
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Products-acb649f3-b545-4009-9d7b-b422358d33ec' = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(DataFolder & "\\Products.csv"),[Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.None]),
+				    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])
+				,
+				    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"ProductID", "ProductName", "Category", "SubCategory", "UnitCost"})
+				,
+				    #"Changed Type" = Table.TransformColumnTypes(SelectedColumns, {{"ProductID", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

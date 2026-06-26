@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-06-26T11:04:44.493602",
+  "source": "Qlik Migration",
+  "report_name": "large_enterprise_sales",
+  "objects_converted": {
+    "worksheets": 23,
+    "dashboards": 5,
+    "datasources": 5,
+    "calculations": 0,
+    "parameters": 5,
+    "filters": 0,
+    "stories": 3,
+    "sets": 0,
+    "groups": 0,
+    "bins": 0,
+    "hierarchies": 0,
+    "user_filters": 0,
+    "actions": 0,
+    "custom_sql": 1
+  },
+  "generated_output": {
+    "pages": 5,
+    "visuals": 23,
+    "theme_applied": false,
+    "theme_detail": {
+      "status": "skipped",
+      "reason": "no dashboard colors detected"
+    }
+  },
+  "tmdl_stats": {
+    "tables": 6,
+    "measures": 5,
+    "columns": 42,
+    "relationships": 3
+  },
+  "visual_type_mappings": {
+    "Total Sales": "kpi",
+    "Total Profit": "kpi",
+    "Order Count": "kpi",
+    "Customers": "kpi",
+    "Sales Trend": "linechart",
+    "Profit by Category": "barchart",
+    "Sales by Region": "map",
+    "Sales by Category": "barchart",
+    "SubCategory Treemap": "treemap",
+    "Product Detail": "table",
+    "Profit Waterfall by Sub-Category": "waterfall",
+    "Discount vs Profit Margin": "scatterplot",
+    "Sales by Segment": "piechart",
+    "Customer Sales vs Profit": "scatterplot",
+    "Customer Pivot": "pivot-table",
+    "Top 10 Customers": "barchart",
+    "Sales Heat Map": "map",
+    "Sales & Profit by Region": "combo",
+    "Top Cities": "barchart",
+    "Avg Days to Ship": "gauge",
+    "Orders by Ship Mode": "piechart",
+    "Return Rate by Category": "combo",
+    "Order Detail": "table"
+  },
+  "approximations": []
+}

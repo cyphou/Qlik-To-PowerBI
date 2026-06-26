@@ -1,14 +1,18 @@
 [
   {
+    "id": "measure-001",
     "name": "Chiffre d'Affaires",
     "expression": "Sum(Amount)",
     "label": "CA Total",
-    "id": "measure-001"
+    "description": "",
+    "formatString": ""
   },
   {
+    "id": "measure-002",
     "name": "Quantité Vendue",
     "expression": "Sum(Quantity)",
     "label": "Qté Totale",
-    "id": "measure-002"
+    "description": "",
+    "formatString": ""
   }
 ]

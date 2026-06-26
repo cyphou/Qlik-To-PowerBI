@@ -1,0 +1,177 @@
+
+[Step 1/2] QLIK OBJECTS EXTRACTION
+--------------------------------------------------------------------------------
+Source file: examples\qlik\test_samples\large\large_enterprise_sales.json
+2026-06-24 14:53:45 [ERROR] qlik_export.qlik_script_converter: Erreur lors de la conversion: LOAD statement mal formé
+
+  App name:       Enterprise Sales Analytics
+  Datasources:    5
+  Dimensions:     0
+  Measures:       0
+  Visualizations: 23
+  Sheets:         5
+  Variables:      5
+  Associations:   4
+  Bookmarks:      3
+  Master Items:   3
+  Load Script:    Yes
+
+✓ Extraction completed in 0.1s — intermediate JSON in C:\GitHub Project\QlikToPowerBI\qlik_export
+
+[Step 2/2] POWER BI PROJECT GENERATION
+--------------------------------------------------------------------------------
+================================================================================
+IMPORT POWER BI
+================================================================================
+
+  Report: large_enterprise_sales
+  Datasources: 5
+  Worksheets: 23
+  Calculations: 0
+
+  Generating Power BI Project (.pbip)...
+
+🔨 Generating Power BI Project: large_enterprise_sales
+  ✓ .pbip file created: C:\GitHub Project\QlikToPowerBI\output\real_qlik_selfheal_runs\large_sample_json\large_enterprise_sales\large_enterprise_sales.pbip
+  ⚠ Dropped relationship: Orders.ProductID → Products.ProductID (fromColumn 'ProductID' not in 'Orders')
+  ⚠ Dropped relationship: Orders.SalesRepID → SalesReps.SalesRepID (fromColumn 'SalesRepID' not in 'Orders')
+  ✓  Orders.CustomerID → Customers.CustomerID: manyToOne (lookup table)
+  ⚠️  Targets.Region ↔ Orders.Region: manyToMany (no unique key detected)
+  ✓  Orders.OrderDate → Calendar.Date: manyToOne (lookup table)
+  ✓  SalesReps.HireDate → Calendar.Date: manyToOne (lookup table)
+  ⚠ 1 manyToMany relationship(s) — consider using --bridge-tables auto
+  ✓ TMDL model created with:
+    - 6 tables
+    - 42 columns
+    - 5 DAX measures
+    - 4 relationships
+    - 1 hierarchies
+    - 1 manyToMany relationship(s)
+  ✓ SemanticModel created: C:\GitHub Project\QlikToPowerBI\output\real_qlik_selfheal_runs\large_sample_json\large_enterprise_sales\large_enterprise_sales.SemanticModel
+  📊 Page 'Executive Summary': 7 visuals created
+  📊 Page 'Product Analysis': 5 visuals created
+  📊 Page 'Customer Analysis': 4 visuals created
+  📊 Page 'Geographic Analysis': 3 visuals created
+  📊 Page 'Operations': 4 visuals created
+  ✓ Report created: C:\GitHub Project\QlikToPowerBI\output\real_qlik_selfheal_runs\large_sample_json\large_enterprise_sales\large_enterprise_sales.Report
+  ✓ Metadata created
+
+✅ Power BI Project generated: C:\GitHub Project\QlikToPowerBI\output\real_qlik_selfheal_runs\large_sample_json\large_enterprise_sales
+   📂 Open in Power BI Desktop: C:\GitHub Project\QlikToPowerBI\output\real_qlik_selfheal_runs\large_sample_json\large_enterprise_sales\large_enterprise_sales.pbip
+  [OK] Power BI Project created: C:\GitHub Project\QlikToPowerBI\output\real_qlik_selfheal_runs\large_sample_json\large_enterprise_sales
+  [OK] Validation passed (38 files, 0 warnings)
+
+================================================================================
+IMPORT COMPLETE
+================================================================================
+
+[OK] Power BI Projects (.pbip) generated automatically
+   Open the .pbip files in Power BI Desktop
+
+
+✓ Power BI project generated in 2.2s (5 pages, 23 visuals)
+  ✓ Comparison report: output\real_qlik_selfheal_runs\large_sample_json\comparison_report.html
+
+[Step 3/3] POST-GENERATION VALIDATION
+--------------------------------------------------------------------------------
+    ✓ Validation passed (38 files checked)
+
+[Step 3/3] POST-MIGRATION CHECK
+--------------------------------------------------------------------------------
+    ✓ standard_validation
+    ✓ file_structure
+    ✓ visual_completeness
+    ✓ visual_model_refs
+    ✓ tmdl_integrity
+    ⚠ Visual "0481aafdf5ea4705926a" (card) on page "ReportSection" has no data bindings
+    ⚠ Visual "1287d46aded444479bca" (card) on page "ReportSection" has no data bindings
+    ⚠ Visual "1bab69c7808640319368" (clusteredBarChart) on page "ReportSection" has no data bindings
+    ⚠ Visual "8269ae77b53743718be2" (lineChart) on page "ReportSection" has no data bindings
+    ⚠ Visual "c3574f60afc34d679226" (map) on page "ReportSection" has no data bindings
+    ⚠ Visual "d56b9084d89148d9b818" (card) on page "ReportSection" has no data bindings
+    ⚠ Visual "ef70be323b574b609160" (card) on page "ReportSection" has no data bindings
+    ⚠ Visual "04778a930f874f57b9c7" (treemap) on page "ReportSection21aa76df71e541f49085" has no data bindings
+    ⚠ Visual "116b3078085742a69a63" (table) on page "ReportSection21aa76df71e541f49085" has no data bindings
+    ⚠ Visual "4db07815010440778acb" (clusteredBarChart) on page "ReportSection21aa76df71e541f49085" has no data bindings
+    ⚠ Visual "8cdba550158f48d6ba1c" (tableEx) on page "ReportSection21aa76df71e541f49085" has no data bindings
+    ⚠ Visual "f7e63965c9464ab69fd2" (waterfallChart) on page "ReportSection21aa76df71e541f49085" has no data bindings
+    ⚠ Visual "6691f92d7c014da39db0" (pieChart) on page "ReportSection483dca674b01435086cc" has no data bindings
+    ⚠ Visual "6f29f26451914726aee9" (tableEx) on page "ReportSection483dca674b01435086cc" has no data bindings
+    ⚠ Visual "e6eb742ba22e409a8bde" (gauge) on page "ReportSection483dca674b01435086cc" has no data bindings
+    ... and 8 more warnings
+    ✓ Post-check passed (23 warning(s))
+2026-06-24 14:53:48 [INFO] qlik_to_powerbi: Migration report saved: output\real_qlik_selfheal_runs\large_sample_json\migration_report_large_enterprise_sales_20260624_145348.json
+
+========================================================================
+  MIGRATION REPORT: large_enterprise_sales
+========================================================================
+  Total items converted: 33
+  Fidelity score:        100.0%
+
+    Exact:          33
+    Approximate:     0
+    Placeholder:     0
+    Unsupported:     0
+    Skipped:         0
+
+  By category:
+    datasource              5 items  (100% exact)
+    parameter               5 items  (100% exact)
+    visual                 23 items  (100% exact)
+
+========================================================================
+2026-06-24 14:53:48 [INFO] qlik_to_powerbi.self_healing_report: Self-healing JSONL saved to output\real_qlik_selfheal_runs\large_sample_json\self_healing_v3.jsonl (0 entries)
+2026-06-24 14:53:48 [INFO] qlik_to_powerbi.full_lineage: Full lineage saved to output\real_qlik_selfheal_runs\large_sample_json\large_enterprise_sales\lineage\full_lineage.json (70 nodes, 32 edges)
+2026-06-24 14:53:49 [INFO] qlik_to_powerbi.script_lineage_report: Script lineage report saved to output\real_qlik_selfheal_runs\large_sample_json\large_enterprise_sales\large_enterprise_sales_lineage.html
+{
+  "status": "success",
+  "input": "examples\\qlik\\test_samples\\large\\large_enterprise_sales.json",
+  "output_dir": "output\\real_qlik_selfheal_runs\\large_sample_json\\large_enterprise_sales",
+  "tables": 6,
+  "measures": 5,
+  "visuals": 23,
+  "pages": 5,
+  "warnings": [],
+  "duration_seconds": 3.1,
+  "fidelity_score": 100.0,
+  "exact": 33,
+  "approximate": 0,
+  "unsupported": 0,
+  "post_check": {
+    "valid": true,
+    "errors": [],
+    "warnings": [
+      "Visual \"0481aafdf5ea4705926a\" (card) on page \"ReportSection\" has no data bindings",
+      "Visual \"1287d46aded444479bca\" (card) on page \"ReportSection\" has no data bindings",
+      "Visual \"1bab69c7808640319368\" (clusteredBarChart) on page \"ReportSection\" has no data bindings",
+      "Visual \"8269ae77b53743718be2\" (lineChart) on page \"ReportSection\" has no data bindings",
+      "Visual \"c3574f60afc34d679226\" (map) on page \"ReportSection\" has no data bindings",
+      "Visual \"d56b9084d89148d9b818\" (card) on page \"ReportSection\" has no data bindings",
+      "Visual \"ef70be323b574b609160\" (card) on page \"ReportSection\" has no data bindings",
+      "Visual \"04778a930f874f57b9c7\" (treemap) on page \"ReportSection21aa76df71e541f49085\" has no data bindings",
+      "Visual \"116b3078085742a69a63\" (table) on page \"ReportSection21aa76df71e541f49085\" has no data bindings",
+      "Visual \"4db07815010440778acb\" (clusteredBarChart) on page \"ReportSection21aa76df71e541f49085\" has no data bindings",
+      "Visual \"8cdba550158f48d6ba1c\" (tableEx) on page \"ReportSection21aa76df71e541f49085\" has no data bindings",
+      "Visual \"f7e63965c9464ab69fd2\" (waterfallChart) on page \"ReportSection21aa76df71e541f49085\" has no data bindings",
+      "Visual \"6691f92d7c014da39db0\" (pieChart) on page \"ReportSection483dca674b01435086cc\" has no data bindings",
+      "Visual \"6f29f26451914726aee9\" (tableEx) on page \"ReportSection483dca674b01435086cc\" has no data bindings",
+      "Visual \"e6eb742ba22e409a8bde\" (gauge) on page \"ReportSection483dca674b01435086cc\" has no data bindings",
+      "Visual \"f1ea943e94d54e2f8cb0\" (lineStackedColumnComboChart) on page \"ReportSection483dca674b01435086cc\" has no data bindings",
+      "Visual \"04b543c86f0343609d63\" (clusteredBarChart) on page \"ReportSection81c32dd152fe4da1a599\" has no data bindings",
+      "Visual \"2e1fad20299042fea456\" (pieChart) on page \"ReportSection81c32dd152fe4da1a599\" has no data bindings",
+      "Visual \"954b51de143448afbc88\" (table) on page \"ReportSection81c32dd152fe4da1a599\" has no data bindings",
+      "Visual \"e9ced07f0aad4431abeb\" (pivotTable) on page \"ReportSection81c32dd152fe4da1a599\" has no data bindings",
+      "Visual \"2c222f5de8634abcb5ca\" (clusteredBarChart) on page \"ReportSectiond2d26785671841e2afc9\" has no data bindings",
+      "Visual \"6d0f022ca3ae4779b880\" (lineStackedColumnComboChart) on page \"ReportSectiond2d26785671841e2afc9\" has no data bindings",
+      "Visual \"d0c534447c72403bb37d\" (map) on page \"ReportSectiond2d26785671841e2afc9\" has no data bindings"
+    ],
+    "files_checked": 38,
+    "checks": {
+      "standard_validation": true,
+      "file_structure": true,
+      "visual_completeness": true,
+      "visual_model_refs": true,
+      "tmdl_integrity": true
+    }
+  }
+}

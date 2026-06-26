@@ -1,0 +1,5 @@
+perspective 'Full Model'
+	perspectiveTable Sales
+	perspectiveTable Customers
+	perspectiveTable Products
+	perspectiveTable Calendar

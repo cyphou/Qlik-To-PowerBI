@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "id": "dim-001",
+    "name": "Client",
+    "type": "dimension",
+    "definition": "CustomerName"
+  },
+  {
+    "id": "dim-002",
+    "name": "Produit",
+    "type": "dimension",
+    "definition": "ProductName"
+  },
+  {
+    "id": "measure-001",
+    "name": "Chiffre d'Affaires",
+    "type": "measure",
+    "definition": "Sum(Amount)"
+  },
+  {
+    "id": "measure-002",
+    "name": "Quantité Vendue",
+    "type": "measure",
+    "definition": "Sum(Quantity)"
+  }
+]

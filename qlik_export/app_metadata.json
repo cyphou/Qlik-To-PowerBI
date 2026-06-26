@@ -1,6 +1,10 @@
 {
   "name": "Application Ventes Exemple",
   "description": "Application de démonstration pour la migration",
-  "source_file": "examples\\qlik\\qlik_exports\\sample_sales_from_qvf.json",
-  "extracted_at": "2026-04-17T16:36:01.467880"
+  "author": "Migration Tool",
+  "created_date": "",
+  "modified_date": "",
+  "source_file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\manifests\\repo_ready\\..\\..\\..\\output\\test_results\\test_files\\sample_sales.qvf",
+  "extracted_at": "2026-06-26T15:52:52.922092",
+  "qlik_app_id": ""
 }

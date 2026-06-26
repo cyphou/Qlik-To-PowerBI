@@ -1,0 +1,156 @@
+{
+  "generated_at_utc": "2026-06-26T09:04:51.465965+00:00",
+  "runs_considered": 14,
+  "latest": {
+    "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260626_110450.json",
+    "generated_at_utc": "2026-06-26T09:04:50.089025+00:00",
+    "overall_status": "PASS",
+    "unsupported_markers": 0,
+    "approximation_markers": 0,
+    "post_check_warning_count": 0,
+    "fidelity_score": 100.0
+  },
+  "previous": {
+    "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_115309.json",
+    "generated_at_utc": "2026-06-25T09:53:09.023291+00:00",
+    "overall_status": "PASS",
+    "unsupported_markers": 0,
+    "approximation_markers": 0,
+    "post_check_warning_count": 0,
+    "fidelity_score": 100.0
+  },
+  "delta": {
+    "unsupported_markers": 0.0,
+    "approximation_markers": 0.0,
+    "post_check_warning_count": 0.0,
+    "fidelity_score": 0.0
+  },
+  "history": [
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_104153.json",
+      "generated_at_utc": "2026-06-25T08:41:53.846658+00:00",
+      "overall_status": "PASS",
+      "unsupported_markers": 5,
+      "approximation_markers": 4,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_104354.json",
+      "generated_at_utc": "2026-06-25T08:43:54.998428+00:00",
+      "overall_status": "PASS",
+      "unsupported_markers": 5,
+      "approximation_markers": 4,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_104723.json",
+      "generated_at_utc": "2026-06-25T08:47:23.624966+00:00",
+      "overall_status": "PASS",
+      "unsupported_markers": 5,
+      "approximation_markers": 4,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_105258.json",
+      "generated_at_utc": "2026-06-25T08:52:58.006118+00:00",
+      "overall_status": "PASS",
+      "unsupported_markers": 5,
+      "approximation_markers": 4,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_105752.json",
+      "generated_at_utc": "2026-06-25T08:57:52.407156+00:00",
+      "overall_status": "FAIL",
+      "unsupported_markers": 0,
+      "approximation_markers": 4,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_105906.json",
+      "generated_at_utc": "2026-06-25T08:59:06.198646+00:00",
+      "overall_status": "FAIL",
+      "unsupported_markers": 0,
+      "approximation_markers": 4,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_110342.json",
+      "generated_at_utc": "2026-06-25T09:03:42.123659+00:00",
+      "overall_status": "PASS",
+      "unsupported_markers": 0,
+      "approximation_markers": 4,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_110854.json",
+      "generated_at_utc": "2026-06-25T09:08:54.536310+00:00",
+      "overall_status": "PASS",
+      "unsupported_markers": 0,
+      "approximation_markers": 1,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_110856.json",
+      "generated_at_utc": "2026-06-25T09:08:54.536310+00:00",
+      "overall_status": "PASS",
+      "unsupported_markers": 0,
+      "approximation_markers": 1,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_111158.json",
+      "generated_at_utc": "2026-06-25T09:11:58.666447+00:00",
+      "overall_status": "PASS",
+      "unsupported_markers": 0,
+      "approximation_markers": 1,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_111159.json",
+      "generated_at_utc": "2026-06-25T09:11:58.666447+00:00",
+      "overall_status": "PASS",
+      "unsupported_markers": 0,
+      "approximation_markers": 1,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_115029.json",
+      "generated_at_utc": "2026-06-25T09:50:29.063429+00:00",
+      "overall_status": "PASS",
+      "unsupported_markers": 0,
+      "approximation_markers": 1,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260625_115309.json",
+      "generated_at_utc": "2026-06-25T09:53:09.023291+00:00",
+      "overall_status": "PASS",
+      "unsupported_markers": 0,
+      "approximation_markers": 0,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    },
+    {
+      "file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\phase_run_20260626_110450.json",
+      "generated_at_utc": "2026-06-26T09:04:50.089025+00:00",
+      "overall_status": "PASS",
+      "unsupported_markers": 0,
+      "approximation_markers": 0,
+      "post_check_warning_count": 0,
+      "fidelity_score": 100.0
+    }
+  ]
+}

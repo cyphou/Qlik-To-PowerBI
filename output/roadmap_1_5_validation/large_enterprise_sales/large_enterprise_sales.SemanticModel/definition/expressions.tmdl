@@ -1,0 +1,6 @@
+expression DataFolder = "C:\\GitHub Project\\QlikToPowerBI\\output\\roadmap_1_5_validation\\large_enterprise_sales\\data" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+expression ServerName = "localhost" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+expression DatabaseName = "master" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+

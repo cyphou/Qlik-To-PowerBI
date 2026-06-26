@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "sample_sales_from_qvf_downloaded"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "7a5249ac-43d8-4211-b153-e5dc78c173b5"
+  }
+}

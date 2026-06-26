@@ -1,0 +1,49 @@
+table Products
+	lineageTag: a0bb2b6e-285a-4944-bc0f-dcdfb32a808f
+
+	column ProductID
+		dataType: int64
+		lineageTag: 6a24ad44-695b-43cf-b4e5-2c04d44ac509
+		summarizeBy: none
+		sourceColumn: ProductID
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProductName
+		dataType: string
+		lineageTag: 27c01241-531a-41b0-9337-6febc278ee34
+		summarizeBy: none
+		sourceColumn: ProductName
+
+		annotation SummarizationSetBy = Automatic
+
+	column CategoryID
+		dataType: int64
+		lineageTag: f3213f49-2d87-48ae-a8f8-d00433146e60
+		summarizeBy: none
+		sourceColumn: CategoryID
+
+		annotation SummarizationSetBy = Automatic
+
+	column UnitPrice
+		dataType: double
+		lineageTag: 3d97d31f-0e99-40ad-bdcb-fd8a82d2e20e
+		summarizeBy: none
+		sourceColumn: UnitPrice
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Products-08d8b298-fddc-4d82-a70b-a620cbc823fa' = m
+		mode: import
+		source =
+				let
+				    Source = Qvd.Document(File.Contents(DataFolder & "\\Products.qvd"))
+				,
+				    SelectedColumns = Table.SelectColumns(Source, {"ProductID", "ProductName", "CategoryID", "UnitPrice"})
+				,
+				    #"Changed Type" = Table.TransformColumnTypes(SelectedColumns, {{"ProductID", Int64.Type}, {"CategoryID", Int64.Type}, {"UnitPrice", type number}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

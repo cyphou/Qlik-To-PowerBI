@@ -1,0 +1,140 @@
+{
+  "generated_at_utc": "2026-06-25T09:08:54.536310+00:00",
+  "overall_status": "PASS",
+  "phases": [
+    {
+      "name": "Phase 1 - Local parity baseline",
+      "command": [
+        "C:\\Users\\pidoudet\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "tools/analysis/parity_status_check.py"
+      ],
+      "returncode": 0,
+      "status": "PASS",
+      "duration_seconds": 1.078,
+      "details": {
+        "stdout_tail": "Parity Status Check\n===================\nRepository: C:\\GitHub Project\\QlikToPowerBI\nOverall: PASS\n\n[PASS] versions\n  expected: 12.0.0\n  powerbi_import: 12.0.0\n  qlik_export: 12.0.0\n\n[PASS] required_modules\n  missing: none\n\n[PASS] required_flags\n  missing: none\n\n[PASS] docs_consistency\n  expected_version: 12.0.0\n  missing_readme_links: none\n  missing_doc_files: none",
+        "stderr_tail": ""
+      }
+    },
+    {
+      "name": "Phase 2 - Upstream strict parity",
+      "command": [
+        "C:\\Users\\pidoudet\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "tools/analysis/agent_feature_parity_check.py",
+        "--upstream-repo",
+        "cyphou/Qlik-To-PowerBI",
+        "--strict-upstream"
+      ],
+      "returncode": 0,
+      "status": "PASS",
+      "duration_seconds": 9.049,
+      "details": {
+        "stdout_tail": "Agent + Feature Parity Check\n============================\nRepository: C:\\GitHub Project\\QlikToPowerBI\nUpstream candidates: 1 (main)\nLocal checks: PASS\nUpstream strict mode: ON\nOverall: PASS\n\n[PASS] local_agents\n  required_count: 15\n  existing_count: 15\n  missing: none\n\n[PASS] local_features\n  missing_modules: none\n  missing_flags: none\n\nUpstream ranking\n----------------\n1. repo:cyphou/Qlik-To-PowerBI score=1.000 agents=15/15 modules=13/13 flags=10/10",
+        "stderr_tail": ""
+      }
+    },
+    {
+      "name": "Phase 3 - Full test suite",
+      "command": [
+        "C:\\Users\\pidoudet\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "-m",
+        "pytest",
+        "tests/",
+        "-q",
+        "--tb=short"
+      ],
+      "returncode": 0,
+      "status": "PASS",
+      "duration_seconds": 95.861,
+      "details": {
+        "stdout_tail": "\ntests/test_tmdl_generator.py::test_partition_expression\n  C:\\Users\\pidoudet\\OneDrive - Microsoft\\Boulot\\PBI SME\\OracleToPostgre\\QlikToPowerBI\\tests\\test_tmdl_generator.py:395: DeprecationWarning: TMDLGenerator is deprecated. Use powerbi_import.tmdl_generator and powerbi_import.pbip_generator instead.\n\ntests/test_v31_features.py::TestTMDLEnhancements::test_display_folders\n  C:\\Users\\pidoudet\\OneDrive - Microsoft\\Boulot\\PBI SME\\OracleToPostgre\\QlikToPowerBI\\tests\\test_v31_features.py:214: DeprecationWarning: TMDLGenerator is deprecated. Use powerbi_import.tmdl_generator and powerbi_import.pbip_generator instead.\n\ntests/test_v31_features.py::TestTMDLEnhancements::test_descriptions\n  C:\\Users\\pidoudet\\OneDrive - Microsoft\\Boulot\\PBI SME\\OracleToPostgre\\QlikToPowerBI\\tests\\test_v31_features.py:243: DeprecationWarning: TMDLGenerator is deprecated. Use powerbi_import.tmdl_generator and powerbi_import.pbip_generator instead.\n\ntests/test_v31_features.py::TestTMDLEnhancements::test_calculation_groups\n  C:\\Users\\pidoudet\\OneDrive - Microsoft\\Boulot\\PBI SME\\OracleToPostgre\\QlikToPowerBI\\tests\\test_v31_features.py:274: DeprecationWarning: TMDLGenerator is deprecated. Use powerbi_import.tmdl_generator and powerbi_import.pbip_generator instead.\n\ntests/test_v31_features.py::TestTMDLEnhancements::test_perspectives\n  C:\\Users\\pidoudet\\OneDrive - Microsoft\\Boulot\\PBI SME\\OracleToPostgre\\QlikToPowerBI\\tests\\test_v31_features.py:304: DeprecationWarning: TMDLGenerator is deprecated. Use powerbi_import.tmdl_generator and powerbi_import.pbip_generator instead.\n\ntests/test_v31_features.py::TestTMDLEnhancements::test_cultures\n  C:\\Users\\pidoudet\\OneDrive - Microsoft\\Boulot\\PBI SME\\OracleToPostgre\\QlikToPowerBI\\tests\\test_v31_features.py:327: DeprecationWarning: TMDLGenerator is deprecated. Use powerbi_import.tmdl_generator and powerbi_import.pbip_generator instead.\n\ntests/test_v31_features.py::TestMultiPageReports::test_multi_page_from_sheets\n  C:\\Users\\pidoudet\\OneDrive - Microsoft\\Boulot\\PBI SME\\OracleToPostgre\\QlikToPowerBI\\tests\\test_v31_features.py:355: DeprecationWarning: TMDLGenerator is deprecated. Use powerbi_import.tmdl_generator and powerbi_import.pbip_generator instead.\n\ntests/test_v31_features.py::TestMultiPageReports::test_bookmarks_in_report\n  C:\\Users\\pidoudet\\OneDrive - Microsoft\\Boulot\\PBI SME\\OracleToPostgre\\QlikToPowerBI\\tests\\test_v31_features.py:379: DeprecationWarning: TMDLGenerator is deprecated. Use powerbi_import.tmdl_generator and powerbi_import.pbip_generator instead.\n\ntests/test_v31_features.py::TestThemeGeneration::test_theme_written_to_project\n  C:\\Users\\pidoudet\\OneDrive - Microsoft\\Boulot\\PBI SME\\OracleToPostgre\\QlikToPowerBI\\tests\\test_v31_features.py:488: DeprecationWarning: TMDLGenerator is deprecated. Use powerbi_import.tmdl_generator and powerbi_import.pbip_generator instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n================ 2849 passed, 72 warnings in 85.90s (0:01:25) =================",
+        "stderr_tail": ""
+      }
+    },
+    {
+      "name": "Phase 4A - Real sample migration",
+      "command": [
+        "C:\\Users\\pidoudet\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "migrate.py",
+        "C:\\GitHub Project\\QlikToPowerBI\\examples\\qlik\\test_samples\\large\\large_enterprise_sales.json",
+        "--output-dir",
+        "C:\\GitHub Project\\QlikToPowerBI\\output\\phase_runs",
+        "--self-heal-v3",
+        "--post-check",
+        "--json"
+      ],
+      "returncode": 0,
+      "status": "PASS",
+      "duration_seconds": 4.977,
+      "details": {
+        "stdout_tail": "========================================================================\n2026-06-25 11:08:52 [INFO] qlik_to_powerbi.self_healing_report: Self-healing JSONL saved to C:\\GitHub Project\\QlikToPowerBI\\output\\phase_runs\\self_healing_v3.jsonl (0 entries)\n{\n  \"status\": \"success\",\n  \"input\": \"C:\\\\GitHub Project\\\\QlikToPowerBI\\\\examples\\\\qlik\\\\test_samples\\\\large\\\\large_enterprise_sales.json\",\n  \"output_dir\": \"C:\\\\GitHub Project\\\\QlikToPowerBI\\\\output\\\\phase_runs\\\\large_enterprise_sales\",\n  \"tables\": 6,\n  \"measures\": 5,\n  \"visuals\": 23,\n  \"pages\": 5,\n  \"warnings\": [],\n  \"duration_seconds\": 6.27,\n  \"fidelity_score\": 100.0,\n  \"exact\": 33,\n  \"approximate\": 0,\n  \"unsupported\": 0,\n  \"post_check\": {\n    \"valid\": true,\n    \"errors\": [],\n    \"warnings\": [],\n    \"files_checked\": 38,\n    \"checks\": {\n      \"standard_validation\": true,\n      \"file_structure\": true,\n      \"visual_completeness\": true,\n      \"visual_model_refs\": true,\n      \"tmdl_integrity\": true\n    }\n  }\n}",
+        "stderr_tail": ""
+      }
+    },
+    {
+      "name": "Phase 4B - Quality gate",
+      "command": [
+        "C:\\Users\\pidoudet\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "tools/testing/real_sample_quality_gate.py",
+        "--run-json",
+        "C:\\GitHub Project\\QlikToPowerBI\\output\\phase_runs\\run_result.json",
+        "--max-postcheck-warnings",
+        "5"
+      ],
+      "returncode": 0,
+      "status": "PASS",
+      "duration_seconds": 1.472,
+      "details": {
+        "stdout_tail": "Quality Gate Summary\n====================\nstatus: success\nfidelity_score: 100.0\npost_check_warnings: 0\nmax_allowed: 5\n[PASS] Quality gate passed",
+        "stderr_tail": "",
+        "migration_status": "success",
+        "fidelity_score": 100.0,
+        "post_check_warning_count": 0,
+        "post_check_error_count": 0
+      }
+    },
+    {
+      "name": "Phase 5 - Unsupported and approximation audit",
+      "command": null,
+      "returncode": 0,
+      "status": "PASS",
+      "duration_seconds": 0.022,
+      "details": {
+        "unsupported_markers": 0,
+        "approximation_markers": 1,
+        "explicit_unsupported_functions": {
+          "Skew": false,
+          "Hash128": false,
+          "Hash160": false,
+          "Hash256": false,
+          "Evaluate": false
+        }
+      }
+    }
+  ],
+  "metrics": {
+    "migration_status": "success",
+    "fidelity_score": 100.0,
+    "post_check_warning_count": 0,
+    "post_check_error_count": 0,
+    "unsupported_markers": 0,
+    "approximation_markers": 1,
+    "explicit_unsupported_functions": {
+      "Skew": false,
+      "Hash128": false,
+      "Hash160": false,
+      "Hash256": false,
+      "Evaluate": false
+    }
+  },
+  "artifacts": {
+    "migration_run_capture": "C:\\GitHub Project\\QlikToPowerBI\\output\\phase_runs\\run_result.json",
+    "migration_run_full_log": "C:\\GitHub Project\\QlikToPowerBI\\output\\phase_runs\\run_result_full.log"
+  },
+  "backlog_generation": {
+    "status": "PASS",
+    "returncode": 0,
+    "stdout_tail": "Parity backlog generated\njson: C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\parity_backlog_latest.json\nmd: C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\parity_backlog_latest.md",
+    "stderr_tail": ""
+  }
+}

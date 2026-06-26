@@ -1,14 +1,20 @@
 [
   {
+    "id": "dim-001",
     "name": "Client",
     "field": "CustomerName",
     "label": "Nom du Client",
-    "id": "dim-001"
+    "description": "",
+    "grouping": "single",
+    "fields": []
   },
   {
+    "id": "dim-002",
     "name": "Produit",
     "field": "ProductName",
     "label": "Nom du Produit",
-    "id": "dim-002"
+    "description": "",
+    "grouping": "single",
+    "fields": []
   }
 ]

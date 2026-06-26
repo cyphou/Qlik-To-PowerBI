@@ -1,0 +1,89 @@
+{
+  "app_name": "sample_sales_from_qvf_downloaded",
+  "created_at": "2026-06-24T14:48:45.389895",
+  "node_count": 10,
+  "edge_count": 4,
+  "nodes": [
+    {
+      "id": "qlik_ds_unknown",
+      "kind": "qlik_field",
+      "label": "unknown"
+    },
+    {
+      "id": "qlik_measure_Chiffre d'Affaires",
+      "kind": "qlik_measure",
+      "label": "Chiffre d'Affaires",
+      "metadata": {
+        "expression": "Sum(Amount)"
+      }
+    },
+    {
+      "id": "qlik_measure_Quantit\u00e9 Vendue",
+      "kind": "qlik_measure",
+      "label": "Quantit\u00e9 Vendue",
+      "metadata": {
+        "expression": "Sum(Quantity)"
+      }
+    },
+    {
+      "id": "qlik_dim_Client",
+      "kind": "qlik_dimension",
+      "label": "Client"
+    },
+    {
+      "id": "qlik_dim_Produit",
+      "kind": "qlik_dimension",
+      "label": "Produit"
+    },
+    {
+      "id": "qlik_var_vCurrentYear",
+      "kind": "qlik_variable",
+      "label": "vCurrentYear",
+      "metadata": {
+        "definition": ""
+      }
+    },
+    {
+      "id": "qlik_sheet_Tableau de Bord Ventes",
+      "kind": "qlik_sheet",
+      "label": "Tableau de Bord Ventes"
+    },
+    {
+      "id": "pbi_page_Tableau de Bord Ventes",
+      "kind": "pbi_page",
+      "label": "Tableau de Bord Ventes"
+    },
+    {
+      "id": "qlik_visual_",
+      "kind": "qlik_visual",
+      "label": "table:"
+    },
+    {
+      "id": "pbi_visual_",
+      "kind": "pbi_visual",
+      "label": "table:"
+    }
+  ],
+  "edges": [
+    {
+      "source": "qlik_sheet_Tableau de Bord Ventes",
+      "target": "pbi_page_Tableau de Bord Ventes",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_",
+      "target": "pbi_visual_",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_",
+      "target": "pbi_visual_",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_",
+      "target": "pbi_visual_",
+      "relation": "transforms_to"
+    }
+  ]
+}

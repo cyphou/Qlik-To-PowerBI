@@ -1,0 +1,159 @@
+{
+  "timestamp": "2026-06-26T12:45:14.526310+00:00",
+  "total_apps": 4,
+  "green_count": 3,
+  "yellow_count": 1,
+  "red_count": 0,
+  "total_effort_hours": 28.9,
+  "app_results": [
+    {
+      "name": "example_qlik_app",
+      "status": "GREEN",
+      "pass_count": 13,
+      "warn_count": 1,
+      "fail_count": 0,
+      "info_count": 12,
+      "complexity": {
+        "visuals": 7,
+        "dashboards": 2,
+        "calculations": 5,
+        "tables": 0,
+        "lod_expressions": 0,
+        "table_calcs": 0,
+        "filters": 0,
+        "actions": 0,
+        "parameters": 0,
+        "rls_rules": 0,
+        "custom_sql": 0
+      },
+      "effort_hours": 3.0,
+      "connector_types": [],
+      "visual_count": 7,
+      "calc_count": 5,
+      "table_count": 0
+    },
+    {
+      "name": "qlik_sales_discovery_demo",
+      "status": "YELLOW",
+      "pass_count": 9,
+      "warn_count": 5,
+      "fail_count": 0,
+      "info_count": 20,
+      "complexity": {
+        "visuals": 32,
+        "dashboards": 6,
+        "calculations": 48,
+        "tables": 11,
+        "lod_expressions": 0,
+        "table_calcs": 2,
+        "filters": 0,
+        "actions": 0,
+        "parameters": 4,
+        "rls_rules": 5,
+        "custom_sql": 1
+      },
+      "effort_hours": 19.1,
+      "connector_types": [
+        "csv",
+        "excel",
+        "sqlserver"
+      ],
+      "visual_count": 32,
+      "calc_count": 48,
+      "table_count": 11
+    },
+    {
+      "name": "quick_export",
+      "status": "GREEN",
+      "pass_count": 14,
+      "warn_count": 1,
+      "fail_count": 0,
+      "info_count": 15,
+      "complexity": {
+        "visuals": 3,
+        "dashboards": 1,
+        "calculations": 4,
+        "tables": 3,
+        "lod_expressions": 0,
+        "table_calcs": 0,
+        "filters": 0,
+        "actions": 0,
+        "parameters": 1,
+        "rls_rules": 0,
+        "custom_sql": 1
+      },
+      "effort_hours": 3.4,
+      "connector_types": [
+        "loadscript"
+      ],
+      "visual_count": 3,
+      "calc_count": 4,
+      "table_count": 3
+    },
+    {
+      "name": "sample_sales_from_qvf",
+      "status": "GREEN",
+      "pass_count": 14,
+      "warn_count": 1,
+      "fail_count": 0,
+      "info_count": 15,
+      "complexity": {
+        "visuals": 3,
+        "dashboards": 1,
+        "calculations": 4,
+        "tables": 3,
+        "lod_expressions": 0,
+        "table_calcs": 0,
+        "filters": 0,
+        "actions": 0,
+        "parameters": 1,
+        "rls_rules": 0,
+        "custom_sql": 1
+      },
+      "effort_hours": 3.4,
+      "connector_types": [
+        "loadscript"
+      ],
+      "visual_count": 3,
+      "calc_count": 4,
+      "table_count": 3
+    }
+  ],
+  "connector_census": {
+    "loadscript": 2,
+    "csv": 1,
+    "excel": 1,
+    "sqlserver": 1
+  },
+  "waves": [
+    {
+      "wave_number": 1,
+      "label": "Easy (quick wins)",
+      "apps": [
+        "example_qlik_app",
+        "quick_export",
+        "sample_sales_from_qvf"
+      ],
+      "total_effort": 9.8
+    },
+    {
+      "wave_number": 2,
+      "label": "Complex (manual review recommended)",
+      "apps": [
+        "qlik_sales_discovery_demo"
+      ],
+      "total_effort": 19.1
+    }
+  ],
+  "green": 3,
+  "yellow": 1,
+  "red": 0,
+  "readiness_pct": 75,
+  "apps": [
+    "example_qlik_app",
+    "qlik_sales_discovery_demo",
+    "quick_export",
+    "sample_sales_from_qvf"
+  ],
+  "html_report": "output\\portfolio_assessment\\portfolio_assessment.html"
+}

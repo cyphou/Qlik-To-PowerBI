@@ -1,0 +1,2 @@
+expression DataFolder = "C:\\GitHub Project\\QlikToPowerBI\\output\\real_qlik_download_test\\sample_sales_from_qvf_downloaded\\data" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+

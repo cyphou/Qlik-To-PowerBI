@@ -1,0 +1,292 @@
+{
+  "report_name": "large_enterprise_sales",
+  "created_at": "2026-06-26T12:26:00.533939",
+  "summary": {
+    "total_items": 45,
+    "exact": 45,
+    "approximate": 0,
+    "placeholder": 0,
+    "unsupported": 0,
+    "skipped": 0,
+    "fidelity_score": 100.0,
+    "by_category": {
+      "datasource": {
+        "total": 5,
+        "exact": 5
+      },
+      "calculation": {
+        "total": 12,
+        "exact": 12
+      },
+      "visual": {
+        "total": 23,
+        "exact": 23
+      },
+      "parameter": {
+        "total": 5,
+        "exact": 5
+      }
+    }
+  },
+  "items": [
+    {
+      "category": "datasource",
+      "name": "Unknown",
+      "status": "exact",
+      "note": "?, 0 table(s)"
+    },
+    {
+      "category": "datasource",
+      "name": "Unknown",
+      "status": "exact",
+      "note": "?, 0 table(s)"
+    },
+    {
+      "category": "datasource",
+      "name": "Unknown",
+      "status": "exact",
+      "note": "?, 0 table(s)"
+    },
+    {
+      "category": "datasource",
+      "name": "Unknown",
+      "status": "exact",
+      "note": "?, 0 table(s)"
+    },
+    {
+      "category": "datasource",
+      "name": "Unknown",
+      "status": "exact",
+      "note": "?, 0 table(s)"
+    },
+    {
+      "category": "calculation",
+      "name": "Sales",
+      "status": "exact",
+      "source_formula": "Sum(Sales)",
+      "dax": "SUM('Orders'[Sales])"
+    },
+    {
+      "category": "calculation",
+      "name": "Profit",
+      "status": "exact",
+      "source_formula": "Sum(Profit)",
+      "dax": "SUM('Orders'[Profit])"
+    },
+    {
+      "category": "calculation",
+      "name": "Quantity",
+      "status": "exact",
+      "source_formula": "Sum(Quantity)",
+      "dax": "SUM('Orders'[Quantity])"
+    },
+    {
+      "category": "calculation",
+      "name": "Avg Discount",
+      "status": "exact",
+      "source_formula": "Avg(Discount)",
+      "dax": "AVERAGE('Orders'[Discount])"
+    },
+    {
+      "category": "calculation",
+      "name": "Profit Margin",
+      "status": "exact",
+      "source_formula": "Sum(Profit) / Sum(Sales)",
+      "dax": "SUM('Orders'[Profit]) / SUM('Orders'[Sales])"
+    },
+    {
+      "category": "calculation",
+      "name": "Order Count",
+      "status": "exact",
+      "source_formula": "Count(DISTINCT OrderID)",
+      "dax": "COUNT(DISTINCT OrderID)"
+    },
+    {
+      "category": "calculation",
+      "name": "Avg Order Value",
+      "status": "exact",
+      "source_formula": "Sum(Sales) / Count(DISTINCT OrderID)",
+      "dax": "SUM('Orders'[Sales]) / COUNT(DISTINCT OrderID)"
+    },
+    {
+      "category": "calculation",
+      "name": "YoY Growth",
+      "status": "exact",
+      "source_formula": "(Sum(Sales) - Sum({<Year={$(=Max(Year)-1)}>} Sales)) / Sum({<Year={$(=Max(Year)-1)}>} Sales)",
+      "dax": "(SUM('Orders'[Sales]) - CALCULATE(SUM('Orders'[Sales]), 'Orders'[Year] = \"MAX(Year-1)\")) / CALCULATE(SUM('Orders'[Sales]), 'Orders'[Year] = \"MAX(Year-1)\")"
+    },
+    {
+      "category": "calculation",
+      "name": "Sales vs Target",
+      "status": "exact",
+      "source_formula": "Sum(Sales) / Sum(Target)",
+      "dax": "SUM('Orders'[Sales]) / SUM('Targets'[Target])"
+    },
+    {
+      "category": "calculation",
+      "name": "Customer Count",
+      "status": "exact",
+      "source_formula": "Count(DISTINCT CustomerID)",
+      "dax": "COUNT(DISTINCT CustomerID)"
+    },
+    {
+      "category": "calculation",
+      "name": "Return Rate",
+      "status": "exact",
+      "source_formula": "Count({<Returned={'Yes'}>} OrderID) / Count(OrderID)",
+      "dax": "CALCULATE(COUNT('Orders'[OrderID]), 'Orders'[Returned] = \"Yes\") / COUNT('Orders'[OrderID])"
+    },
+    {
+      "category": "calculation",
+      "name": "Avg Days to Ship",
+      "status": "exact",
+      "source_formula": "Avg(ShipDate - OrderDate)",
+      "dax": "AVERAGE(ShipDate - OrderDate)"
+    },
+    {
+      "category": "visual",
+      "name": "Total Sales",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Total Profit",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Order Count",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Customers",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Sales Trend",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Profit by Category",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Sales by Region",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Sales by Category",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "SubCategory Treemap",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Product Detail",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Profit Waterfall by Sub-Category",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Discount vs Profit Margin",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Sales by Segment",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Customer Sales vs Profit",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Customer Pivot",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Top 10 Customers",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Sales Heat Map",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Sales & Profit by Region",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Top Cities",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Avg Days to Ship",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Orders by Ship Mode",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Return Rate by Category",
+      "status": "exact"
+    },
+    {
+      "category": "visual",
+      "name": "Order Detail",
+      "status": "exact"
+    },
+    {
+      "category": "parameter",
+      "name": "vCurrentYear",
+      "status": "exact",
+      "note": "domain=?"
+    },
+    {
+      "category": "parameter",
+      "name": "vPriorYear",
+      "status": "exact",
+      "note": "domain=?"
+    },
+    {
+      "category": "parameter",
+      "name": "vCurrencySymbol",
+      "status": "exact",
+      "note": "domain=?"
+    },
+    {
+      "category": "parameter",
+      "name": "vSalesTarget",
+      "status": "exact",
+      "note": "domain=?"
+    },
+    {
+      "category": "parameter",
+      "name": "vTopN",
+      "status": "exact",
+      "note": "domain=?"
+    }
+  ]
+}

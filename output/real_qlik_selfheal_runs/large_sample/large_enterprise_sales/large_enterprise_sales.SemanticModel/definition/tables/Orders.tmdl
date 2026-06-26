@@ -1,0 +1,152 @@
+table Orders
+	lineageTag: 25a1c1aa-7b39-4b6b-9e3b-fb6fbe6de58f
+
+	measure 'Current year' = "Year(Today())"
+		lineageTag: 64275169-b0d4-4e3d-813e-cfd1a1d75fb0
+
+	measure 'Prior year' = "Year(Today()) - 1"
+		lineageTag: c20c2dab-efa6-45e6-81d0-81255262870c
+
+	measure 'Currency symbol' = "'$'"
+		lineageTag: 7f21a6dd-84cf-48c6-84ae-d3eecab4d79d
+
+	measure 'Annual sales target' = "1000000"
+		lineageTag: 5ed84889-fabe-4121-b110-77c11947a80a
+
+	measure 'Number of top items to show' = "10"
+		lineageTag: 621a64d3-1607-4314-a6af-c66f7e7ce381
+
+	column OrderID
+		dataType: int64
+		lineageTag: 76812a85-c86a-4e0b-a09d-02df2e510360
+		summarizeBy: none
+		sourceColumn: OrderID
+
+		annotation SummarizationSetBy = Automatic
+
+	column OrderDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: fb1f4a34-32a7-4c11-819e-0708d975e2e1
+		summarizeBy: none
+		sourceColumn: OrderDate
+		dataCategory: DateTime
+
+		annotation SummarizationSetBy = Automatic
+
+	column ShipDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: e08c836a-b400-4520-9414-50ad22944261
+		summarizeBy: none
+		sourceColumn: ShipDate
+		dataCategory: DateTime
+
+		annotation SummarizationSetBy = Automatic
+
+	column ShipMode
+		dataType: string
+		lineageTag: 4865781b-02da-4cba-abc3-a9fb39b2b8fd
+		summarizeBy: none
+		sourceColumn: ShipMode
+
+		annotation SummarizationSetBy = Automatic
+
+	column CustomerID
+		dataType: int64
+		lineageTag: 857b7674-f9f1-4a49-b557-8c6def832683
+		summarizeBy: none
+		sourceColumn: CustomerID
+
+		annotation SummarizationSetBy = Automatic
+
+	column Segment
+		dataType: string
+		lineageTag: 001cd3be-fe99-4e8b-90f3-08fddeccf2c3
+		summarizeBy: none
+		sourceColumn: Segment
+
+		annotation SummarizationSetBy = Automatic
+
+	column Region
+		dataType: string
+		lineageTag: 0849434c-5aa1-482e-958e-61e82378ba4f
+		summarizeBy: none
+		sourceColumn: Region
+		dataCategory: StateOrProvince
+
+		annotation SummarizationSetBy = Automatic
+
+	column Country
+		dataType: string
+		lineageTag: 47ba9047-6d28-4c26-91b4-301a59a4b457
+		summarizeBy: none
+		sourceColumn: Country
+		dataCategory: Country
+
+		annotation SummarizationSetBy = Automatic
+
+	column City
+		dataType: string
+		lineageTag: 30433937-40c8-4f71-8614-c63274594e5e
+		summarizeBy: none
+		sourceColumn: City
+		dataCategory: City
+
+		annotation SummarizationSetBy = Automatic
+
+	column Sales
+		dataType: double
+		lineageTag: bc09ae69-5348-4502-a836-092744e1c622
+		summarizeBy: none
+		sourceColumn: Sales
+
+		annotation SummarizationSetBy = Automatic
+
+	column Quantity
+		dataType: int64
+		lineageTag: 141afd92-7076-4075-9f19-aa24a17769fd
+		summarizeBy: sum
+		sourceColumn: Quantity
+
+		annotation SummarizationSetBy = Automatic
+
+	column Discount
+		dataType: double
+		lineageTag: b5627721-e002-425d-97cc-35e26b7e5394
+		summarizeBy: none
+		sourceColumn: Discount
+
+		annotation SummarizationSetBy = Automatic
+
+	column Profit
+		dataType: double
+		lineageTag: 3371f1e6-ad14-49de-8e42-e483068f3ba3
+		summarizeBy: none
+		sourceColumn: Profit
+
+		annotation SummarizationSetBy = Automatic
+
+	column Returned
+		dataType: string
+		lineageTag: 2e3b5c43-6697-4a08-8ef3-fe81058969ba
+		summarizeBy: none
+		sourceColumn: Returned
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Orders-211e5981-5bef-4403-afd3-83ca288b076c' = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(DataFolder & "\\Orders.csv"),[Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.None]),
+				    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])
+				,
+				    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"OrderID", "OrderDate", "ShipDate", "ShipMode", "CustomerID", "Segment", "Region", "Country", "City", "Sales", "Quantity", "Discount", "Profit"})
+				,
+				    #"Changed Type" = Table.TransformColumnTypes(SelectedColumns, {{"OrderID", Int64.Type}, {"CustomerID", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

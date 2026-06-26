@@ -1,0 +1,15 @@
+relationship a8645e38-7df3-4f0d-8d62-6a90bef807fd
+	fromColumn: Sales.OrderDate
+	toColumn: Calendar.Date
+	crossFilteringBehavior: oneDirection
+
+relationship 907843b1-84ea-46d6-a836-d8ef628e95e4
+	fromColumn: Sales.CustomerID
+	toColumn: Customers.CustomerID
+	crossFilteringBehavior: oneDirection
+
+relationship c92404d1-c4b5-4133-af97-ffd46da4cfe3
+	fromColumn: Sales.ProductID
+	toColumn: Products.ProductID
+	crossFilteringBehavior: oneDirection
+

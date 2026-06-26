@@ -1,0 +1,141 @@
+{
+  "generated_at_utc": "2026-06-26T09:04:50.551834+00:00",
+  "source_report": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\reports\\phases\\latest.json",
+  "context": {
+    "migration_status": "success",
+    "fidelity_score": 100.0,
+    "post_check_warning_count": 0,
+    "post_check_error_count": 0,
+    "unsupported_markers": 0,
+    "approximation_markers": 0,
+    "explicit_unsupported_functions": []
+  },
+  "epics": [
+    {
+      "id": "P0-UNSUPPORTED-CLOSURE",
+      "priority": "P0",
+      "goal": "Close explicit unsupported Qlik function gaps",
+      "items": [
+        {
+          "id": "P0-1",
+          "title": "Implement deterministic handling for Skew",
+          "owner": "Dax",
+          "estimate_days": 2,
+          "acceptance": [
+            "No 'UNSUPPORTED: Skew' marker emitted in migrated expressions",
+            "Unit tests cover scalar, measure, and nested use cases",
+            "Strict mode can fail on unresolved Skew only when requested"
+          ]
+        },
+        {
+          "id": "P0-2",
+          "title": "Implement safe handling strategy for Hash128/Hash160/Hash256",
+          "owner": "Converter",
+          "estimate_days": 3,
+          "acceptance": [
+            "No unsupported hash markers in output for covered paths",
+            "Documented behavior in mapping reference",
+            "Regression tests for each hash function"
+          ]
+        },
+        {
+          "id": "P0-3",
+          "title": "Implement Evaluate() migration policy",
+          "owner": "Orchestrator",
+          "estimate_days": 3,
+          "acceptance": [
+            "Evaluate paths are either transformed or explicitly blocked by policy",
+            "Policy behavior exposed via CLI flag and documented",
+            "CI check validates no silent fallback remains"
+          ]
+        }
+      ],
+      "exit_criteria": {
+        "unsupported_markers_target": 0,
+        "explicit_unsupported_functions_target": []
+      }
+    },
+    {
+      "id": "P1-APPROX-FIDELITY",
+      "priority": "P1",
+      "goal": "Reduce approximation risk in expression conversion",
+      "items": [
+        {
+          "id": "P1-1",
+          "title": "Harden Correl conversion and validation",
+          "owner": "Dax",
+          "estimate_days": 2,
+          "acceptance": [
+            "Correlation conversion validated against reference datasets",
+            "Deviation threshold documented and tested"
+          ]
+        },
+        {
+          "id": "P1-2",
+          "title": "Improve NetWorkDays for holiday-aware scenarios",
+          "owner": "Wiring",
+          "estimate_days": 2,
+          "acceptance": [
+            "Holiday table support available",
+            "Conversion tests for weekend-only and holiday-aware modes"
+          ]
+        },
+        {
+          "id": "P1-3",
+          "title": "Refine KeepChar and BitCount approximations",
+          "owner": "Converter",
+          "estimate_days": 2,
+          "acceptance": [
+            "Reduced approximation warnings for representative corpus",
+            "No regression in existing DAX conversion tests"
+          ]
+        }
+      ],
+      "exit_criteria": {
+        "approximation_markers_target": 1,
+        "quality_gate_postcheck_warnings_max": 2
+      }
+    },
+    {
+      "id": "P2-GOVERNANCE-AUTOMATION",
+      "priority": "P2",
+      "goal": "Operationalize parity governance and release gating",
+      "items": [
+        {
+          "id": "P2-1",
+          "title": "Add CI gate for parity backlog targets",
+          "owner": "Tester",
+          "estimate_days": 2,
+          "acceptance": [
+            "CI fails if unsupported markers exceed target",
+            "CI fails if strict upstream parity check fails"
+          ]
+        },
+        {
+          "id": "P2-2",
+          "title": "Track deprecated TMDL generator usage cleanup",
+          "owner": "Generator",
+          "estimate_days": 3,
+          "acceptance": [
+            "Warnings trend reduced in test suite output",
+            "Migration path documented for remaining call sites"
+          ]
+        },
+        {
+          "id": "P2-3",
+          "title": "Publish weekly parity dashboard artifact",
+          "owner": "Preceptor",
+          "estimate_days": 2,
+          "acceptance": [
+            "Weekly report with phase status and KPI deltas generated",
+            "Artifacts retained in reports directory"
+          ]
+        }
+      ],
+      "exit_criteria": {
+        "weekly_phase_runs": 1,
+        "report_artifacts_present": true
+      }
+    }
+  ]
+}

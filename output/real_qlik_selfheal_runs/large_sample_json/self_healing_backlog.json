@@ -1,0 +1,168 @@
+{
+  "generated_at": "2026-06-24T14:54:55.140987",
+  "source_run_json": "output/real_qlik_selfheal_runs/large_sample_json/run_result.json",
+  "warning_count": 23,
+  "queue": [
+    {
+      "id": "W001",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"0481aafdf5ea4705926a\" (card) on page \"ReportSection\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W002",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"1287d46aded444479bca\" (card) on page \"ReportSection\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W003",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"1bab69c7808640319368\" (clusteredBarChart) on page \"ReportSection\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W004",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"8269ae77b53743718be2\" (lineChart) on page \"ReportSection\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W005",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"c3574f60afc34d679226\" (map) on page \"ReportSection\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W006",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"d56b9084d89148d9b818\" (card) on page \"ReportSection\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W007",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"ef70be323b574b609160\" (card) on page \"ReportSection\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W008",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"04778a930f874f57b9c7\" (treemap) on page \"ReportSection21aa76df71e541f49085\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W009",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"116b3078085742a69a63\" (table) on page \"ReportSection21aa76df71e541f49085\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W010",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"4db07815010440778acb\" (clusteredBarChart) on page \"ReportSection21aa76df71e541f49085\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W011",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"8cdba550158f48d6ba1c\" (tableEx) on page \"ReportSection21aa76df71e541f49085\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W012",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"f7e63965c9464ab69fd2\" (waterfallChart) on page \"ReportSection21aa76df71e541f49085\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W013",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"6691f92d7c014da39db0\" (pieChart) on page \"ReportSection483dca674b01435086cc\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W014",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"6f29f26451914726aee9\" (tableEx) on page \"ReportSection483dca674b01435086cc\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W015",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"e6eb742ba22e409a8bde\" (gauge) on page \"ReportSection483dca674b01435086cc\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W016",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"f1ea943e94d54e2f8cb0\" (lineStackedColumnComboChart) on page \"ReportSection483dca674b01435086cc\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W017",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"04b543c86f0343609d63\" (clusteredBarChart) on page \"ReportSection81c32dd152fe4da1a599\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W018",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"2e1fad20299042fea456\" (pieChart) on page \"ReportSection81c32dd152fe4da1a599\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W019",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"954b51de143448afbc88\" (table) on page \"ReportSection81c32dd152fe4da1a599\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W020",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"e9ced07f0aad4431abeb\" (pivotTable) on page \"ReportSection81c32dd152fe4da1a599\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W021",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"2c222f5de8634abcb5ca\" (clusteredBarChart) on page \"ReportSectiond2d26785671841e2afc9\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W022",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"6d0f022ca3ae4779b880\" (lineStackedColumnComboChart) on page \"ReportSectiond2d26785671841e2afc9\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    },
+    {
+      "id": "W023",
+      "kind": "visual_binding_missing",
+      "warning": "Visual \"d0c534447c72403bb37d\" (map) on page \"ReportSectiond2d26785671841e2afc9\" has no data bindings",
+      "recommended_action": "map visual projections to existing model fields (auto-rebind candidate)",
+      "status": "open"
+    }
+  ]
+}

@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qlik → Power BI — Migration Dashboard</title>
+<style>
+    :root {
+        --pbi-blue: #0078d4;
+        --pbi-dark-blue: #004578;
+        --pbi-light-blue: #deecf9;
+        --pbi-dark: #323130;
+        --pbi-gray: #605e5c;
+        --pbi-light-gray: #a19f9d;
+        --pbi-bg: #faf9f8;
+        --pbi-surface: #ffffff;
+        --success: #107c10;
+        --success-bg: #dff6dd;
+        --warn: #797600;
+        --warn-bg: #fff4ce;
+        --fail: #a4262c;
+        --fail-bg: #fde7e9;
+        --purple: #8764b8;
+        --teal: #038387;
+        --orange: #ca5010;
+        --shadow-sm: 0 1.6px 3.6px rgba(0,0,0,0.13), 0 0.3px 0.9px rgba(0,0,0,0.11);
+        --shadow-md: 0 3.2px 7.2px rgba(0,0,0,0.13), 0 0.6px 1.8px rgba(0,0,0,0.11);
+        --shadow-lg: 0 6.4px 14.4px rgba(0,0,0,0.13), 0 1.2px 3.6px rgba(0,0,0,0.11);
+        --radius: 8px;
+        --radius-sm: 4px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+        background: var(--pbi-bg); color: var(--pbi-dark); line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+    }
+    .report-header {
+        background: linear-gradient(135deg, #0078d4 0%, #004578 100%);
+        color: #fff; padding: 32px 40px 28px; margin-bottom: 24px;
+    }
+    .report-header h1 { font-size: 1.75em; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 6px; }
+    .report-header .subtitle { font-size: 0.9em; opacity: 0.85; font-weight: 400; }
+    .report-header .meta { display: flex; gap: 16px; margin-top: 12px; font-size: 0.82em; opacity: 0.7; }
+    .report-header .meta span { display: flex; align-items: center; gap: 4px; }
+    .container { max-width: 1440px; margin: 0 auto; padding: 0 24px 40px; }
+    .section-header {
+        display: flex; align-items: center; gap: 10px; padding: 14px 0 10px;
+        margin-top: 28px; border-bottom: 2px solid #edebe9; cursor: pointer;
+        user-select: none; transition: border-color 0.2s;
+    }
+    .section-header:hover { border-bottom-color: var(--pbi-blue); }
+    .section-header h2 { font-size: 1.15em; font-weight: 600; color: var(--pbi-dark); flex: 1; }
+    .section-header .section-icon { font-size: 1.2em; width: 28px; text-align: center; }
+    .section-header .toggle-arrow { font-size: 0.7em; color: var(--pbi-light-gray); transition: transform 0.3s ease; }
+    .section-header .toggle-arrow.collapsed { transform: rotate(-90deg); }
+    .section-body { overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; max-height: 8000px; opacity: 1; }
+    .section-body.collapsed { max-height: 0 !important; opacity: 0; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 14px; margin: 16px 0; }
+    .stat-card {
+        background: var(--pbi-surface); border-radius: var(--radius); padding: 20px 16px;
+        text-align: center; box-shadow: var(--shadow-sm); transition: transform 0.15s ease, box-shadow 0.15s ease;
+        border-top: 3px solid transparent;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .stat-card .stat-value { font-size: 2em; font-weight: 700; line-height: 1.1; color: var(--pbi-blue); }
+    .stat-card .stat-label { font-size: 0.8em; color: var(--pbi-gray); margin-top: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-card.accent-success { border-top-color: var(--success); }
+    .stat-card.accent-success .stat-value { color: var(--success); }
+    .stat-card.accent-warn { border-top-color: #c19c00; }
+    .stat-card.accent-warn .stat-value { color: #c19c00; }
+    .stat-card.accent-fail { border-top-color: var(--fail); }
+    .stat-card.accent-fail .stat-value { color: var(--fail); }
+    .stat-card.accent-purple { border-top-color: var(--purple); }
+    .stat-card.accent-purple .stat-value { color: var(--purple); }
+    .stat-card.accent-teal { border-top-color: var(--teal); }
+    .stat-card.accent-teal .stat-value { color: var(--teal); }
+    .stat-card.accent-blue { border-top-color: var(--pbi-blue); }
+    .card { background: var(--pbi-surface); border-radius: var(--radius); padding: 20px 24px; margin: 14px 0; box-shadow: var(--shadow-sm); }
+    .card h3 { font-size: 1em; font-weight: 600; color: var(--pbi-dark); margin-bottom: 14px; }
+    .card h4 { font-size: 0.92em; font-weight: 600; color: var(--pbi-gray); margin: 18px 0 10px; }
+    .table-container { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow-sm); margin: 14px 0; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.85em; background: var(--pbi-surface); }
+    thead th {
+        background: var(--pbi-blue); color: #fff; padding: 11px 14px; text-align: left;
+        font-weight: 600; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.04em;
+        position: sticky; top: 0; z-index: 2; white-space: nowrap;
+    }
+    thead th.sortable { cursor: pointer; user-select: none; }
+    thead th.sortable:hover { background: #106ebe; }
+    thead th .sort-icon { display: inline-block; margin-left: 4px; opacity: 0.5; font-size: 0.9em; }
+    .detail-table thead th { background: var(--pbi-gray); }
+    tbody td { padding: 9px 14px; border-bottom: 1px solid #edebe9; vertical-align: middle; }
+    tbody tr:hover { background: #f3f2f1; }
+    tbody tr:last-child td { border-bottom: none; }
+    .table-search { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .table-search input {
+        font-family: inherit; font-size: 0.85em; padding: 7px 12px;
+        border: 1px solid #d2d0ce; border-radius: var(--radius-sm); width: 260px;
+        outline: none; transition: border-color 0.2s;
+    }
+    .table-search input:focus { border-color: var(--pbi-blue); box-shadow: 0 0 0 2px rgba(0,120,212,0.2); }
+    .table-search label { font-size: 0.82em; color: var(--pbi-gray); }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-weight: 600; font-size: 0.78em; letter-spacing: 0.02em; text-transform: uppercase; }
+    .badge-green  { background: var(--success-bg); color: var(--success); }
+    .badge-yellow { background: var(--warn-bg); color: var(--warn); }
+    .badge-red    { background: var(--fail-bg); color: var(--fail); }
+    .badge-blue   { background: var(--pbi-light-blue); color: var(--pbi-dark-blue); }
+    .badge-gray   { background: #edebe9; color: var(--pbi-gray); }
+    .badge-purple { background: #f3e8fd; color: #5c2d91; }
+    .badge-teal   { background: #d4f4f4; color: #005b5e; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: var(--radius-sm); font-size: 0.78em; font-weight: 500; white-space: nowrap; }
+    .tag-connector { background: #e8f0fe; color: #1a73e8; }
+    .tag-success   { background: var(--success-bg); color: var(--success); }
+    .tag-warn      { background: var(--warn-bg); color: #856404; }
+    .tag-danger    { background: var(--fail-bg); color: var(--fail); }
+    .tag-dim       { background: #e8eaf6; color: #283593; }
+    .tag-measure   { background: #fce4ec; color: #b71c1c; }
+    .fidelity-bar { display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; }
+    .fidelity-track { width: 120px; height: 8px; background: #edebe9; border-radius: 4px; overflow: hidden; }
+    .fidelity-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .fidelity-label { font-size: 0.82em; font-weight: 600; min-width: 46px; }
+    .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin: 16px 0; }
+    .chart-card { background: var(--pbi-surface); border-radius: var(--radius); padding: 20px 24px; box-shadow: var(--shadow-sm); }
+    .chart-card h4 { font-size: 0.9em; font-weight: 600; color: var(--pbi-dark); margin-bottom: 14px; }
+    .donut-container { display: flex; align-items: center; justify-content: center; gap: 28px; }
+    .donut { width: 150px; height: 150px; }
+    .donut circle { transition: stroke-dasharray 0.8s ease; }
+    .donut-legend { font-size: 0.85em; line-height: 2; }
+    .legend-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
+    .bar-chart { display: flex; flex-direction: column; gap: 8px; }
+    .bar-row { display: flex; align-items: center; gap: 10px; }
+    .bar-label { width: 110px; text-align: right; font-size: 0.82em; color: var(--pbi-gray); flex-shrink: 0; font-weight: 500; }
+    .bar-track { flex: 1; height: 24px; background: #edebe9; border-radius: var(--radius-sm); overflow: hidden; position: relative; }
+    .bar-fill {
+        height: 100%; border-radius: var(--radius-sm); display: flex; align-items: center;
+        justify-content: flex-end; padding-right: 8px; color: #fff; font-size: 0.75em;
+        font-weight: 600; transition: width 0.5s ease; min-width: 0;
+    }
+    .bar-value { font-size: 0.82em; color: var(--pbi-gray); width: 36px; text-align: right; font-weight: 600; }
+    .tab-bar { display: flex; gap: 4px; border-bottom: 2px solid #edebe9; margin-bottom: 14px; overflow-x: auto; }
+    .tab {
+        padding: 8px 18px; cursor: pointer; font-size: 0.85em; font-weight: 500;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0; transition: all 0.2s;
+        color: var(--pbi-gray); white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -2px;
+    }
+    .tab:hover { background: var(--pbi-light-blue); color: var(--pbi-blue); }
+    .tab.active { color: var(--pbi-blue); font-weight: 600; border-bottom-color: var(--pbi-blue); background: transparent; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .heatmap td { text-align: center; font-weight: 600; font-size: 0.82em; transition: background 0.2s; }
+    .heatmap td.heat-label { text-align: left; font-weight: 600; color: var(--pbi-dark); background: transparent !important; }
+    .mono { font-family: 'Cascadia Code', 'Consolas', 'Monaco', monospace; font-size: 0.85em; }
+    code { background: #f3f2f1; padding: 2px 6px; border-radius: 3px; font-family: 'Cascadia Code', 'Consolas', 'Monaco', monospace; font-size: 0.88em; }
+    .text-success { color: var(--success); }
+    .text-warn    { color: #c19c00; }
+    .text-fail    { color: var(--fail); }
+    .text-blue    { color: var(--pbi-blue); }
+    .text-gray    { color: var(--pbi-gray); }
+    .text-muted   { color: var(--pbi-light-gray); }
+    .fw-bold      { font-weight: 600; }
+    .fs-sm        { font-size: 0.85em; }
+    .mt-0         { margin-top: 0; }
+    .mb-0         { margin-bottom: 0; }
+    .nowrap       { white-space: nowrap; }
+    .report-footer { text-align: center; padding: 28px 20px; margin-top: 40px; border-top: 1px solid #edebe9; color: var(--pbi-light-gray); font-size: 0.82em; }
+    .report-footer a { color: var(--pbi-blue); text-decoration: none; }
+    @media print {
+        .report-header { background: #0078d4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .section-body { max-height: none !important; opacity: 1 !important; }
+        .section-header { cursor: default; } .toggle-arrow { display: none; }
+        .stat-card, .card { break-inside: avoid; } .table-search { display: none; } body { background: #fff; }
+    }
+    @media (max-width: 768px) {
+        .report-header { padding: 20px; } .report-header h1 { font-size: 1.3em; }
+        .container { padding: 0 12px 20px; }
+        .stat-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+        .chart-row { grid-template-columns: 1fr; } .bar-label { width: 80px; }
+        .donut-container { flex-direction: column; }
+    }
+    /* ── Dark theme (toggle or system preference) ──────────── */
+    [data-theme="dark"] {
+        --pbi-bg: #1b1a19; --pbi-surface: #252423; --pbi-dark: #f3f2f1;
+        --pbi-gray: #b3b0ad; --pbi-light-gray: #8a8886;
+        --shadow-sm: 0 1.6px 3.6px rgba(0,0,0,0.4), 0 0.3px 0.9px rgba(0,0,0,0.3);
+        --shadow-md: 0 3.2px 7.2px rgba(0,0,0,0.4), 0 0.6px 1.8px rgba(0,0,0,0.3);
+    }
+    [data-theme="dark"] body { background: var(--pbi-bg); color: var(--pbi-dark); }
+    [data-theme="dark"] .report-header { background: linear-gradient(135deg, #004578 0%, #001d33 100%); }
+    [data-theme="dark"] .stat-card,
+    [data-theme="dark"] .card,
+    [data-theme="dark"] .chart-card { background: var(--pbi-surface); }
+    [data-theme="dark"] table { background: var(--pbi-surface); }
+    [data-theme="dark"] thead th { background: #004578; }
+    [data-theme="dark"] thead th.sortable:hover { background: #005a9e; }
+    [data-theme="dark"] .detail-table thead th { background: #3b3a39; }
+    [data-theme="dark"] tbody td { border-bottom-color: #3b3a39; }
+    [data-theme="dark"] tbody tr:hover { background: #323130; }
+    [data-theme="dark"] .section-header { border-bottom-color: #3b3a39; }
+    [data-theme="dark"] .section-header:hover { border-bottom-color: #2b88d8; }
+    [data-theme="dark"] .tab-bar { border-bottom-color: #3b3a39; }
+    [data-theme="dark"] .tab:hover { background: rgba(0,120,212,0.15); }
+    [data-theme="dark"] .fidelity-track,
+    [data-theme="dark"] .bar-track { background: #3b3a39; }
+    [data-theme="dark"] .badge-gray { background: #3b3a39; color: #b3b0ad; }
+    [data-theme="dark"] .badge-green { background: #1a3a1a; color: #6ccb5f; }
+    [data-theme="dark"] .badge-yellow { background: #3a3500; color: #d4c75f; }
+    [data-theme="dark"] .badge-red { background: #4a1a1d; color: #f5707a; }
+    [data-theme="dark"] .badge-blue { background: #1a3a5c; color: #6cb8f6; }
+    [data-theme="dark"] .badge-purple { background: #2d1a4e; color: #c4a5f0; }
+    [data-theme="dark"] .badge-teal { background: #1a3a3a; color: #5fd4d4; }
+    [data-theme="dark"] .tag-connector { background: #1a3a5c; color: #6cb8f6; }
+    [data-theme="dark"] .tag-success { background: #1a3a1a; color: #6ccb5f; }
+    [data-theme="dark"] .tag-warn { background: #3a3500; color: #d4c75f; }
+    [data-theme="dark"] .tag-danger { background: #4a1a1d; color: #f5707a; }
+    [data-theme="dark"] .tag-dim { background: #1a2040; color: #8ea0e0; }
+    [data-theme="dark"] .tag-measure { background: #3a1a2a; color: #e08090; }
+    [data-theme="dark"] code { background: #3b3a39; }
+    [data-theme="dark"] .report-footer { border-top-color: #3b3a39; }
+    [data-theme="dark"] .table-search input { background: #323130; border-color: #3b3a39; color: var(--pbi-dark); }
+    [data-theme="dark"] .table-search input:focus { border-color: #2b88d8; }
+    [data-theme="dark"] .comparison { background: var(--pbi-surface); }
+    [data-theme="dark"] .comparison .row-header { background: #2d2d2d; }
+    [data-theme="dark"] .col { border-color: #3b3a39; }
+    [data-theme="dark"] pre { background: #2d2d2d; color: #d4d4d4; }
+    /* ── Theme toggle button ─────────────────────────────────── */
+    .theme-toggle {
+        position: absolute; top: 50%; right: 24px; transform: translateY(-50%);
+        background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+        color: #fff; border-radius: 20px; padding: 6px 14px; cursor: pointer;
+        font-size: 0.82em; font-family: inherit; font-weight: 500;
+        display: inline-flex; align-items: center; gap: 6px;
+        transition: background 0.2s, border-color 0.2s;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    }
+    .theme-toggle:hover { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.4); }
+    .theme-toggle .theme-icon { font-size: 1.1em; line-height: 1; }
+    .report-header { position: relative; }
+    @media print and (prefers-color-scheme: dark) {
+        :root { --pbi-bg: #fff; --pbi-surface: #fff; --pbi-dark: #323130; --pbi-gray: #605e5c; --pbi-light-gray: #a19f9d; }
+        body { background: #fff; color: #323130; } .report-header { background: #0078d4 !important; }
+    }
+    @media print { .theme-toggle { display: none; } }
+</style>
+</head>
+<body>
+<div class="report-header">
+    <h1>Qlik → Power BI — Migration Dashboard</h1>
+    <div class='subtitle'>1 app migrated</div>
+    <div class="meta">
+        <span>&#128197; 2026-06-24 14:53</span>
+        <span>&#9881; v12.0.0</span>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+        <span class="theme-icon">&#9790;</span>
+        <span class="theme-label">Dark</span>
+    </button>
+</div>
+<div class="container">
+
+<div class="section-header" onclick="toggleSection('exec')">
+    <span class="section-icon">&#128200;</span>
+    <h2>Executive Summary</h2>
+    <span class="toggle-arrow" id="exec-arrow">&#9660;</span>
+</div>
+<div class="section-body" id="exec">
+<div class="stat-grid">
+<div class="stat-card accent-blue">
+    <div class="stat-value">1</div>
+    <div class="stat-label">Qlik Apps</div>
+</div>
+<div class="stat-card accent-success">
+    <div class="stat-value">100.0%</div>
+    <div class="stat-label">Avg. Fidelity</div>
+</div>
+<div class="stat-card">
+    <div class="stat-value">33</div>
+    <div class="stat-label">Items Converted</div>
+</div>
+<div class="stat-card accent-success">
+    <div class="stat-value">33</div>
+    <div class="stat-label">Exact</div>
+</div>
+<div class="stat-card accent-warn">
+    <div class="stat-value">0</div>
+    <div class="stat-label">Approximate</div>
+</div>
+<div class="stat-card accent-fail">
+    <div class="stat-value">0</div>
+    <div class="stat-label">Unsupported</div>
+</div>
+</div><div class="chart-row"><div class="chart-card"><h4>&#127919; Conversion Status</h4><div class="donut-container">
+<svg class="donut" viewBox="0 0 42 42">
+<circle cx="21" cy="21" r="15.91549431" fill="transparent" stroke="#edebe9" stroke-width="5.5"></circle>
+<circle cx="21" cy="21" r="15.91549431" fill="transparent" stroke="#107c10" stroke-width="5.5" stroke-dasharray="100.00 0.00" stroke-dashoffset="25.00"></circle>
+<circle cx="21" cy="21" r="15.91549431" fill="transparent" stroke="#c19c00" stroke-width="5.5" stroke-dasharray="0.00 100.00" stroke-dashoffset="-75.00"></circle>
+<circle cx="21" cy="21" r="15.91549431" fill="transparent" stroke="#a4262c" stroke-width="5.5" stroke-dasharray="0.00 100.00" stroke-dashoffset="-75.00"></circle>
+<text x="21" y="22.5" text-anchor="middle" font-size="6" font-weight="bold" fill="#323130">100%</text>
+</svg>
+<div class="donut-legend">
+<div><span class="legend-dot" style="background:#107c10"></span>Exact: 33 (100%)</div>
+<div><span class="legend-dot" style="background:#c19c00"></span>Approximate: 0 (0%)</div>
+<div><span class="legend-dot" style="background:#a4262c"></span>Unsupported: 0 (0%)</div>
+</div>
+</div></div><div class="chart-card"><h4>&#128202; Items by Category</h4><div class="bar-chart">
+<div class="bar-row">
+    <div class="bar-label">Visual</div>
+    <div class="bar-track"><div class="bar-fill" style="width:100.0%;background:#038387">23</div></div>
+    <div class="bar-value">23</div>
+</div>
+<div class="bar-row">
+    <div class="bar-label">Datasource</div>
+    <div class="bar-track"><div class="bar-fill" style="width:21.7%;background:#0078d4">5</div></div>
+    <div class="bar-value">5</div>
+</div>
+<div class="bar-row">
+    <div class="bar-label">Parameter</div>
+    <div class="bar-track"><div class="bar-fill" style="width:21.7%;background:#c19c00">5</div></div>
+    <div class="bar-value">5</div>
+</div>
+</div></div><div class="chart-card"><h4>&#128268; Data Connectors</h4><div class="bar-chart">
+<div class="bar-row">
+    <div class="bar-label">?</div>
+    <div class="bar-track"><div class="bar-fill" style="width:100.0%;background:#0078d4">5</div></div>
+    <div class="bar-value">5</div>
+</div>
+</div></div></div>
+</div>
+
+<div class="section-header" onclick="toggleSection('artifacts')">
+    <span class="section-icon">&#128736;</span>
+    <h2>Generated Artifacts</h2>
+    <span class="toggle-arrow" id="artifacts-arrow">&#9660;</span>
+</div>
+<div class="section-body" id="artifacts">
+<div class="stat-grid">
+<div class="stat-card accent-blue">
+    <div class="stat-value">6</div>
+    <div class="stat-label">TMDL Tables</div>
+</div>
+<div class="stat-card accent-blue">
+    <div class="stat-value">42</div>
+    <div class="stat-label">Columns</div>
+</div>
+<div class="stat-card accent-purple">
+    <div class="stat-value">5</div>
+    <div class="stat-label">DAX Measures</div>
+</div>
+<div class="stat-card accent-teal">
+    <div class="stat-value">3</div>
+    <div class="stat-label">Relationships</div>
+</div>
+<div class="stat-card">
+    <div class="stat-value">5</div>
+    <div class="stat-label">Report Pages</div>
+</div>
+<div class="stat-card">
+    <div class="stat-value">23</div>
+    <div class="stat-label">Visuals</div>
+</div>
+</div><div class="card"><h4>&#127919; App Complexity Heatmap</h4><div class="table-container"><table id="heatmap-tbl">
+<thead><tr>
+<th class="sortable" onclick="sortTable('heatmap-tbl', 0)">Qlik App <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('heatmap-tbl', 1)">Tables <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('heatmap-tbl', 2)">Columns <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('heatmap-tbl', 3)">Measures <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('heatmap-tbl', 4)">Relationships <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('heatmap-tbl', 5)">Sheets <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('heatmap-tbl', 6)">Calculations <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('heatmap-tbl', 7)">Filters <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('heatmap-tbl', 8)">Pages <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('heatmap-tbl', 9)">Visuals <span class="sort-icon">&#8693;</span></th>
+</tr></thead>
+<tbody>
+<tr><td><strong>large_enterprise_sales</strong></td><td><span style="display:block;padding:4px;border-radius:3px;background:rgba(0,120,212,0.73);color:#fff;text-align:center;font-weight:600">6</span></td><td><span style="display:block;padding:4px;border-radius:3px;background:rgba(0,120,212,0.73);color:#fff;text-align:center;font-weight:600">42</span></td><td><span style="display:block;padding:4px;border-radius:3px;background:rgba(0,120,212,0.73);color:#fff;text-align:center;font-weight:600">5</span></td><td><span style="display:block;padding:4px;border-radius:3px;background:rgba(0,120,212,0.73);color:#fff;text-align:center;font-weight:600">3</span></td><td><span style="display:block;padding:4px;border-radius:3px;background:rgba(0,120,212,0.73);color:#fff;text-align:center;font-weight:600">23</span></td><td><span style="display:block;padding:4px;border-radius:3px;background:rgba(0,120,212,0.08);color:#323130;text-align:center;font-weight:600">0</span></td><td><span style="display:block;padding:4px;border-radius:3px;background:rgba(0,120,212,0.08);color:#323130;text-align:center;font-weight:600">0</span></td><td><span style="display:block;padding:4px;border-radius:3px;background:rgba(0,120,212,0.73);color:#fff;text-align:center;font-weight:600">5</span></td><td><span style="display:block;padding:4px;border-radius:3px;background:rgba(0,120,212,0.73);color:#fff;text-align:center;font-weight:600">23</span></td></tr>
+</tbody></table></div></div>
+</div>
+
+<div class="section-header" onclick="toggleSection('migration')">
+    <span class="section-icon">&#128640;</span>
+    <h2>Migration Results</h2>
+    <span class="toggle-arrow" id="migration-arrow">&#9660;</span>
+</div>
+<div class="section-body" id="migration">
+<div class="card"><div class="table-search">
+    <label>&#128269;</label>
+    <input type="text" id="search-mig-tbl" placeholder="Filter rows..." oninput="filterTable('search-mig-tbl', 'mig-tbl')">
+</div>
+<div class="table-container"><table id="mig-tbl">
+<thead><tr>
+<th class="sortable" onclick="sortTable('mig-tbl', 0)">Qlik App <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('mig-tbl', 1)">Fidelity <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('mig-tbl', 2)">Total <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('mig-tbl', 3)">Exact <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('mig-tbl', 4)">Approx. <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('mig-tbl', 5)">Unsupported <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('mig-tbl', 6)">Tables <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('mig-tbl', 7)">Measures <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('mig-tbl', 8)">Pages <span class="sort-icon">&#8693;</span></th>
+<th class="sortable" onclick="sortTable('mig-tbl', 9)">Visuals <span class="sort-icon">&#8693;</span></th>
+</tr></thead>
+<tbody>
+<tr><td><strong>large_enterprise_sales</strong></td><td><span class="fidelity-bar">
+    <span class="fidelity-track"><span class="fidelity-fill" style="width:100%;background:var(--success)"></span></span>
+    <span class="fidelity-label" style="color:var(--success)">100.0%</span>
+</span></td><td>33</td><td><span class="text-success fw-bold">33</span></td><td>—</td><td>—</td><td>6</td><td>5</td><td>5</td><td>23</td></tr>
+</tbody></table></div></div>
+</div>
+
+<div class="section-header" onclick="toggleSection('converted')">
+    <span class="section-icon">&#128221;</span>
+    <h2>Converted Items by App</h2>
+    <span class="toggle-arrow" id="converted-arrow">&#9660;</span>
+</div>
+<div class="section-body" id="converted">
+<div class="tab-bar">
+<div class="tab active" data-tab-group="conv-app" data-tab-name="all" onclick="switchTab('conv-app', 'all')">All (33)</div>
+<div class="tab" data-tab-group="conv-app" data-tab-name="large_enterprise_sales" onclick="switchTab('conv-app', 'large_enterprise_sales')">large_enterprise_sales (33)</div>
+</div><div class="tab-content active" id="conv-app-all" data-tab-content-group="conv-app">
+<div class="table-search">
+    <label>&#128269;</label>
+    <input type="text" id="search-conv-all-tbl" placeholder="Filter rows..." oninput="filterTable('search-conv-all-tbl', 'conv-all-tbl')">
+</div>
+<div class="table-container"><table id="conv-all-tbl" class="detail-table">
+<thead><tr>
+<th>App</th>
+<th>Category</th>
+<th>Name</th>
+<th>Status</th>
+<th>Qlik Expression</th>
+<th>DAX / Target</th>
+</tr></thead>
+<tbody>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Total Sales</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Total Profit</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Order Count</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Customers</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Sales Trend</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Profit by Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Sales by Region</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Sales by Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>SubCategory Treemap</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Product Detail</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Profit Waterfall by Sub-Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Discount vs Profit Margin</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Sales by Segment</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Customer Sales vs Profit</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Customer Pivot</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Top 10 Customers</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Sales Heat Map</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Sales &amp; Profit by Region</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Top Cities</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Avg Days to Ship</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Orders by Ship Mode</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Return Rate by Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">visual</span></td><td><strong>Order Detail</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">parameter</span></td><td><strong>vCurrentYear</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">parameter</span></td><td><strong>vPriorYear</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">parameter</span></td><td><strong>vCurrencySymbol</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">parameter</span></td><td><strong>vSalesTarget</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><strong class="nowrap">large_enterprise_sales</strong></td><td><span class="tag tag-connector">parameter</span></td><td><strong>vTopN</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+</tbody></table></div>
+</div><div class="tab-content" id="conv-app-large_enterprise_sales" data-tab-content-group="conv-app">
+<div class="table-search">
+    <label>&#128269;</label>
+    <input type="text" id="search-conv-large_enterprise_sales-tbl" placeholder="Filter rows..." oninput="filterTable('search-conv-large_enterprise_sales-tbl', 'conv-large_enterprise_sales-tbl')">
+</div>
+<div class="table-container"><table id="conv-large_enterprise_sales-tbl" class="detail-table">
+<thead><tr>
+<th>Category</th>
+<th>Name</th>
+<th>Status</th>
+<th>Qlik Expression</th>
+<th>DAX / Target</th>
+</tr></thead>
+<tbody>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Total Sales</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Total Profit</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Order Count</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Customers</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales Trend</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Profit by Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales by Region</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales by Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>SubCategory Treemap</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Product Detail</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Profit Waterfall by Sub-Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Discount vs Profit Margin</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales by Segment</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Customer Sales vs Profit</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Customer Pivot</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Top 10 Customers</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales Heat Map</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales &amp; Profit by Region</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Top Cities</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Avg Days to Ship</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Orders by Ship Mode</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Return Rate by Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Order Detail</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vCurrentYear</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vPriorYear</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vCurrencySymbol</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vSalesTarget</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vTopN</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+</tbody></table></div>
+</div>
+</div>
+
+<div class="section-header" onclick="toggleSection('details')">
+    <span class="section-icon">&#128221;</span>
+    <h2>Per-App Details</h2>
+    <span class="toggle-arrow" id="details-arrow">&#9660;</span>
+</div>
+<div class="section-body" id="details">
+
+<div class="card">
+<div class="section-header" onclick="toggleSection('app-large_enterprise_sales')" style="margin-top:0;border-bottom:none">
+    <h2 style="font-size:1em">large_enterprise_sales &nbsp;  &nbsp; <span class="fidelity-bar">
+    <span class="fidelity-track"><span class="fidelity-fill" style="width:100%;background:var(--success)"></span></span>
+    <span class="fidelity-label" style="color:var(--success)">100.0%</span>
+</span></h2>
+    <span class="toggle-arrow" id="app-large_enterprise_sales-arrow">&#9660;</span>
+</div>
+<div class="section-body" id="app-large_enterprise_sales"><p class="text-gray fs-sm">&#128230; <strong>worksheets</strong>:&nbsp;23 &nbsp;|&nbsp; <strong>dashboards</strong>:&nbsp;5 &nbsp;|&nbsp; <strong>datasources</strong>:&nbsp;5 &nbsp;|&nbsp; <strong>parameters</strong>:&nbsp;5 &nbsp;|&nbsp; <strong>stories</strong>:&nbsp;3 &nbsp;|&nbsp; <strong>custom_sql</strong>:&nbsp;1</p><div class="bar-chart">
+<div class="bar-row">
+    <div class="bar-label">Visual</div>
+    <div class="bar-track"><div class="bar-fill" style="width:100.0%;background:#038387">23</div></div>
+    <div class="bar-value">23</div>
+</div>
+<div class="bar-row">
+    <div class="bar-label">Datasource</div>
+    <div class="bar-track"><div class="bar-fill" style="width:21.7%;background:#0078d4">5</div></div>
+    <div class="bar-value">5</div>
+</div>
+<div class="bar-row">
+    <div class="bar-label">Parameter</div>
+    <div class="bar-track"><div class="bar-fill" style="width:21.7%;background:#c19c00">5</div></div>
+    <div class="bar-value">5</div>
+</div>
+</div><h4>&#127912; Visual Mappings</h4><div class="table-container"><table id="tbl-1792805086080" class="detail-table">
+<thead><tr>
+<th>Qlik Visual</th>
+<th></th>
+<th>Power BI Visual</th>
+</tr></thead>
+<tbody>
+<tr><td>Total Sales</td><td>&#8594;</td><td><span class="tag tag-success">kpi</span></td></tr>
+<tr><td>Total Profit</td><td>&#8594;</td><td><span class="tag tag-success">kpi</span></td></tr>
+<tr><td>Order Count</td><td>&#8594;</td><td><span class="tag tag-success">kpi</span></td></tr>
+<tr><td>Customers</td><td>&#8594;</td><td><span class="tag tag-success">kpi</span></td></tr>
+<tr><td>Sales Trend</td><td>&#8594;</td><td><span class="tag tag-success">linechart</span></td></tr>
+<tr><td>Profit by Category</td><td>&#8594;</td><td><span class="tag tag-success">barchart</span></td></tr>
+<tr><td>Sales by Region</td><td>&#8594;</td><td><span class="tag tag-success">map</span></td></tr>
+<tr><td>Sales by Category</td><td>&#8594;</td><td><span class="tag tag-success">barchart</span></td></tr>
+<tr><td>SubCategory Treemap</td><td>&#8594;</td><td><span class="tag tag-success">treemap</span></td></tr>
+<tr><td>Product Detail</td><td>&#8594;</td><td><span class="tag tag-success">table</span></td></tr>
+<tr><td>Profit Waterfall by Sub-Category</td><td>&#8594;</td><td><span class="tag tag-success">waterfall</span></td></tr>
+<tr><td>Discount vs Profit Margin</td><td>&#8594;</td><td><span class="tag tag-success">scatterplot</span></td></tr>
+<tr><td>Sales by Segment</td><td>&#8594;</td><td><span class="tag tag-success">piechart</span></td></tr>
+<tr><td>Customer Sales vs Profit</td><td>&#8594;</td><td><span class="tag tag-success">scatterplot</span></td></tr>
+<tr><td>Customer Pivot</td><td>&#8594;</td><td><span class="tag tag-success">pivot-table</span></td></tr>
+<tr><td>Top 10 Customers</td><td>&#8594;</td><td><span class="tag tag-success">barchart</span></td></tr>
+<tr><td>Sales Heat Map</td><td>&#8594;</td><td><span class="tag tag-success">map</span></td></tr>
+<tr><td>Sales &amp; Profit by Region</td><td>&#8594;</td><td><span class="tag tag-success">combo</span></td></tr>
+<tr><td>Top Cities</td><td>&#8594;</td><td><span class="tag tag-success">barchart</span></td></tr>
+<tr><td>Avg Days to Ship</td><td>&#8594;</td><td><span class="tag tag-success">gauge</span></td></tr>
+<tr><td>Orders by Ship Mode</td><td>&#8594;</td><td><span class="tag tag-success">piechart</span></td></tr>
+<tr><td>Return Rate by Category</td><td>&#8594;</td><td><span class="tag tag-success">combo</span></td></tr>
+<tr><td>Order Detail</td><td>&#8594;</td><td><span class="tag tag-success">table</span></td></tr>
+</tbody></table></div><h4>&#128221; Converted Items</h4><div class="tab-bar">
+<div class="tab active" data-tab-group="app-tab-large_enterprise_sales" data-tab-name="all" onclick="switchTab('app-tab-large_enterprise_sales', 'all')">All (33)</div>
+<div class="tab" data-tab-group="app-tab-large_enterprise_sales" data-tab-name="calc" onclick="switchTab('app-tab-large_enterprise_sales', 'calc')">Calculations (0)</div>
+<div class="tab" data-tab-group="app-tab-large_enterprise_sales" data-tab-name="ds" onclick="switchTab('app-tab-large_enterprise_sales', 'ds')">Datasources (5)</div>
+<div class="tab" data-tab-group="app-tab-large_enterprise_sales" data-tab-name="vis" onclick="switchTab('app-tab-large_enterprise_sales', 'vis')">Visuals (23)</div>
+<div class="tab" data-tab-group="app-tab-large_enterprise_sales" data-tab-name="other" onclick="switchTab('app-tab-large_enterprise_sales', 'other')">Other (5)</div>
+</div><div class="tab-content active" id="app-tab-large_enterprise_sales-all" data-tab-content-group="app-tab-large_enterprise_sales">
+<div class="table-container"><table id="tbl-1792830691520" class="detail-table">
+<thead><tr>
+<th>Category</th>
+<th>Name</th>
+<th>Status</th>
+<th>Qlik Expression</th>
+<th>DAX / Target</th>
+</tr></thead>
+<tbody>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Total Sales</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Total Profit</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Order Count</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Customers</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales Trend</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Profit by Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales by Region</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales by Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>SubCategory Treemap</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Product Detail</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Profit Waterfall by Sub-Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Discount vs Profit Margin</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales by Segment</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Customer Sales vs Profit</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Customer Pivot</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Top 10 Customers</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales Heat Map</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales &amp; Profit by Region</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Top Cities</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Avg Days to Ship</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Orders by Ship Mode</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Return Rate by Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Order Detail</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vCurrentYear</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vPriorYear</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vCurrencySymbol</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vSalesTarget</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vTopN</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+</tbody></table></div>
+</div><div class="tab-content" id="app-tab-large_enterprise_sales-calc" data-tab-content-group="app-tab-large_enterprise_sales">
+<p class="text-muted" style="font-style:italic">No items in this category.</p>
+</div><div class="tab-content" id="app-tab-large_enterprise_sales-ds" data-tab-content-group="app-tab-large_enterprise_sales">
+<div class="table-container"><table id="tbl-1792830752640" class="detail-table">
+<thead><tr>
+<th>Category</th>
+<th>Name</th>
+<th>Status</th>
+<th>Qlik Expression</th>
+<th>DAX / Target</th>
+</tr></thead>
+<tbody>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">datasource</span></td><td><strong>Unknown</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">?, 0 table(s)</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+</tbody></table></div>
+</div><div class="tab-content" id="app-tab-large_enterprise_sales-vis" data-tab-content-group="app-tab-large_enterprise_sales">
+<div class="table-container"><table id="tbl-1792830761600" class="detail-table">
+<thead><tr>
+<th>Category</th>
+<th>Name</th>
+<th>Status</th>
+<th>Qlik Expression</th>
+<th>DAX / Target</th>
+</tr></thead>
+<tbody>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Total Sales</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Total Profit</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Order Count</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Customers</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales Trend</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Profit by Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales by Region</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales by Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>SubCategory Treemap</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Product Detail</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Profit Waterfall by Sub-Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Discount vs Profit Margin</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales by Segment</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Customer Sales vs Profit</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Customer Pivot</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Top 10 Customers</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales Heat Map</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Sales &amp; Profit by Region</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Top Cities</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Avg Days to Ship</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Orders by Ship Mode</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Return Rate by Category</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">visual</span></td><td><strong>Order Detail</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+</tbody></table></div>
+</div><div class="tab-content" id="app-tab-large_enterprise_sales-other" data-tab-content-group="app-tab-large_enterprise_sales">
+<div class="table-container"><table id="tbl-1792830752640" class="detail-table">
+<thead><tr>
+<th>Category</th>
+<th>Name</th>
+<th>Status</th>
+<th>Qlik Expression</th>
+<th>DAX / Target</th>
+</tr></thead>
+<tbody>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vCurrentYear</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vPriorYear</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vCurrencySymbol</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vSalesTarget</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+<tr><td><span class="tag tag-connector">parameter</span></td><td><strong>vTopN</strong></td><td><span class="badge badge-green">exact</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block">domain=?</span></td><td><span class="mono fs-sm" style="max-width:350px;word-break:break-all;display:inline-block"></span></td></tr>
+</tbody></table></div>
+</div></div></div>
+</div>
+
+</div>
+<div class="report-footer">
+    <p>Qlik &#8594; Power BI Migration Tool v12.0.0 &nbsp;|&nbsp; Report generated 2026-06-24 14:53</p>
+    <p>Open .pbip files in Power BI Desktop (Developer Mode) to validate</p>
+</div>
+<script>
+
+/* ── Theme toggle ─────────────────────────────────────── */
+(function() {
+    var stored = localStorage.getItem('pbi-report-theme');
+    if (stored) {
+        document.documentElement.setAttribute('data-theme', stored);
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+})();
+function toggleTheme() {
+    var html = document.documentElement;
+    var current = html.getAttribute('data-theme');
+    var next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('pbi-report-theme', next);
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) {
+        btn.querySelector('.theme-icon').textContent = next === 'dark' ? '\u2600' : '\u263E';
+        btn.querySelector('.theme-label').textContent = next === 'dark' ? 'Light' : 'Dark';
+    }
+}
+window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+    if (!localStorage.getItem('pbi-report-theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+        var btn = document.querySelector('.theme-toggle');
+        if (btn) {
+            btn.querySelector('.theme-icon').textContent = e.matches ? '\u2600' : '\u263E';
+            btn.querySelector('.theme-label').textContent = e.matches ? 'Light' : 'Dark';
+        }
+    }
+});
+function toggleSection(id) {
+    var body = document.getElementById(id);
+    var arrow = document.getElementById(id + '-arrow');
+    if (!body) return;
+    body.classList.toggle('collapsed');
+    if (arrow) arrow.classList.toggle('collapsed');
+}
+function switchTab(groupId, tabName) {
+    var allTabs = document.querySelectorAll('[data-tab-group="' + groupId + '"]');
+    allTabs.forEach(function(t) { t.classList.remove('active'); });
+    var allContents = document.querySelectorAll('[data-tab-content-group="' + groupId + '"]');
+    allContents.forEach(function(c) { c.classList.remove('active'); });
+    var targetTab = document.querySelector('[data-tab-group="' + groupId + '"][data-tab-name="' + tabName + '"]');
+    if (targetTab) targetTab.classList.add('active');
+    var targetContent = document.getElementById(groupId + '-' + tabName);
+    if (targetContent) targetContent.classList.add('active');
+}
+function filterTable(inputId, tableId) {
+    var input = document.getElementById(inputId);
+    var table = document.getElementById(tableId);
+    if (!input || !table) return;
+    var filter = input.value.toLowerCase();
+    var rows = table.querySelectorAll('tbody tr');
+    rows.forEach(function(row) {
+        var text = row.textContent.toLowerCase();
+        row.style.display = text.indexOf(filter) > -1 ? '' : 'none';
+    });
+}
+function sortTable(tableId, colIndex) {
+    var table = document.getElementById(tableId);
+    if (!table) return;
+    var th = table.querySelectorAll('thead th')[colIndex];
+    var tbody = table.querySelector('tbody');
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    var isAsc = th.classList.contains('sort-asc');
+    table.querySelectorAll('thead th').forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
+    th.classList.add(isAsc ? 'sort-desc' : 'sort-asc');
+    var direction = isAsc ? -1 : 1;
+    rows.sort(function(a, b) {
+        var aVal = a.cells[colIndex].getAttribute('data-sort') || a.cells[colIndex].textContent.trim();
+        var bVal = b.cells[colIndex].getAttribute('data-sort') || b.cells[colIndex].textContent.trim();
+        var aNum = parseFloat(aVal.replace(/[^0-9.-]/g, ''));
+        var bNum = parseFloat(bVal.replace(/[^0-9.-]/g, ''));
+        if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * direction;
+        return aVal.localeCompare(bVal) * direction;
+    });
+    rows.forEach(function(row) { tbody.appendChild(row); });
+}
+
+// Sync toggle button label on load
+(function() {
+    var theme = document.documentElement.getAttribute('data-theme') || 'light';
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) {
+        btn.querySelector('.theme-icon').textContent = theme === 'dark' ? '\u2600' : '\u263E';
+        btn.querySelector('.theme-label').textContent = theme === 'dark' ? 'Light' : 'Dark';
+    }
+})();
+</script>
+</body>
+</html>

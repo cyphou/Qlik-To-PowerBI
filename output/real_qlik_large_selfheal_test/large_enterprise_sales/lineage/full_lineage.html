@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Full Lineage — large_enterprise_sales</title>
+<style>
+    :root {
+        --pbi-blue: #0078d4;
+        --pbi-dark-blue: #004578;
+        --pbi-light-blue: #deecf9;
+        --pbi-dark: #323130;
+        --pbi-gray: #605e5c;
+        --pbi-light-gray: #a19f9d;
+        --pbi-bg: #faf9f8;
+        --pbi-surface: #ffffff;
+        --success: #107c10;
+        --success-bg: #dff6dd;
+        --warn: #797600;
+        --warn-bg: #fff4ce;
+        --fail: #a4262c;
+        --fail-bg: #fde7e9;
+        --purple: #8764b8;
+        --teal: #038387;
+        --orange: #ca5010;
+        --shadow-sm: 0 1.6px 3.6px rgba(0,0,0,0.13), 0 0.3px 0.9px rgba(0,0,0,0.11);
+        --shadow-md: 0 3.2px 7.2px rgba(0,0,0,0.13), 0 0.6px 1.8px rgba(0,0,0,0.11);
+        --shadow-lg: 0 6.4px 14.4px rgba(0,0,0,0.13), 0 1.2px 3.6px rgba(0,0,0,0.11);
+        --radius: 8px;
+        --radius-sm: 4px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+        background: var(--pbi-bg); color: var(--pbi-dark); line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+    }
+    .report-header {
+        background: linear-gradient(135deg, #0078d4 0%, #004578 100%);
+        color: #fff; padding: 32px 40px 28px; margin-bottom: 24px;
+    }
+    .report-header h1 { font-size: 1.75em; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 6px; }
+    .report-header .subtitle { font-size: 0.9em; opacity: 0.85; font-weight: 400; }
+    .report-header .meta { display: flex; gap: 16px; margin-top: 12px; font-size: 0.82em; opacity: 0.7; }
+    .report-header .meta span { display: flex; align-items: center; gap: 4px; }
+    .container { max-width: 1440px; margin: 0 auto; padding: 0 24px 40px; }
+    .section-header {
+        display: flex; align-items: center; gap: 10px; padding: 14px 0 10px;
+        margin-top: 28px; border-bottom: 2px solid #edebe9; cursor: pointer;
+        user-select: none; transition: border-color 0.2s;
+    }
+    .section-header:hover { border-bottom-color: var(--pbi-blue); }
+    .section-header h2 { font-size: 1.15em; font-weight: 600; color: var(--pbi-dark); flex: 1; }
+    .section-header .section-icon { font-size: 1.2em; width: 28px; text-align: center; }
+    .section-header .toggle-arrow { font-size: 0.7em; color: var(--pbi-light-gray); transition: transform 0.3s ease; }
+    .section-header .toggle-arrow.collapsed { transform: rotate(-90deg); }
+    .section-body { overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; max-height: 8000px; opacity: 1; }
+    .section-body.collapsed { max-height: 0 !important; opacity: 0; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 14px; margin: 16px 0; }
+    .stat-card {
+        background: var(--pbi-surface); border-radius: var(--radius); padding: 20px 16px;
+        text-align: center; box-shadow: var(--shadow-sm); transition: transform 0.15s ease, box-shadow 0.15s ease;
+        border-top: 3px solid transparent;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .stat-card .stat-value { font-size: 2em; font-weight: 700; line-height: 1.1; color: var(--pbi-blue); }
+    .stat-card .stat-label { font-size: 0.8em; color: var(--pbi-gray); margin-top: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-card.accent-success { border-top-color: var(--success); }
+    .stat-card.accent-success .stat-value { color: var(--success); }
+    .stat-card.accent-warn { border-top-color: #c19c00; }
+    .stat-card.accent-warn .stat-value { color: #c19c00; }
+    .stat-card.accent-fail { border-top-color: var(--fail); }
+    .stat-card.accent-fail .stat-value { color: var(--fail); }
+    .stat-card.accent-purple { border-top-color: var(--purple); }
+    .stat-card.accent-purple .stat-value { color: var(--purple); }
+    .stat-card.accent-teal { border-top-color: var(--teal); }
+    .stat-card.accent-teal .stat-value { color: var(--teal); }
+    .stat-card.accent-blue { border-top-color: var(--pbi-blue); }
+    .card { background: var(--pbi-surface); border-radius: var(--radius); padding: 20px 24px; margin: 14px 0; box-shadow: var(--shadow-sm); }
+    .card h3 { font-size: 1em; font-weight: 600; color: var(--pbi-dark); margin-bottom: 14px; }
+    .card h4 { font-size: 0.92em; font-weight: 600; color: var(--pbi-gray); margin: 18px 0 10px; }
+    .table-container { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow-sm); margin: 14px 0; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.85em; background: var(--pbi-surface); }
+    thead th {
+        background: var(--pbi-blue); color: #fff; padding: 11px 14px; text-align: left;
+        font-weight: 600; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.04em;
+        position: sticky; top: 0; z-index: 2; white-space: nowrap;
+    }
+    thead th.sortable { cursor: pointer; user-select: none; }
+    thead th.sortable:hover { background: #106ebe; }
+    thead th .sort-icon { display: inline-block; margin-left: 4px; opacity: 0.5; font-size: 0.9em; }
+    .detail-table thead th { background: var(--pbi-gray); }
+    tbody td { padding: 9px 14px; border-bottom: 1px solid #edebe9; vertical-align: middle; }
+    tbody tr:hover { background: #f3f2f1; }
+    tbody tr:last-child td { border-bottom: none; }
+    .table-search { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .table-search input {
+        font-family: inherit; font-size: 0.85em; padding: 7px 12px;
+        border: 1px solid #d2d0ce; border-radius: var(--radius-sm); width: 260px;
+        outline: none; transition: border-color 0.2s;
+    }
+    .table-search input:focus { border-color: var(--pbi-blue); box-shadow: 0 0 0 2px rgba(0,120,212,0.2); }
+    .table-search label { font-size: 0.82em; color: var(--pbi-gray); }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-weight: 600; font-size: 0.78em; letter-spacing: 0.02em; text-transform: uppercase; }
+    .badge-green  { background: var(--success-bg); color: var(--success); }
+    .badge-yellow { background: var(--warn-bg); color: var(--warn); }
+    .badge-red    { background: var(--fail-bg); color: var(--fail); }
+    .badge-blue   { background: var(--pbi-light-blue); color: var(--pbi-dark-blue); }
+    .badge-gray   { background: #edebe9; color: var(--pbi-gray); }
+    .badge-purple { background: #f3e8fd; color: #5c2d91; }
+    .badge-teal   { background: #d4f4f4; color: #005b5e; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: var(--radius-sm); font-size: 0.78em; font-weight: 500; white-space: nowrap; }
+    .tag-connector { background: #e8f0fe; color: #1a73e8; }
+    .tag-success   { background: var(--success-bg); color: var(--success); }
+    .tag-warn      { background: var(--warn-bg); color: #856404; }
+    .tag-danger    { background: var(--fail-bg); color: var(--fail); }
+    .tag-dim       { background: #e8eaf6; color: #283593; }
+    .tag-measure   { background: #fce4ec; color: #b71c1c; }
+    .fidelity-bar { display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; }
+    .fidelity-track { width: 120px; height: 8px; background: #edebe9; border-radius: 4px; overflow: hidden; }
+    .fidelity-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .fidelity-label { font-size: 0.82em; font-weight: 600; min-width: 46px; }
+    .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin: 16px 0; }
+    .chart-card { background: var(--pbi-surface); border-radius: var(--radius); padding: 20px 24px; box-shadow: var(--shadow-sm); }
+    .chart-card h4 { font-size: 0.9em; font-weight: 600; color: var(--pbi-dark); margin-bottom: 14px; }
+    .donut-container { display: flex; align-items: center; justify-content: center; gap: 28px; }
+    .donut { width: 150px; height: 150px; }
+    .donut circle { transition: stroke-dasharray 0.8s ease; }
+    .donut-legend { font-size: 0.85em; line-height: 2; }
+    .legend-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
+    .bar-chart { display: flex; flex-direction: column; gap: 8px; }
+    .bar-row { display: flex; align-items: center; gap: 10px; }
+    .bar-label { width: 110px; text-align: right; font-size: 0.82em; color: var(--pbi-gray); flex-shrink: 0; font-weight: 500; }
+    .bar-track { flex: 1; height: 24px; background: #edebe9; border-radius: var(--radius-sm); overflow: hidden; position: relative; }
+    .bar-fill {
+        height: 100%; border-radius: var(--radius-sm); display: flex; align-items: center;
+        justify-content: flex-end; padding-right: 8px; color: #fff; font-size: 0.75em;
+        font-weight: 600; transition: width 0.5s ease; min-width: 0;
+    }
+    .bar-value { font-size: 0.82em; color: var(--pbi-gray); width: 36px; text-align: right; font-weight: 600; }
+    .tab-bar { display: flex; gap: 4px; border-bottom: 2px solid #edebe9; margin-bottom: 14px; overflow-x: auto; }
+    .tab {
+        padding: 8px 18px; cursor: pointer; font-size: 0.85em; font-weight: 500;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0; transition: all 0.2s;
+        color: var(--pbi-gray); white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -2px;
+    }
+    .tab:hover { background: var(--pbi-light-blue); color: var(--pbi-blue); }
+    .tab.active { color: var(--pbi-blue); font-weight: 600; border-bottom-color: var(--pbi-blue); background: transparent; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .heatmap td { text-align: center; font-weight: 600; font-size: 0.82em; transition: background 0.2s; }
+    .heatmap td.heat-label { text-align: left; font-weight: 600; color: var(--pbi-dark); background: transparent !important; }
+    .mono { font-family: 'Cascadia Code', 'Consolas', 'Monaco', monospace; font-size: 0.85em; }
+    code { background: #f3f2f1; padding: 2px 6px; border-radius: 3px; font-family: 'Cascadia Code', 'Consolas', 'Monaco', monospace; font-size: 0.88em; }
+    .text-success { color: var(--success); }
+    .text-warn    { color: #c19c00; }
+    .text-fail    { color: var(--fail); }
+    .text-blue    { color: var(--pbi-blue); }
+    .text-gray    { color: var(--pbi-gray); }
+    .text-muted   { color: var(--pbi-light-gray); }
+    .fw-bold      { font-weight: 600; }
+    .fs-sm        { font-size: 0.85em; }
+    .mt-0         { margin-top: 0; }
+    .mb-0         { margin-bottom: 0; }
+    .nowrap       { white-space: nowrap; }
+    .report-footer { text-align: center; padding: 28px 20px; margin-top: 40px; border-top: 1px solid #edebe9; color: var(--pbi-light-gray); font-size: 0.82em; }
+    .report-footer a { color: var(--pbi-blue); text-decoration: none; }
+    @media print {
+        .report-header { background: #0078d4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .section-body { max-height: none !important; opacity: 1 !important; }
+        .section-header { cursor: default; } .toggle-arrow { display: none; }
+        .stat-card, .card { break-inside: avoid; } .table-search { display: none; } body { background: #fff; }
+    }
+    @media (max-width: 768px) {
+        .report-header { padding: 20px; } .report-header h1 { font-size: 1.3em; }
+        .container { padding: 0 12px 20px; }
+        .stat-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+        .chart-row { grid-template-columns: 1fr; } .bar-label { width: 80px; }
+        .donut-container { flex-direction: column; }
+    }
+    /* ── Dark theme (toggle or system preference) ──────────── */
+    [data-theme="dark"] {
+        --pbi-bg: #1b1a19; --pbi-surface: #252423; --pbi-dark: #f3f2f1;
+        --pbi-gray: #b3b0ad; --pbi-light-gray: #8a8886;
+        --shadow-sm: 0 1.6px 3.6px rgba(0,0,0,0.4), 0 0.3px 0.9px rgba(0,0,0,0.3);
+        --shadow-md: 0 3.2px 7.2px rgba(0,0,0,0.4), 0 0.6px 1.8px rgba(0,0,0,0.3);
+    }
+    [data-theme="dark"] body { background: var(--pbi-bg); color: var(--pbi-dark); }
+    [data-theme="dark"] .report-header { background: linear-gradient(135deg, #004578 0%, #001d33 100%); }
+    [data-theme="dark"] .stat-card,
+    [data-theme="dark"] .card,
+    [data-theme="dark"] .chart-card { background: var(--pbi-surface); }
+    [data-theme="dark"] table { background: var(--pbi-surface); }
+    [data-theme="dark"] thead th { background: #004578; }
+    [data-theme="dark"] thead th.sortable:hover { background: #005a9e; }
+    [data-theme="dark"] .detail-table thead th { background: #3b3a39; }
+    [data-theme="dark"] tbody td { border-bottom-color: #3b3a39; }
+    [data-theme="dark"] tbody tr:hover { background: #323130; }
+    [data-theme="dark"] .section-header { border-bottom-color: #3b3a39; }
+    [data-theme="dark"] .section-header:hover { border-bottom-color: #2b88d8; }
+    [data-theme="dark"] .tab-bar { border-bottom-color: #3b3a39; }
+    [data-theme="dark"] .tab:hover { background: rgba(0,120,212,0.15); }
+    [data-theme="dark"] .fidelity-track,
+    [data-theme="dark"] .bar-track { background: #3b3a39; }
+    [data-theme="dark"] .badge-gray { background: #3b3a39; color: #b3b0ad; }
+    [data-theme="dark"] .badge-green { background: #1a3a1a; color: #6ccb5f; }
+    [data-theme="dark"] .badge-yellow { background: #3a3500; color: #d4c75f; }
+    [data-theme="dark"] .badge-red { background: #4a1a1d; color: #f5707a; }
+    [data-theme="dark"] .badge-blue { background: #1a3a5c; color: #6cb8f6; }
+    [data-theme="dark"] .badge-purple { background: #2d1a4e; color: #c4a5f0; }
+    [data-theme="dark"] .badge-teal { background: #1a3a3a; color: #5fd4d4; }
+    [data-theme="dark"] .tag-connector { background: #1a3a5c; color: #6cb8f6; }
+    [data-theme="dark"] .tag-success { background: #1a3a1a; color: #6ccb5f; }
+    [data-theme="dark"] .tag-warn { background: #3a3500; color: #d4c75f; }
+    [data-theme="dark"] .tag-danger { background: #4a1a1d; color: #f5707a; }
+    [data-theme="dark"] .tag-dim { background: #1a2040; color: #8ea0e0; }
+    [data-theme="dark"] .tag-measure { background: #3a1a2a; color: #e08090; }
+    [data-theme="dark"] code { background: #3b3a39; }
+    [data-theme="dark"] .report-footer { border-top-color: #3b3a39; }
+    [data-theme="dark"] .table-search input { background: #323130; border-color: #3b3a39; color: var(--pbi-dark); }
+    [data-theme="dark"] .table-search input:focus { border-color: #2b88d8; }
+    [data-theme="dark"] .comparison { background: var(--pbi-surface); }
+    [data-theme="dark"] .comparison .row-header { background: #2d2d2d; }
+    [data-theme="dark"] .col { border-color: #3b3a39; }
+    [data-theme="dark"] pre { background: #2d2d2d; color: #d4d4d4; }
+    /* ── Theme toggle button ─────────────────────────────────── */
+    .theme-toggle {
+        position: absolute; top: 50%; right: 24px; transform: translateY(-50%);
+        background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+        color: #fff; border-radius: 20px; padding: 6px 14px; cursor: pointer;
+        font-size: 0.82em; font-family: inherit; font-weight: 500;
+        display: inline-flex; align-items: center; gap: 6px;
+        transition: background 0.2s, border-color 0.2s;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    }
+    .theme-toggle:hover { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.4); }
+    .theme-toggle .theme-icon { font-size: 1.1em; line-height: 1; }
+    .report-header { position: relative; }
+    @media print and (prefers-color-scheme: dark) {
+        :root { --pbi-bg: #fff; --pbi-surface: #fff; --pbi-dark: #323130; --pbi-gray: #605e5c; --pbi-light-gray: #a19f9d; }
+        body { background: #fff; color: #323130; } .report-header { background: #0078d4 !important; }
+    }
+    @media print { .theme-toggle { display: none; } }
+</style>
+</head>
+<body>
+<div class="report-header">
+    <h1>Full Lineage — large_enterprise_sales</h1>
+    <div class='subtitle'>70 nodes · 32 edges</div>
+    <div class="meta">
+        <span>&#128197; 2026-06-24 14:51</span>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+        <span class="theme-icon">&#9790;</span>
+        <span class="theme-label">Dark</span>
+    </button>
+</div>
+<div class="container">
+<div class="stat-grid">
+<div class="stat-card">
+    <div class="stat-value">70</div>
+    <div class="stat-label">Total Nodes</div>
+</div>
+<div class="stat-card">
+    <div class="stat-value">32</div>
+    <div class="stat-label">Total Edges</div>
+</div>
+<div class="stat-card">
+    <div class="stat-value">6</div>
+    <div class="stat-label">Orphan Nodes</div>
+</div>
+<div class="stat-card">
+    <div class="stat-value">8</div>
+    <div class="stat-label">Node Types</div>
+</div>
+</div>
+<div class="section-header" onclick="toggleSection('Nodes by Type')">
+    <span class="section-icon"></span>
+    <h2>Count of lineage nodes per kind</h2>
+    <span class="toggle-arrow" id="Nodes by Type-arrow">&#9660;</span>
+</div>
+<div class="section-body" id="Nodes by Type">
+<div class="table-container"><table id="tbl-1305287019648">
+<thead><tr>
+<th>Kind</th>
+<th>Count</th>
+</tr></thead>
+<tbody>
+<tr><td><span class="badge badge-warn">qlik_visual</span></td><td>23</td></tr>
+<tr><td><span class="badge badge-gray">pbi_visual</span></td><td>23</td></tr>
+<tr><td><span class="badge badge-warn">qlik_variable</span></td><td>5</td></tr>
+<tr><td><span class="badge badge-warn">qlik_sheet</span></td><td>5</td></tr>
+<tr><td><span class="badge badge-gray">pbi_page</span></td><td>5</td></tr>
+<tr><td><span class="badge badge-warn">qlik_association</span></td><td>4</td></tr>
+<tr><td><span class="badge badge-pass">tmdl_relationship</span></td><td>4</td></tr>
+<tr><td><span class="badge badge-warn">qlik_field</span></td><td>1</td></tr>
+</tbody></table></div>
+</div>
+
+<div class="section-header" onclick="toggleSection('Edges')">
+    <span class="section-icon"></span>
+    <h2>All 32 lineage edges</h2>
+    <span class="toggle-arrow" id="Edges-arrow">&#9660;</span>
+</div>
+<div class="section-body" id="Edges">
+<div class="table-container"><table id="tbl-1305287230528">
+<thead><tr>
+<th>Source</th>
+<th>Source Kind</th>
+<th>Relation</th>
+<th>Target</th>
+<th>Target Kind</th>
+</tr></thead>
+<tbody>
+<tr><td>qlik_sheet_Executive Summary</td><td><span class="badge badge-warn">qlik_sheet</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_page_Executive Summary</td><td><span class="badge badge-gray">pbi_page</span></td></tr>
+<tr><td>qlik_sheet_Product Analysis</td><td><span class="badge badge-warn">qlik_sheet</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_page_Product Analysis</td><td><span class="badge badge-gray">pbi_page</span></td></tr>
+<tr><td>qlik_sheet_Customer Analysis</td><td><span class="badge badge-warn">qlik_sheet</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_page_Customer Analysis</td><td><span class="badge badge-gray">pbi_page</span></td></tr>
+<tr><td>qlik_sheet_Geographic Analysis</td><td><span class="badge badge-warn">qlik_sheet</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_page_Geographic Analysis</td><td><span class="badge badge-gray">pbi_page</span></td></tr>
+<tr><td>qlik_sheet_Operations</td><td><span class="badge badge-warn">qlik_sheet</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_page_Operations</td><td><span class="badge badge-gray">pbi_page</span></td></tr>
+<tr><td>qlik_visual_viz_sales_kpi</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_sales_kpi</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_profit_kpi</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_profit_kpi</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_orders_kpi</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_orders_kpi</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_customers_kpi</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_customers_kpi</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_sales_trend</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_sales_trend</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_profit_bar</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_profit_bar</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_region_map</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_region_map</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_cat_bar</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_cat_bar</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_sub_tree</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_sub_tree</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_product_table</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_product_table</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_product_waterfall</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_product_waterfall</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_discount_scatter</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_discount_scatter</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_segment_pie</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_segment_pie</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_customer_scatter</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_customer_scatter</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_customer_pivot</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_customer_pivot</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_top_customers</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_top_customers</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_geo_map</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_geo_map</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_region_combo</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_region_combo</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_city_bar</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_city_bar</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_ship_gauge</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_ship_gauge</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_ship_mode_pie</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_ship_mode_pie</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_return_combo</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_return_combo</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_visual_viz_orders_detail</td><td><span class="badge badge-warn">qlik_visual</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>pbi_visual_viz_orders_detail</td><td><span class="badge badge-gray">pbi_visual</span></td></tr>
+<tr><td>qlik_assoc_Orders_Customers</td><td><span class="badge badge-warn">qlik_association</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>tmdl_rel_Orders_Customers</td><td><span class="badge badge-pass">tmdl_relationship</span></td></tr>
+<tr><td>qlik_assoc_Orders_Products</td><td><span class="badge badge-warn">qlik_association</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>tmdl_rel_Orders_Products</td><td><span class="badge badge-pass">tmdl_relationship</span></td></tr>
+<tr><td>qlik_assoc_Orders_SalesReps</td><td><span class="badge badge-warn">qlik_association</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>tmdl_rel_Orders_SalesReps</td><td><span class="badge badge-pass">tmdl_relationship</span></td></tr>
+<tr><td>qlik_assoc_Targets_Orders</td><td><span class="badge badge-warn">qlik_association</span></td><td><span class="badge badge-pass">transforms_to</span></td><td>tmdl_rel_Targets_Orders</td><td><span class="badge badge-pass">tmdl_relationship</span></td></tr>
+</tbody></table></div>
+</div>
+
+<div class="section-header" onclick="toggleSection('Orphan Nodes')">
+    <span class="section-icon"></span>
+    <h2>6 nodes with no edges — may indicate unmapped fields</h2>
+    <span class="toggle-arrow" id="Orphan Nodes-arrow">&#9660;</span>
+</div>
+<div class="section-body" id="Orphan Nodes">
+<div class="table-container"><table id="tbl-1305287230400">
+<thead><tr>
+<th>Node ID</th>
+<th>Kind</th>
+<th>Label</th>
+</tr></thead>
+<tbody>
+<tr><td>qlik_ds_Server=salesdb.enterprise.com;Database=Sales;</td><td><span class="badge badge-warn">qlik_field</span></td><td>Server=salesdb.enterprise.com;Database=Sales;</td></tr>
+<tr><td>qlik_var_vCurrentYear</td><td><span class="badge badge-warn">qlik_variable</span></td><td>vCurrentYear</td></tr>
+<tr><td>qlik_var_vPriorYear</td><td><span class="badge badge-warn">qlik_variable</span></td><td>vPriorYear</td></tr>
+<tr><td>qlik_var_vCurrencySymbol</td><td><span class="badge badge-warn">qlik_variable</span></td><td>vCurrencySymbol</td></tr>
+<tr><td>qlik_var_vSalesTarget</td><td><span class="badge badge-warn">qlik_variable</span></td><td>vSalesTarget</td></tr>
+<tr><td>qlik_var_vTopN</td><td><span class="badge badge-warn">qlik_variable</span></td><td>vTopN</td></tr>
+</tbody></table></div>
+</div>
+
+<div class="section-header" onclick="toggleSection('Flow Diagram')">
+    <span class="section-icon"></span>
+    <h2>Visual lineage graph (showing up to 120 of 70 nodes)</h2>
+    <span class="toggle-arrow" id="Flow Diagram-arrow">&#9660;</span>
+</div>
+<div class="section-body" id="Flow Diagram">
+<div class="mermaid-container" style="overflow:auto;max-height:600px">
+<pre class="mermaid">
+graph LR
+    N_qlik_ds_Server_salesdb_enterprise_com_Da["Server=salesdb.enterprise.com;Database=Sales;"]
+    N_qlik_var_vCurrentYear(("vCurrentYear"))
+    N_qlik_var_vPriorYear(("vPriorYear"))
+    N_qlik_var_vCurrencySymbol(("vCurrencySymbol"))
+    N_qlik_var_vSalesTarget(("vSalesTarget"))
+    N_qlik_var_vTopN(("vTopN"))
+    N_qlik_sheet_Executive_Summary[/"Executive Summary"/]
+    N_pbi_page_Executive_Summary[/"Executive Summary"/]
+    N_qlik_sheet_Product_Analysis[/"Product Analysis"/]
+    N_pbi_page_Product_Analysis[/"Product Analysis"/]
+    N_qlik_sheet_Customer_Analysis[/"Customer Analysis"/]
+    N_pbi_page_Customer_Analysis[/"Customer Analysis"/]
+    N_qlik_sheet_Geographic_Analysis[/"Geographic Analysis"/]
+    N_pbi_page_Geographic_Analysis[/"Geographic Analysis"/]
+    N_qlik_sheet_Operations[/"Operations"/]
+    N_pbi_page_Operations[/"Operations"/]
+    N_qlik_visual_viz_sales_kpi[/"kpi:viz_sales_kpi"/]
+    N_pbi_visual_viz_sales_kpi[/"kpi:viz_sales_kpi"/]
+    N_qlik_visual_viz_profit_kpi[/"kpi:viz_profit_kpi"/]
+    N_pbi_visual_viz_profit_kpi[/"kpi:viz_profit_kpi"/]
+    N_qlik_visual_viz_orders_kpi[/"kpi:viz_orders_kpi"/]
+    N_pbi_visual_viz_orders_kpi[/"kpi:viz_orders_kpi"/]
+    N_qlik_visual_viz_customers_kpi[/"kpi:viz_customers_kpi"/]
+    N_pbi_visual_viz_customers_kpi[/"kpi:viz_customers_kpi"/]
+    N_qlik_visual_viz_sales_trend[/"linechart:viz_sales_trend"/]
+    N_pbi_visual_viz_sales_trend[/"linechart:viz_sales_trend"/]
+    N_qlik_visual_viz_profit_bar[/"barchart:viz_profit_bar"/]
+    N_pbi_visual_viz_profit_bar[/"barchart:viz_profit_bar"/]
+    N_qlik_visual_viz_region_map[/"map:viz_region_map"/]
+    N_pbi_visual_viz_region_map[/"map:viz_region_map"/]
+    N_qlik_visual_viz_cat_bar[/"barchart:viz_cat_bar"/]
+    N_pbi_visual_viz_cat_bar[/"barchart:viz_cat_bar"/]
+    N_qlik_visual_viz_sub_tree[/"treemap:viz_sub_tree"/]
+    N_pbi_visual_viz_sub_tree[/"treemap:viz_sub_tree"/]
+    N_qlik_visual_viz_product_table[/"table:viz_product_table"/]
+    N_pbi_visual_viz_product_table[/"table:viz_product_table"/]
+    N_qlik_visual_viz_product_waterfall[/"waterfall:viz_product_waterfall"/]
+    N_pbi_visual_viz_product_waterfall[/"waterfall:viz_product_waterfall"/]
+    N_qlik_visual_viz_discount_scatter[/"scatterplot:viz_discount_scatter"/]
+    N_pbi_visual_viz_discount_scatter[/"scatterplot:viz_discount_scatter"/]
+    N_qlik_visual_viz_segment_pie[/"piechart:viz_segment_pie"/]
+    N_pbi_visual_viz_segment_pie[/"piechart:viz_segment_pie"/]
+    N_qlik_visual_viz_customer_scatter[/"scatterplot:viz_customer_scatter"/]
+    N_pbi_visual_viz_customer_scatter[/"scatterplot:viz_customer_scatter"/]
+    N_qlik_visual_viz_customer_pivot[/"pivot-table:viz_customer_pivot"/]
+    N_pbi_visual_viz_customer_pivot[/"pivot-table:viz_customer_pivot"/]
+    N_qlik_visual_viz_top_customers[/"barchart:viz_top_customers"/]
+    N_pbi_visual_viz_top_customers[/"barchart:viz_top_customers"/]
+    N_qlik_visual_viz_geo_map[/"map:viz_geo_map"/]
+    N_pbi_visual_viz_geo_map[/"map:viz_geo_map"/]
+    N_qlik_visual_viz_region_combo[/"combo:viz_region_combo"/]
+    N_pbi_visual_viz_region_combo[/"combo:viz_region_combo"/]
+    N_qlik_visual_viz_city_bar[/"barchart:viz_city_bar"/]
+    N_pbi_visual_viz_city_bar[/"barchart:viz_city_bar"/]
+    N_qlik_visual_viz_ship_gauge[/"gauge:viz_ship_gauge"/]
+    N_pbi_visual_viz_ship_gauge[/"gauge:viz_ship_gauge"/]
+    N_qlik_visual_viz_ship_mode_pie[/"piechart:viz_ship_mode_pie"/]
+    N_pbi_visual_viz_ship_mode_pie[/"piechart:viz_ship_mode_pie"/]
+    N_qlik_visual_viz_return_combo[/"combo:viz_return_combo"/]
+    N_pbi_visual_viz_return_combo[/"combo:viz_return_combo"/]
+    N_qlik_visual_viz_orders_detail[/"table:viz_orders_detail"/]
+    N_pbi_visual_viz_orders_detail[/"table:viz_orders_detail"/]
+    N_qlik_assoc_Orders_Customers["Orders_Customers"]
+    N_tmdl_rel_Orders_Customers["Orders_Customers"]
+    N_qlik_assoc_Orders_Products["Orders_Products"]
+    N_tmdl_rel_Orders_Products["Orders_Products"]
+    N_qlik_assoc_Orders_SalesReps["Orders_SalesReps"]
+    N_tmdl_rel_Orders_SalesReps["Orders_SalesReps"]
+    N_qlik_assoc_Targets_Orders["Targets_Orders"]
+    N_tmdl_rel_Targets_Orders["Targets_Orders"]
+    N_qlik_sheet_Executive_Summary -->|transforms_to| N_pbi_page_Executive_Summary
+    N_qlik_sheet_Product_Analysis -->|transforms_to| N_pbi_page_Product_Analysis
+    N_qlik_sheet_Customer_Analysis -->|transforms_to| N_pbi_page_Customer_Analysis
+    N_qlik_sheet_Geographic_Analysis -->|transforms_to| N_pbi_page_Geographic_Analysis
+    N_qlik_sheet_Operations -->|transforms_to| N_pbi_page_Operations
+    N_qlik_visual_viz_sales_kpi -->|transforms_to| N_pbi_visual_viz_sales_kpi
+    N_qlik_visual_viz_profit_kpi -->|transforms_to| N_pbi_visual_viz_profit_kpi
+    N_qlik_visual_viz_orders_kpi -->|transforms_to| N_pbi_visual_viz_orders_kpi
+    N_qlik_visual_viz_customers_kpi -->|transforms_to| N_pbi_visual_viz_customers_kpi
+    N_qlik_visual_viz_sales_trend -->|transforms_to| N_pbi_visual_viz_sales_trend
+    N_qlik_visual_viz_profit_bar -->|transforms_to| N_pbi_visual_viz_profit_bar
+    N_qlik_visual_viz_region_map -->|transforms_to| N_pbi_visual_viz_region_map
+    N_qlik_visual_viz_cat_bar -->|transforms_to| N_pbi_visual_viz_cat_bar
+    N_qlik_visual_viz_sub_tree -->|transforms_to| N_pbi_visual_viz_sub_tree
+    N_qlik_visual_viz_product_table -->|transforms_to| N_pbi_visual_viz_product_table
+    N_qlik_visual_viz_product_waterfall -->|transforms_to| N_pbi_visual_viz_product_waterfall
+    N_qlik_visual_viz_discount_scatter -->|transforms_to| N_pbi_visual_viz_discount_scatter
+    N_qlik_visual_viz_segment_pie -->|transforms_to| N_pbi_visual_viz_segment_pie
+    N_qlik_visual_viz_customer_scatter -->|transforms_to| N_pbi_visual_viz_customer_scatter
+    N_qlik_visual_viz_customer_pivot -->|transforms_to| N_pbi_visual_viz_customer_pivot
+    N_qlik_visual_viz_top_customers -->|transforms_to| N_pbi_visual_viz_top_customers
+    N_qlik_visual_viz_geo_map -->|transforms_to| N_pbi_visual_viz_geo_map
+    N_qlik_visual_viz_region_combo -->|transforms_to| N_pbi_visual_viz_region_combo
+    N_qlik_visual_viz_city_bar -->|transforms_to| N_pbi_visual_viz_city_bar
+    N_qlik_visual_viz_ship_gauge -->|transforms_to| N_pbi_visual_viz_ship_gauge
+    N_qlik_visual_viz_ship_mode_pie -->|transforms_to| N_pbi_visual_viz_ship_mode_pie
+    N_qlik_visual_viz_return_combo -->|transforms_to| N_pbi_visual_viz_return_combo
+    N_qlik_visual_viz_orders_detail -->|transforms_to| N_pbi_visual_viz_orders_detail
+    N_qlik_assoc_Orders_Customers -->|transforms_to| N_tmdl_rel_Orders_Customers
+    N_qlik_assoc_Orders_Products -->|transforms_to| N_tmdl_rel_Orders_Products
+    N_qlik_assoc_Orders_SalesReps -->|transforms_to| N_tmdl_rel_Orders_SalesReps
+    N_qlik_assoc_Targets_Orders -->|transforms_to| N_tmdl_rel_Targets_Orders
+</pre>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, maxTextSize:200000});</script>
+
+</div>
+
+<div class="section-header" onclick="toggleSection('Raw Data')">
+    <span class="section-icon"></span>
+    <h2>Full lineage JSON for download/inspection</h2>
+    <span class="toggle-arrow" id="Raw Data-arrow">&#9660;</span>
+</div>
+<div class="section-body" id="Raw Data">
+<details><summary>Show JSON (70 nodes, 32 edges)</summary>
+<pre style="max-height:400px;overflow:auto;font-size:12px">{
+  &quot;app_name&quot;: &quot;large_enterprise_sales&quot;,
+  &quot;created_at&quot;: &quot;2026-06-24T14:51:36.432897&quot;,
+  &quot;node_count&quot;: 70,
+  &quot;edge_count&quot;: 32,
+  &quot;nodes&quot;: [
+    {
+      &quot;id&quot;: &quot;qlik_ds_Server=salesdb.enterprise.com;Database=Sales;&quot;,
+      &quot;kind&quot;: &quot;qlik_field&quot;,
+      &quot;label&quot;: &quot;Server=salesdb.enterprise.com;Database=Sales;&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_var_vCurrentYear&quot;,
+      &quot;kind&quot;: &quot;qlik_variable&quot;,
+      &quot;label&quot;: &quot;vCurrentYear&quot;,
+      &quot;metadata&quot;: {
+        &quot;definition&quot;: &quot;Year(Today())&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;qlik_var_vPriorYear&quot;,
+      &quot;kind&quot;: &quot;qlik_variable&quot;,
+      &quot;label&quot;: &quot;vPriorYear&quot;,
+      &quot;metadata&quot;: {
+        &quot;definition&quot;: &quot;Year(Today()) - 1&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;qlik_var_vCurrencySymbol&quot;,
+      &quot;kind&quot;: &quot;qlik_variable&quot;,
+      &quot;label&quot;: &quot;vCurrencySymbol&quot;,
+      &quot;metadata&quot;: {
+        &quot;definition&quot;: &quot;'$'&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;qlik_var_vSalesTarget&quot;,
+      &quot;kind&quot;: &quot;qlik_variable&quot;,
+      &quot;label&quot;: &quot;vSalesTarget&quot;,
+      &quot;metadata&quot;: {
+        &quot;definition&quot;: &quot;1000000&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;qlik_var_vTopN&quot;,
+      &quot;kind&quot;: &quot;qlik_variable&quot;,
+      &quot;label&quot;: &quot;vTopN&quot;,
+      &quot;metadata&quot;: {
+        &quot;definition&quot;: &quot;10&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;qlik_sheet_Executive Summary&quot;,
+      &quot;kind&quot;: &quot;qlik_sheet&quot;,
+      &quot;label&quot;: &quot;Executive Summary&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_page_Executive Summary&quot;,
+      &quot;kind&quot;: &quot;pbi_page&quot;,
+      &quot;label&quot;: &quot;Executive Summary&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_sheet_Product Analysis&quot;,
+      &quot;kind&quot;: &quot;qlik_sheet&quot;,
+      &quot;label&quot;: &quot;Product Analysis&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_page_Product Analysis&quot;,
+      &quot;kind&quot;: &quot;pbi_page&quot;,
+      &quot;label&quot;: &quot;Product Analysis&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_sheet_Customer Analysis&quot;,
+      &quot;kind&quot;: &quot;qlik_sheet&quot;,
+      &quot;label&quot;: &quot;Customer Analysis&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_page_Customer Analysis&quot;,
+      &quot;kind&quot;: &quot;pbi_page&quot;,
+      &quot;label&quot;: &quot;Customer Analysis&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_sheet_Geographic Analysis&quot;,
+      &quot;kind&quot;: &quot;qlik_sheet&quot;,
+      &quot;label&quot;: &quot;Geographic Analysis&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_page_Geographic Analysis&quot;,
+      &quot;kind&quot;: &quot;pbi_page&quot;,
+      &quot;label&quot;: &quot;Geographic Analysis&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_sheet_Operations&quot;,
+      &quot;kind&quot;: &quot;qlik_sheet&quot;,
+      &quot;label&quot;: &quot;Operations&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_page_Operations&quot;,
+      &quot;kind&quot;: &quot;pbi_page&quot;,
+      &quot;label&quot;: &quot;Operations&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_sales_kpi&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;kpi:viz_sales_kpi&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_sales_kpi&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;kpi:viz_sales_kpi&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_profit_kpi&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;kpi:viz_profit_kpi&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_profit_kpi&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;kpi:viz_profit_kpi&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_orders_kpi&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;kpi:viz_orders_kpi&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_orders_kpi&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;kpi:viz_orders_kpi&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_customers_kpi&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;kpi:viz_customers_kpi&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_customers_kpi&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;kpi:viz_customers_kpi&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_sales_trend&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;linechart:viz_sales_trend&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_sales_trend&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;linechart:viz_sales_trend&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_profit_bar&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;barchart:viz_profit_bar&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_profit_bar&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;barchart:viz_profit_bar&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_region_map&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;map:viz_region_map&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_region_map&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;map:viz_region_map&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_cat_bar&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;barchart:viz_cat_bar&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_cat_bar&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;barchart:viz_cat_bar&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_sub_tree&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;treemap:viz_sub_tree&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_sub_tree&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;treemap:viz_sub_tree&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_product_table&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;table:viz_product_table&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_product_table&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;table:viz_product_table&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_product_waterfall&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;waterfall:viz_product_waterfall&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_product_waterfall&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;waterfall:viz_product_waterfall&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_discount_scatter&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;scatterplot:viz_discount_scatter&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_discount_scatter&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;scatterplot:viz_discount_scatter&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_segment_pie&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;piechart:viz_segment_pie&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_segment_pie&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;piechart:viz_segment_pie&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_customer_scatter&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;scatterplot:viz_customer_scatter&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_customer_scatter&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;scatterplot:viz_customer_scatter&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_customer_pivot&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;pivot-table:viz_customer_pivot&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_customer_pivot&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;pivot-table:viz_customer_pivot&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_top_customers&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;barchart:viz_top_customers&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_top_customers&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;barchart:viz_top_customers&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_geo_map&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;map:viz_geo_map&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_geo_map&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;map:viz_geo_map&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_region_combo&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;combo:viz_region_combo&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_region_combo&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;combo:viz_region_combo&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_city_bar&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;barchart:viz_city_bar&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_city_bar&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;barchart:viz_city_bar&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_ship_gauge&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;gauge:viz_ship_gauge&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_ship_gauge&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;gauge:viz_ship_gauge&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_ship_mode_pie&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;piechart:viz_ship_mode_pie&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_ship_mode_pie&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;piechart:viz_ship_mode_pie&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_return_combo&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;combo:viz_return_combo&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_return_combo&quot;,
+      &quot;kind&quot;: &quot;pbi_visual&quot;,
+      &quot;label&quot;: &quot;combo:viz_return_combo&quot;
+    },
+    {
+      &quot;id&quot;: &quot;qlik_visual_viz_orders_detail&quot;,
+      &quot;kind&quot;: &quot;qlik_visual&quot;,
+      &quot;label&quot;: &quot;table:viz_orders_detail&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pbi_visual_viz_o...</pre>
+</details>
+
+</div>
+
+</div>
+<div class="report-footer">
+    <p>Qlik &#8594; Power BI Migration Tool &nbsp;|&nbsp; Report generated 2026-06-24 14:51</p>
+    <p>Open .pbip files in Power BI Desktop (Developer Mode) to validate</p>
+</div>
+<script>
+
+/* ── Theme toggle ─────────────────────────────────────── */
+(function() {
+    var stored = localStorage.getItem('pbi-report-theme');
+    if (stored) {
+        document.documentElement.setAttribute('data-theme', stored);
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+})();
+function toggleTheme() {
+    var html = document.documentElement;
+    var current = html.getAttribute('data-theme');
+    var next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('pbi-report-theme', next);
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) {
+        btn.querySelector('.theme-icon').textContent = next === 'dark' ? '\u2600' : '\u263E';
+        btn.querySelector('.theme-label').textContent = next === 'dark' ? 'Light' : 'Dark';
+    }
+}
+window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+    if (!localStorage.getItem('pbi-report-theme')) {
+        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+        var btn = document.querySelector('.theme-toggle');
+        if (btn) {
+            btn.querySelector('.theme-icon').textContent = e.matches ? '\u2600' : '\u263E';
+            btn.querySelector('.theme-label').textContent = e.matches ? 'Light' : 'Dark';
+        }
+    }
+});
+function toggleSection(id) {
+    var body = document.getElementById(id);
+    var arrow = document.getElementById(id + '-arrow');
+    if (!body) return;
+    body.classList.toggle('collapsed');
+    if (arrow) arrow.classList.toggle('collapsed');
+}
+function switchTab(groupId, tabName) {
+    var allTabs = document.querySelectorAll('[data-tab-group="' + groupId + '"]');
+    allTabs.forEach(function(t) { t.classList.remove('active'); });
+    var allContents = document.querySelectorAll('[data-tab-content-group="' + groupId + '"]');
+    allContents.forEach(function(c) { c.classList.remove('active'); });
+    var targetTab = document.querySelector('[data-tab-group="' + groupId + '"][data-tab-name="' + tabName + '"]');
+    if (targetTab) targetTab.classList.add('active');
+    var targetContent = document.getElementById(groupId + '-' + tabName);
+    if (targetContent) targetContent.classList.add('active');
+}
+function filterTable(inputId, tableId) {
+    var input = document.getElementById(inputId);
+    var table = document.getElementById(tableId);
+    if (!input || !table) return;
+    var filter = input.value.toLowerCase();
+    var rows = table.querySelectorAll('tbody tr');
+    rows.forEach(function(row) {
+        var text = row.textContent.toLowerCase();
+        row.style.display = text.indexOf(filter) > -1 ? '' : 'none';
+    });
+}
+function sortTable(tableId, colIndex) {
+    var table = document.getElementById(tableId);
+    if (!table) return;
+    var th = table.querySelectorAll('thead th')[colIndex];
+    var tbody = table.querySelector('tbody');
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    var isAsc = th.classList.contains('sort-asc');
+    table.querySelectorAll('thead th').forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
+    th.classList.add(isAsc ? 'sort-desc' : 'sort-asc');
+    var direction = isAsc ? -1 : 1;
+    rows.sort(function(a, b) {
+        var aVal = a.cells[colIndex].getAttribute('data-sort') || a.cells[colIndex].textContent.trim();
+        var bVal = b.cells[colIndex].getAttribute('data-sort') || b.cells[colIndex].textContent.trim();
+        var aNum = parseFloat(aVal.replace(/[^0-9.-]/g, ''));
+        var bNum = parseFloat(bVal.replace(/[^0-9.-]/g, ''));
+        if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * direction;
+        return aVal.localeCompare(bVal) * direction;
+    });
+    rows.forEach(function(row) { tbody.appendChild(row); });
+}
+
+// Sync toggle button label on load
+(function() {
+    var theme = document.documentElement.getAttribute('data-theme') || 'light';
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) {
+        btn.querySelector('.theme-icon').textContent = theme === 'dark' ? '\u2600' : '\u263E';
+        btn.querySelector('.theme-label').textContent = theme === 'dark' ? 'Light' : 'Dark';
+    }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-06-26T15:52:53.317358",
+  "source": "Qlik Migration",
+  "report_name": "sample_sales",
+  "objects_converted": {
+    "worksheets": 0,
+    "dashboards": 1,
+    "datasources": 4,
+    "calculations": 4,
+    "parameters": 1,
+    "filters": 0,
+    "stories": 0,
+    "sets": 0,
+    "groups": 0,
+    "bins": 0,
+    "hierarchies": 0,
+    "user_filters": 0,
+    "actions": 0,
+    "custom_sql": 1
+  },
+  "generated_output": {
+    "pages": 1,
+    "visuals": 0,
+    "theme_applied": false,
+    "theme_detail": {
+      "status": "skipped",
+      "reason": "no dashboard colors detected"
+    }
+  },
+  "tmdl_stats": {
+    "tables": 5,
+    "measures": 8,
+    "columns": 26,
+    "relationships": 3
+  },
+  "visual_type_mappings": {},
+  "approximations": []
+}

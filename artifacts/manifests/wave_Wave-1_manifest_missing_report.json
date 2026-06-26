@@ -1,0 +1,11 @@
+{
+  "source_manifest": "artifacts/manifests/wave_Wave-1_manifest.json",
+  "ready_manifest": "artifacts/manifests/wave_Wave-1_manifest_ready.json",
+  "ready_entries": 0,
+  "missing_or_invalid_entries": [
+    {
+      "file": "qlik_apps/finance_ops.qvf",
+      "reason": "not_found"
+    }
+  ]
+}

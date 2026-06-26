@@ -1,0 +1,15 @@
+{
+  "source_manifest": "artifacts/manifests/wave_Wave-0_manifest.json",
+  "ready_manifest": "artifacts/manifests/wave_Wave-0_manifest_ready.json",
+  "ready_entries": 0,
+  "missing_or_invalid_entries": [
+    {
+      "file": "qlik_apps/sales_executive.qvf",
+      "reason": "not_found"
+    },
+    {
+      "file": "qlik_apps/hr_snapshot.qvf",
+      "reason": "not_found"
+    }
+  ]
+}

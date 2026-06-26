@@ -1,0 +1,79 @@
+table Sales
+	lineageTag: 2ccc573f-28d9-4200-95cd-94f8f501212c
+
+	measure 'CA Total' = SUM('Sales'[Amount])
+		formatString: #,0.00
+		displayFolder: Measures
+		lineageTag: 903b9682-fa97-440a-beff-bb5d63a62eef
+
+	measure 'Qté Totale' = SUM('Sales'[Quantity])
+		formatString: #,0.00
+		displayFolder: Measures
+		lineageTag: 1477e64b-fb97-4c3f-93cd-2a2d30ddb758
+
+	measure 'Année en cours' = "Year(Today())"
+		lineageTag: 6d0c46e4-a846-4e3e-b828-adf60fbd0865
+
+	column SaleID
+		dataType: int64
+		lineageTag: b665305a-1f42-4ebe-b24d-75023e9e3583
+		summarizeBy: none
+		sourceColumn: SaleID
+
+		annotation SummarizationSetBy = Automatic
+
+	column CustomerID
+		dataType: int64
+		lineageTag: e395a9c3-9adb-41a2-9910-a7416c61ad9e
+		summarizeBy: none
+		sourceColumn: CustomerID
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProductID
+		dataType: int64
+		lineageTag: dfcaa318-e9d3-427e-b233-594d3365350b
+		summarizeBy: none
+		sourceColumn: ProductID
+
+		annotation SummarizationSetBy = Automatic
+
+	column OrderDate
+		dataType: dateTime
+		lineageTag: 7e7bc2b8-b666-47fc-ad30-8b5fe2d0e583
+		summarizeBy: none
+		sourceColumn: OrderDate
+
+		annotation SummarizationSetBy = Automatic
+
+	column Amount
+		dataType: double
+		lineageTag: 4b5a57b0-5705-42a3-847f-7b1090388e57
+		summarizeBy: none
+		sourceColumn: Amount
+
+		annotation SummarizationSetBy = Automatic
+
+	column Quantity
+		dataType: int64
+		lineageTag: 6f380b40-f1c1-4314-8cd1-a85150a25144
+		summarizeBy: none
+		sourceColumn: Quantity
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Sales-302cc9fa-f10c-4fbc-90f1-13213afcca24' = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(File.Contents(DataFolder & "\\Sales.csv"),[Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.None]),
+				    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])
+				,
+				    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"SaleID", "CustomerID", "ProductID", "OrderDate", "Amount", "Quantity"})
+				,
+				    #"Changed Type" = Table.TransformColumnTypes(SelectedColumns, {{"SaleID", Int64.Type}, {"CustomerID", Int64.Type}, {"ProductID", Int64.Type}, {"OrderDate", type datetime}, {"Amount", type number}, {"Quantity", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

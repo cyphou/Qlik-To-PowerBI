@@ -1,0 +1,58 @@
+table SalesReps
+	lineageTag: 86ee6651-e3a7-47a7-92bb-b256215fb500
+
+	column SalesRepID
+		dataType: int64
+		lineageTag: d12400a2-a6f7-4f29-8687-362c65929ba8
+		summarizeBy: none
+		sourceColumn: SalesRepID
+
+		annotation SummarizationSetBy = Automatic
+
+	column SalesRep
+		dataType: string
+		lineageTag: 18e88d0b-4476-47bc-9369-73256649e4de
+		summarizeBy: none
+		sourceColumn: SalesRep
+
+		annotation SummarizationSetBy = Automatic
+
+	column Region
+		dataType: string
+		lineageTag: 188d103e-dee1-46a2-a97c-07665ea469ea
+		summarizeBy: none
+		sourceColumn: Region
+		dataCategory: StateOrProvince
+
+		annotation SummarizationSetBy = Automatic
+
+	column HireDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: cdb72f1a-601b-47e3-83ba-4bfb93f8740f
+		summarizeBy: none
+		sourceColumn: HireDate
+		dataCategory: DateTime
+
+		annotation SummarizationSetBy = Automatic
+
+	column Quota
+		dataType: double
+		lineageTag: 4c418c19-ea93-44fb-a6fb-b00ae4031960
+		summarizeBy: none
+		sourceColumn: Quota
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'SalesReps-d736cf81-0bd2-491d-9968-3de7e307bdc4' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost", "master"),
+				    Table = Source{[Schema="dbo",Item="SalesReps"]}[Data],
+				    #"Changed Type" = Table.TransformColumnTypes(Table, {{"SalesRepID", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

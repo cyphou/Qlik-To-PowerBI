@@ -1,0 +1,137 @@
+
+[Step 1/2] QLIK OBJECTS EXTRACTION
+--------------------------------------------------------------------------------
+Source file: examples\qlik\test_samples\large\large_enterprise_sales.json
+2026-06-24 15:39:57 [ERROR] qlik_export.qlik_script_converter: Erreur lors de la conversion: LOAD statement mal formé
+
+  App name:       Enterprise Sales Analytics
+  Datasources:    5
+  Dimensions:     0
+  Measures:       0
+  Visualizations: 23
+  Sheets:         5
+  Variables:      5
+  Associations:   4
+  Bookmarks:      3
+  Master Items:   3
+  Load Script:    Yes
+
+✓ Extraction completed in 0.1s — intermediate JSON in C:\GitHub Project\QlikToPowerBI\qlik_export
+
+[Step 2/2] POWER BI PROJECT GENERATION
+--------------------------------------------------------------------------------
+================================================================================
+IMPORT POWER BI
+================================================================================
+
+  Report: large_enterprise_sales
+  Datasources: 5
+  Worksheets: 23
+  Calculations: 0
+
+  Generating Power BI Project (.pbip)...
+
+🔨 Generating Power BI Project: large_enterprise_sales
+  ✓ .pbip file created: C:\GitHub Project\QlikToPowerBI\output\roadmap_1_5_validation\large_enterprise_sales\large_enterprise_sales.pbip
+  ⚠ Dropped relationship: Orders.ProductID → Products.ProductID (fromColumn 'ProductID' not in 'Orders')
+  ⚠ Dropped relationship: Orders.SalesRepID → SalesReps.SalesRepID (fromColumn 'SalesRepID' not in 'Orders')
+  ✓  Orders.CustomerID → Customers.CustomerID: manyToOne (lookup table)
+  ⚠️  Targets.Region ↔ Orders.Region: manyToMany (no unique key detected)
+  ✓  Orders.OrderDate → Calendar.Date: manyToOne (lookup table)
+  ✓  SalesReps.HireDate → Calendar.Date: manyToOne (lookup table)
+  ⚠ 1 manyToMany relationship(s) — consider using --bridge-tables auto
+  ✓ TMDL model created with:
+    - 6 tables
+    - 42 columns
+    - 5 DAX measures
+    - 4 relationships
+    - 1 hierarchies
+    - 1 manyToMany relationship(s)
+  ✓ SemanticModel created: C:\GitHub Project\QlikToPowerBI\output\roadmap_1_5_validation\large_enterprise_sales\large_enterprise_sales.SemanticModel
+  📊 Page 'Executive Summary': 7 visuals created
+  📊 Page 'Product Analysis': 5 visuals created
+  📊 Page 'Customer Analysis': 4 visuals created
+  📊 Page 'Geographic Analysis': 3 visuals created
+  📊 Page 'Operations': 4 visuals created
+  ✓ Report created: C:\GitHub Project\QlikToPowerBI\output\roadmap_1_5_validation\large_enterprise_sales\large_enterprise_sales.Report
+  ✓ Metadata created
+
+✅ Power BI Project generated: C:\GitHub Project\QlikToPowerBI\output\roadmap_1_5_validation\large_enterprise_sales
+   📂 Open in Power BI Desktop: C:\GitHub Project\QlikToPowerBI\output\roadmap_1_5_validation\large_enterprise_sales\large_enterprise_sales.pbip
+  [OK] Power BI Project created: C:\GitHub Project\QlikToPowerBI\output\roadmap_1_5_validation\large_enterprise_sales
+  [OK] Validation passed (38 files, 0 warnings)
+
+================================================================================
+IMPORT COMPLETE
+================================================================================
+
+[OK] Power BI Projects (.pbip) generated automatically
+   Open the .pbip files in Power BI Desktop
+
+
+✓ Power BI project generated in 1.5s (5 pages, 23 visuals)
+  ✓ Comparison report: output\roadmap_1_5_validation\comparison_report.html
+
+[Step 3/3] POST-GENERATION VALIDATION
+--------------------------------------------------------------------------------
+    ✓ Validation passed (38 files checked)
+
+[Step 3/3] POST-MIGRATION CHECK
+--------------------------------------------------------------------------------
+    ✓ standard_validation
+    ✓ file_structure
+    ✓ visual_completeness
+    ✓ visual_model_refs
+    ✓ tmdl_integrity
+    ✓ Post-check passed (0 warning(s))
+2026-06-24 15:40:01 [INFO] qlik_to_powerbi: Migration report saved: output\roadmap_1_5_validation\migration_report_large_enterprise_sales_20260624_154001.json
+
+========================================================================
+  MIGRATION REPORT: large_enterprise_sales
+========================================================================
+  Total items converted: 33
+  Fidelity score:        100.0%
+
+    Exact:          33
+    Approximate:     0
+    Placeholder:     0
+    Unsupported:     0
+    Skipped:         0
+
+  By category:
+    datasource              5 items  (100% exact)
+    parameter               5 items  (100% exact)
+    visual                 23 items  (100% exact)
+
+========================================================================
+2026-06-24 15:40:01 [INFO] qlik_to_powerbi.self_healing_report: Self-healing JSONL saved to output\roadmap_1_5_validation\self_healing_v3.jsonl (0 entries)
+2026-06-24 15:40:01 [INFO] qlik_to_powerbi.full_lineage: Full lineage saved to output\roadmap_1_5_validation\large_enterprise_sales\lineage\full_lineage.json (70 nodes, 32 edges)
+2026-06-24 15:40:01 [INFO] qlik_to_powerbi.script_lineage_report: Script lineage report saved to output\roadmap_1_5_validation\large_enterprise_sales\large_enterprise_sales_lineage.html
+{
+  "status": "success",
+  "input": "examples\\qlik\\test_samples\\large\\large_enterprise_sales.json",
+  "output_dir": "output\\roadmap_1_5_validation\\large_enterprise_sales",
+  "tables": 6,
+  "measures": 5,
+  "visuals": 23,
+  "pages": 5,
+  "warnings": [],
+  "duration_seconds": 3.48,
+  "fidelity_score": 100.0,
+  "exact": 33,
+  "approximate": 0,
+  "unsupported": 0,
+  "post_check": {
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "files_checked": 38,
+    "checks": {
+      "standard_validation": true,
+      "file_structure": true,
+      "visual_completeness": true,
+      "visual_model_refs": true,
+      "tmdl_integrity": true
+    }
+  }
+}

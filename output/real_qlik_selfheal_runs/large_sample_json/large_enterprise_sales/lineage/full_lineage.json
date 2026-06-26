@@ -1,0 +1,535 @@
+{
+  "app_name": "large_enterprise_sales",
+  "created_at": "2026-06-24T14:53:48.970251",
+  "node_count": 70,
+  "edge_count": 32,
+  "nodes": [
+    {
+      "id": "qlik_ds_Server=salesdb.enterprise.com;Database=Sales;",
+      "kind": "qlik_field",
+      "label": "Server=salesdb.enterprise.com;Database=Sales;"
+    },
+    {
+      "id": "qlik_var_vCurrentYear",
+      "kind": "qlik_variable",
+      "label": "vCurrentYear",
+      "metadata": {
+        "definition": "Year(Today())"
+      }
+    },
+    {
+      "id": "qlik_var_vPriorYear",
+      "kind": "qlik_variable",
+      "label": "vPriorYear",
+      "metadata": {
+        "definition": "Year(Today()) - 1"
+      }
+    },
+    {
+      "id": "qlik_var_vCurrencySymbol",
+      "kind": "qlik_variable",
+      "label": "vCurrencySymbol",
+      "metadata": {
+        "definition": "'$'"
+      }
+    },
+    {
+      "id": "qlik_var_vSalesTarget",
+      "kind": "qlik_variable",
+      "label": "vSalesTarget",
+      "metadata": {
+        "definition": "1000000"
+      }
+    },
+    {
+      "id": "qlik_var_vTopN",
+      "kind": "qlik_variable",
+      "label": "vTopN",
+      "metadata": {
+        "definition": "10"
+      }
+    },
+    {
+      "id": "qlik_sheet_Executive Summary",
+      "kind": "qlik_sheet",
+      "label": "Executive Summary"
+    },
+    {
+      "id": "pbi_page_Executive Summary",
+      "kind": "pbi_page",
+      "label": "Executive Summary"
+    },
+    {
+      "id": "qlik_sheet_Product Analysis",
+      "kind": "qlik_sheet",
+      "label": "Product Analysis"
+    },
+    {
+      "id": "pbi_page_Product Analysis",
+      "kind": "pbi_page",
+      "label": "Product Analysis"
+    },
+    {
+      "id": "qlik_sheet_Customer Analysis",
+      "kind": "qlik_sheet",
+      "label": "Customer Analysis"
+    },
+    {
+      "id": "pbi_page_Customer Analysis",
+      "kind": "pbi_page",
+      "label": "Customer Analysis"
+    },
+    {
+      "id": "qlik_sheet_Geographic Analysis",
+      "kind": "qlik_sheet",
+      "label": "Geographic Analysis"
+    },
+    {
+      "id": "pbi_page_Geographic Analysis",
+      "kind": "pbi_page",
+      "label": "Geographic Analysis"
+    },
+    {
+      "id": "qlik_sheet_Operations",
+      "kind": "qlik_sheet",
+      "label": "Operations"
+    },
+    {
+      "id": "pbi_page_Operations",
+      "kind": "pbi_page",
+      "label": "Operations"
+    },
+    {
+      "id": "qlik_visual_viz_sales_kpi",
+      "kind": "qlik_visual",
+      "label": "kpi:viz_sales_kpi"
+    },
+    {
+      "id": "pbi_visual_viz_sales_kpi",
+      "kind": "pbi_visual",
+      "label": "kpi:viz_sales_kpi"
+    },
+    {
+      "id": "qlik_visual_viz_profit_kpi",
+      "kind": "qlik_visual",
+      "label": "kpi:viz_profit_kpi"
+    },
+    {
+      "id": "pbi_visual_viz_profit_kpi",
+      "kind": "pbi_visual",
+      "label": "kpi:viz_profit_kpi"
+    },
+    {
+      "id": "qlik_visual_viz_orders_kpi",
+      "kind": "qlik_visual",
+      "label": "kpi:viz_orders_kpi"
+    },
+    {
+      "id": "pbi_visual_viz_orders_kpi",
+      "kind": "pbi_visual",
+      "label": "kpi:viz_orders_kpi"
+    },
+    {
+      "id": "qlik_visual_viz_customers_kpi",
+      "kind": "qlik_visual",
+      "label": "kpi:viz_customers_kpi"
+    },
+    {
+      "id": "pbi_visual_viz_customers_kpi",
+      "kind": "pbi_visual",
+      "label": "kpi:viz_customers_kpi"
+    },
+    {
+      "id": "qlik_visual_viz_sales_trend",
+      "kind": "qlik_visual",
+      "label": "linechart:viz_sales_trend"
+    },
+    {
+      "id": "pbi_visual_viz_sales_trend",
+      "kind": "pbi_visual",
+      "label": "linechart:viz_sales_trend"
+    },
+    {
+      "id": "qlik_visual_viz_profit_bar",
+      "kind": "qlik_visual",
+      "label": "barchart:viz_profit_bar"
+    },
+    {
+      "id": "pbi_visual_viz_profit_bar",
+      "kind": "pbi_visual",
+      "label": "barchart:viz_profit_bar"
+    },
+    {
+      "id": "qlik_visual_viz_region_map",
+      "kind": "qlik_visual",
+      "label": "map:viz_region_map"
+    },
+    {
+      "id": "pbi_visual_viz_region_map",
+      "kind": "pbi_visual",
+      "label": "map:viz_region_map"
+    },
+    {
+      "id": "qlik_visual_viz_cat_bar",
+      "kind": "qlik_visual",
+      "label": "barchart:viz_cat_bar"
+    },
+    {
+      "id": "pbi_visual_viz_cat_bar",
+      "kind": "pbi_visual",
+      "label": "barchart:viz_cat_bar"
+    },
+    {
+      "id": "qlik_visual_viz_sub_tree",
+      "kind": "qlik_visual",
+      "label": "treemap:viz_sub_tree"
+    },
+    {
+      "id": "pbi_visual_viz_sub_tree",
+      "kind": "pbi_visual",
+      "label": "treemap:viz_sub_tree"
+    },
+    {
+      "id": "qlik_visual_viz_product_table",
+      "kind": "qlik_visual",
+      "label": "table:viz_product_table"
+    },
+    {
+      "id": "pbi_visual_viz_product_table",
+      "kind": "pbi_visual",
+      "label": "table:viz_product_table"
+    },
+    {
+      "id": "qlik_visual_viz_product_waterfall",
+      "kind": "qlik_visual",
+      "label": "waterfall:viz_product_waterfall"
+    },
+    {
+      "id": "pbi_visual_viz_product_waterfall",
+      "kind": "pbi_visual",
+      "label": "waterfall:viz_product_waterfall"
+    },
+    {
+      "id": "qlik_visual_viz_discount_scatter",
+      "kind": "qlik_visual",
+      "label": "scatterplot:viz_discount_scatter"
+    },
+    {
+      "id": "pbi_visual_viz_discount_scatter",
+      "kind": "pbi_visual",
+      "label": "scatterplot:viz_discount_scatter"
+    },
+    {
+      "id": "qlik_visual_viz_segment_pie",
+      "kind": "qlik_visual",
+      "label": "piechart:viz_segment_pie"
+    },
+    {
+      "id": "pbi_visual_viz_segment_pie",
+      "kind": "pbi_visual",
+      "label": "piechart:viz_segment_pie"
+    },
+    {
+      "id": "qlik_visual_viz_customer_scatter",
+      "kind": "qlik_visual",
+      "label": "scatterplot:viz_customer_scatter"
+    },
+    {
+      "id": "pbi_visual_viz_customer_scatter",
+      "kind": "pbi_visual",
+      "label": "scatterplot:viz_customer_scatter"
+    },
+    {
+      "id": "qlik_visual_viz_customer_pivot",
+      "kind": "qlik_visual",
+      "label": "pivot-table:viz_customer_pivot"
+    },
+    {
+      "id": "pbi_visual_viz_customer_pivot",
+      "kind": "pbi_visual",
+      "label": "pivot-table:viz_customer_pivot"
+    },
+    {
+      "id": "qlik_visual_viz_top_customers",
+      "kind": "qlik_visual",
+      "label": "barchart:viz_top_customers"
+    },
+    {
+      "id": "pbi_visual_viz_top_customers",
+      "kind": "pbi_visual",
+      "label": "barchart:viz_top_customers"
+    },
+    {
+      "id": "qlik_visual_viz_geo_map",
+      "kind": "qlik_visual",
+      "label": "map:viz_geo_map"
+    },
+    {
+      "id": "pbi_visual_viz_geo_map",
+      "kind": "pbi_visual",
+      "label": "map:viz_geo_map"
+    },
+    {
+      "id": "qlik_visual_viz_region_combo",
+      "kind": "qlik_visual",
+      "label": "combo:viz_region_combo"
+    },
+    {
+      "id": "pbi_visual_viz_region_combo",
+      "kind": "pbi_visual",
+      "label": "combo:viz_region_combo"
+    },
+    {
+      "id": "qlik_visual_viz_city_bar",
+      "kind": "qlik_visual",
+      "label": "barchart:viz_city_bar"
+    },
+    {
+      "id": "pbi_visual_viz_city_bar",
+      "kind": "pbi_visual",
+      "label": "barchart:viz_city_bar"
+    },
+    {
+      "id": "qlik_visual_viz_ship_gauge",
+      "kind": "qlik_visual",
+      "label": "gauge:viz_ship_gauge"
+    },
+    {
+      "id": "pbi_visual_viz_ship_gauge",
+      "kind": "pbi_visual",
+      "label": "gauge:viz_ship_gauge"
+    },
+    {
+      "id": "qlik_visual_viz_ship_mode_pie",
+      "kind": "qlik_visual",
+      "label": "piechart:viz_ship_mode_pie"
+    },
+    {
+      "id": "pbi_visual_viz_ship_mode_pie",
+      "kind": "pbi_visual",
+      "label": "piechart:viz_ship_mode_pie"
+    },
+    {
+      "id": "qlik_visual_viz_return_combo",
+      "kind": "qlik_visual",
+      "label": "combo:viz_return_combo"
+    },
+    {
+      "id": "pbi_visual_viz_return_combo",
+      "kind": "pbi_visual",
+      "label": "combo:viz_return_combo"
+    },
+    {
+      "id": "qlik_visual_viz_orders_detail",
+      "kind": "qlik_visual",
+      "label": "table:viz_orders_detail"
+    },
+    {
+      "id": "pbi_visual_viz_orders_detail",
+      "kind": "pbi_visual",
+      "label": "table:viz_orders_detail"
+    },
+    {
+      "id": "qlik_assoc_Orders_Customers",
+      "kind": "qlik_association",
+      "label": "Orders_Customers"
+    },
+    {
+      "id": "tmdl_rel_Orders_Customers",
+      "kind": "tmdl_relationship",
+      "label": "Orders_Customers"
+    },
+    {
+      "id": "qlik_assoc_Orders_Products",
+      "kind": "qlik_association",
+      "label": "Orders_Products"
+    },
+    {
+      "id": "tmdl_rel_Orders_Products",
+      "kind": "tmdl_relationship",
+      "label": "Orders_Products"
+    },
+    {
+      "id": "qlik_assoc_Orders_SalesReps",
+      "kind": "qlik_association",
+      "label": "Orders_SalesReps"
+    },
+    {
+      "id": "tmdl_rel_Orders_SalesReps",
+      "kind": "tmdl_relationship",
+      "label": "Orders_SalesReps"
+    },
+    {
+      "id": "qlik_assoc_Targets_Orders",
+      "kind": "qlik_association",
+      "label": "Targets_Orders"
+    },
+    {
+      "id": "tmdl_rel_Targets_Orders",
+      "kind": "tmdl_relationship",
+      "label": "Targets_Orders"
+    }
+  ],
+  "edges": [
+    {
+      "source": "qlik_sheet_Executive Summary",
+      "target": "pbi_page_Executive Summary",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_sheet_Product Analysis",
+      "target": "pbi_page_Product Analysis",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_sheet_Customer Analysis",
+      "target": "pbi_page_Customer Analysis",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_sheet_Geographic Analysis",
+      "target": "pbi_page_Geographic Analysis",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_sheet_Operations",
+      "target": "pbi_page_Operations",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_sales_kpi",
+      "target": "pbi_visual_viz_sales_kpi",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_profit_kpi",
+      "target": "pbi_visual_viz_profit_kpi",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_orders_kpi",
+      "target": "pbi_visual_viz_orders_kpi",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_customers_kpi",
+      "target": "pbi_visual_viz_customers_kpi",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_sales_trend",
+      "target": "pbi_visual_viz_sales_trend",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_profit_bar",
+      "target": "pbi_visual_viz_profit_bar",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_region_map",
+      "target": "pbi_visual_viz_region_map",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_cat_bar",
+      "target": "pbi_visual_viz_cat_bar",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_sub_tree",
+      "target": "pbi_visual_viz_sub_tree",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_product_table",
+      "target": "pbi_visual_viz_product_table",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_product_waterfall",
+      "target": "pbi_visual_viz_product_waterfall",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_discount_scatter",
+      "target": "pbi_visual_viz_discount_scatter",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_segment_pie",
+      "target": "pbi_visual_viz_segment_pie",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_customer_scatter",
+      "target": "pbi_visual_viz_customer_scatter",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_customer_pivot",
+      "target": "pbi_visual_viz_customer_pivot",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_top_customers",
+      "target": "pbi_visual_viz_top_customers",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_geo_map",
+      "target": "pbi_visual_viz_geo_map",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_region_combo",
+      "target": "pbi_visual_viz_region_combo",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_city_bar",
+      "target": "pbi_visual_viz_city_bar",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_ship_gauge",
+      "target": "pbi_visual_viz_ship_gauge",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_ship_mode_pie",
+      "target": "pbi_visual_viz_ship_mode_pie",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_return_combo",
+      "target": "pbi_visual_viz_return_combo",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_visual_viz_orders_detail",
+      "target": "pbi_visual_viz_orders_detail",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_assoc_Orders_Customers",
+      "target": "tmdl_rel_Orders_Customers",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_assoc_Orders_Products",
+      "target": "tmdl_rel_Orders_Products",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_assoc_Orders_SalesReps",
+      "target": "tmdl_rel_Orders_SalesReps",
+      "relation": "transforms_to"
+    },
+    {
+      "source": "qlik_assoc_Targets_Orders",
+      "target": "tmdl_rel_Targets_Orders",
+      "relation": "transforms_to"
+    }
+  ]
+}

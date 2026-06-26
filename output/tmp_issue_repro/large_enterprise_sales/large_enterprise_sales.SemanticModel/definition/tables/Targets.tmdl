@@ -1,0 +1,47 @@
+table Targets
+	lineageTag: 0dbbdaa8-789f-44f6-aeba-13f9c4312d0f
+
+	column Year
+		dataType: int64
+		lineageTag: d59e3774-b2e1-4489-a55a-685591320aed
+		summarizeBy: sum
+		sourceColumn: Year
+
+		annotation SummarizationSetBy = Automatic
+
+	column Region
+		dataType: string
+		lineageTag: e8cdf896-75b2-4774-aec7-11c59b512cef
+		summarizeBy: none
+		sourceColumn: Region
+		dataCategory: StateOrProvince
+
+		annotation SummarizationSetBy = Automatic
+
+	column Category
+		dataType: string
+		lineageTag: cd55a940-6f9d-4c6e-9230-0b472c2be76b
+		summarizeBy: none
+		sourceColumn: Category
+
+		annotation SummarizationSetBy = Automatic
+
+	column Target
+		dataType: double
+		lineageTag: 4c84d3eb-a5b8-427b-b4c7-28dc48dbbeae
+		summarizeBy: none
+		sourceColumn: Target
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Targets-5a6e490f-0b67-4849-bb27-2d5b0a90a0e2' = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("localhost", "master"),
+				    Table = Source{[Schema="dbo",Item="Targets"]}[Data]
+				in
+				    Table
+
+	annotation PBI_ResultType = Table
+

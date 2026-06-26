@@ -1,7 +1,8 @@
 [
   {
     "name": "vCurrentYear",
-    "value": "Year(Today())",
-    "comment": "Année en cours"
+    "definition": "",
+    "comment": "Année en cours",
+    "isScript": false
   }
 ]

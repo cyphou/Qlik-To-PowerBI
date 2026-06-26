@@ -1,0 +1,62 @@
+table Customers
+	lineageTag: add86ac3-7b2a-40fe-bf77-17915729d81f
+
+	column CustomerID
+		dataType: int64
+		lineageTag: 933f7551-486b-4527-9bcc-f4cea50c82ad
+		summarizeBy: none
+		sourceColumn: CustomerID
+
+		annotation SummarizationSetBy = Automatic
+
+	column CustomerName
+		dataType: string
+		lineageTag: 71a17eda-6547-482e-b808-5f9d70d0bac6
+		summarizeBy: none
+		sourceColumn: CustomerName
+
+		annotation SummarizationSetBy = Automatic
+
+	column Country
+		dataType: string
+		lineageTag: 173be972-68c4-4461-a1b3-b4b4e2f99e62
+		summarizeBy: none
+		sourceColumn: Country
+		dataCategory: Country
+
+		annotation SummarizationSetBy = Automatic
+
+	column City
+		dataType: string
+		lineageTag: 8a710780-ee01-4fb1-bfbc-915199b9be36
+		summarizeBy: none
+		sourceColumn: City
+		dataCategory: City
+
+		annotation SummarizationSetBy = Automatic
+
+	column Region
+		dataType: string
+		lineageTag: 916c93b4-c299-4e02-b1e2-9353ce88c1cc
+		summarizeBy: none
+		sourceColumn: Region
+		dataCategory: StateOrProvince
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Customers-b227d324-1bd9-4297-86c3-6808e3e10f23' = m
+		mode: import
+		source =
+				let
+				    Source = Excel.Workbook(File.Contents(DataFolder & "\\Customers.xlsx"), null, true),
+				    Sheet1 = Source{{[Item="Sheet1",Kind="Sheet"]}}[Data],
+				    PromotedHeaders = Table.PromoteHeaders(Sheet1, [PromoteAllScalars=true])
+				,
+				    SelectedColumns = Table.SelectColumns(PromotedHeaders, {"CustomerID", "CustomerName", "Country", "City", "Region"})
+				,
+				    #"Changed Type" = Table.TransformColumnTypes(SelectedColumns, {{"CustomerID", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

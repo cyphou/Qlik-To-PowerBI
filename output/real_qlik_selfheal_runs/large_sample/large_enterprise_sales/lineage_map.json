@@ -1,0 +1,353 @@
+{
+  "app_name": "large_enterprise_sales",
+  "created_at": "2026-06-24T14:52:40.189145",
+  "total_entries": 45,
+  "by_source_type": {
+    "datasource": 5,
+    "variable": 5,
+    "visualization": 23,
+    "sheet": 5,
+    "association": 4,
+    "bookmark": 3
+  },
+  "entries": [
+    {
+      "source_type": "datasource",
+      "source_name": "Orders",
+      "target_type": "table",
+      "target_name": "Orders",
+      "status": "exact"
+    },
+    {
+      "source_type": "datasource",
+      "source_name": "Products",
+      "target_type": "table",
+      "target_name": "Products",
+      "status": "exact"
+    },
+    {
+      "source_type": "datasource",
+      "source_name": "Customers",
+      "target_type": "table",
+      "target_name": "Customers",
+      "status": "exact"
+    },
+    {
+      "source_type": "datasource",
+      "source_name": "Targets",
+      "target_type": "table",
+      "target_name": "Targets",
+      "status": "exact"
+    },
+    {
+      "source_type": "datasource",
+      "source_name": "SalesReps",
+      "target_type": "table",
+      "target_name": "SalesReps",
+      "status": "exact"
+    },
+    {
+      "source_type": "variable",
+      "source_name": "vCurrentYear",
+      "target_type": "parameter",
+      "target_name": "vCurrentYear",
+      "status": "exact"
+    },
+    {
+      "source_type": "variable",
+      "source_name": "vPriorYear",
+      "target_type": "parameter",
+      "target_name": "vPriorYear",
+      "status": "exact"
+    },
+    {
+      "source_type": "variable",
+      "source_name": "vCurrencySymbol",
+      "target_type": "parameter",
+      "target_name": "vCurrencySymbol",
+      "status": "exact"
+    },
+    {
+      "source_type": "variable",
+      "source_name": "vSalesTarget",
+      "target_type": "parameter",
+      "target_name": "vSalesTarget",
+      "status": "exact"
+    },
+    {
+      "source_type": "variable",
+      "source_name": "vTopN",
+      "target_type": "parameter",
+      "target_name": "vTopN",
+      "status": "exact"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Total Sales",
+      "target_type": "visual",
+      "target_name": "kpi → visual",
+      "status": "exact",
+      "source_expression": "kpi"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Total Profit",
+      "target_type": "visual",
+      "target_name": "kpi → visual",
+      "status": "exact",
+      "source_expression": "kpi"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Order Count",
+      "target_type": "visual",
+      "target_name": "kpi → visual",
+      "status": "exact",
+      "source_expression": "kpi"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Customers",
+      "target_type": "visual",
+      "target_name": "kpi → visual",
+      "status": "exact",
+      "source_expression": "kpi"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales Trend",
+      "target_type": "visual",
+      "target_name": "linechart → visual",
+      "status": "exact",
+      "source_expression": "linechart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Profit by Category",
+      "target_type": "visual",
+      "target_name": "barchart → visual",
+      "status": "exact",
+      "source_expression": "barchart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales by Region",
+      "target_type": "visual",
+      "target_name": "map → visual",
+      "status": "exact",
+      "source_expression": "map"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales by Category",
+      "target_type": "visual",
+      "target_name": "barchart → visual",
+      "status": "exact",
+      "source_expression": "barchart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "SubCategory Treemap",
+      "target_type": "visual",
+      "target_name": "treemap → visual",
+      "status": "exact",
+      "source_expression": "treemap"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Product Detail",
+      "target_type": "visual",
+      "target_name": "table → visual",
+      "status": "exact",
+      "source_expression": "table"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Profit Waterfall by Sub-Category",
+      "target_type": "visual",
+      "target_name": "waterfall → visual",
+      "status": "exact",
+      "source_expression": "waterfall"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Discount vs Profit Margin",
+      "target_type": "visual",
+      "target_name": "scatterplot → visual",
+      "status": "exact",
+      "source_expression": "scatterplot"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales by Segment",
+      "target_type": "visual",
+      "target_name": "piechart → visual",
+      "status": "exact",
+      "source_expression": "piechart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Customer Sales vs Profit",
+      "target_type": "visual",
+      "target_name": "scatterplot → visual",
+      "status": "exact",
+      "source_expression": "scatterplot"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Customer Pivot",
+      "target_type": "visual",
+      "target_name": "pivot-table → visual",
+      "status": "exact",
+      "source_expression": "pivot-table"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Top 10 Customers",
+      "target_type": "visual",
+      "target_name": "barchart → visual",
+      "status": "exact",
+      "source_expression": "barchart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales Heat Map",
+      "target_type": "visual",
+      "target_name": "map → visual",
+      "status": "exact",
+      "source_expression": "map"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Sales & Profit by Region",
+      "target_type": "visual",
+      "target_name": "combo → visual",
+      "status": "exact",
+      "source_expression": "combo"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Top Cities",
+      "target_type": "visual",
+      "target_name": "barchart → visual",
+      "status": "exact",
+      "source_expression": "barchart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Avg Days to Ship",
+      "target_type": "visual",
+      "target_name": "gauge → visual",
+      "status": "exact",
+      "source_expression": "gauge"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Orders by Ship Mode",
+      "target_type": "visual",
+      "target_name": "piechart → visual",
+      "status": "exact",
+      "source_expression": "piechart"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Return Rate by Category",
+      "target_type": "visual",
+      "target_name": "combo → visual",
+      "status": "exact",
+      "source_expression": "combo"
+    },
+    {
+      "source_type": "visualization",
+      "source_name": "Order Detail",
+      "target_type": "visual",
+      "target_name": "table → visual",
+      "status": "exact",
+      "source_expression": "table"
+    },
+    {
+      "source_type": "sheet",
+      "source_name": "Executive Summary",
+      "target_type": "report_page",
+      "target_name": "Executive Summary",
+      "status": "exact"
+    },
+    {
+      "source_type": "sheet",
+      "source_name": "Product Analysis",
+      "target_type": "report_page",
+      "target_name": "Product Analysis",
+      "status": "exact"
+    },
+    {
+      "source_type": "sheet",
+      "source_name": "Customer Analysis",
+      "target_type": "report_page",
+      "target_name": "Customer Analysis",
+      "status": "exact"
+    },
+    {
+      "source_type": "sheet",
+      "source_name": "Geographic Analysis",
+      "target_type": "report_page",
+      "target_name": "Geographic Analysis",
+      "status": "exact"
+    },
+    {
+      "source_type": "sheet",
+      "source_name": "Operations",
+      "target_type": "report_page",
+      "target_name": "Operations",
+      "status": "exact"
+    },
+    {
+      "source_type": "association",
+      "source_name": "Orders. → Customers.",
+      "target_type": "relationship",
+      "target_name": "Orders. → Customers.",
+      "status": "exact"
+    },
+    {
+      "source_type": "association",
+      "source_name": "Orders. → Products.",
+      "target_type": "relationship",
+      "target_name": "Orders. → Products.",
+      "status": "exact"
+    },
+    {
+      "source_type": "association",
+      "source_name": "Orders. → SalesReps.",
+      "target_type": "relationship",
+      "target_name": "Orders. → SalesReps.",
+      "status": "exact"
+    },
+    {
+      "source_type": "association",
+      "source_name": "Targets. → Orders.",
+      "target_type": "relationship",
+      "target_name": "Targets. → Orders.",
+      "status": "exact"
+    },
+    {
+      "source_type": "bookmark",
+      "source_name": "Current Year",
+      "target_type": "pbi_bookmark",
+      "target_name": "Current Year",
+      "status": "exact"
+    },
+    {
+      "source_type": "bookmark",
+      "source_name": "High Value Orders",
+      "target_type": "pbi_bookmark",
+      "target_name": "High Value Orders",
+      "status": "exact"
+    },
+    {
+      "source_type": "bookmark",
+      "source_name": "West Region",
+      "target_type": "pbi_bookmark",
+      "target_name": "West Region",
+      "status": "exact"
+    }
+  ]
+}

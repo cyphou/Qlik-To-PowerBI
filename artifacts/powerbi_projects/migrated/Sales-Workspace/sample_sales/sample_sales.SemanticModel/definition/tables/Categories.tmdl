@@ -1,0 +1,39 @@
+table Categories
+	lineageTag: 60189080-f982-4f2b-ab70-3e90e5aac611
+
+	column CategoryID
+		dataType: int64
+		lineageTag: 75170a43-10e5-401c-b1ab-1f9552f7f622
+		summarizeBy: none
+		sourceColumn: CategoryID
+
+		annotation SummarizationSetBy = Automatic
+
+	column CategoryName
+		dataType: string
+		lineageTag: 0a436470-9b55-4b34-ae38-074b648b9d35
+		summarizeBy: none
+		sourceColumn: CategoryName
+
+		annotation SummarizationSetBy = Automatic
+
+	column Description
+		dataType: string
+		lineageTag: 4efad37a-007c-4d22-a4f3-55aebf4aff19
+		summarizeBy: none
+		sourceColumn: Description
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Categories-d0800d8b-ad90-4512-8eba-9a4ec3c6d752' = m
+		mode: import
+		source =
+				let
+				    // TODO: Configure data source for table "Categories"
+				    Source = #table({"CategoryID", "CategoryName", "Description"}, {}),
+				    #"Changed Type" = Table.TransformColumnTypes(Source, {{"CategoryID", Int64.Type}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

@@ -1,0 +1,24 @@
+{
+  "defaults": {
+    "output_dir": "artifacts/powerbi_projects/migrated"
+  },
+  "profiles": {
+    "fast": {
+      "mode": "import",
+      "bridge_tables": "none",
+      "output_format": "pbip"
+    },
+    "strict": {
+      "mode": "import",
+      "bridge_tables": "auto",
+      "output_format": "pbip"
+    }
+  },
+  "entries": [
+    {
+      "file": "../../output/test_results/test_files/sample_sales.qvf",
+      "profile": "strict",
+      "output_dir": "artifacts/powerbi_projects/migrated/Sales-Workspace"
+    }
+  ]
+}

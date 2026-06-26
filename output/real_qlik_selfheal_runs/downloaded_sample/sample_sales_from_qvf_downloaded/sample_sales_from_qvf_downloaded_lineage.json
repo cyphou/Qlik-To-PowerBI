@@ -1,0 +1,103 @@
+{
+  "node_count": 11,
+  "edge_count": 3,
+  "source_tables": [
+    "Sales.csv",
+    "Products.csv",
+    "Customers.csv"
+  ],
+  "derived_tables": [
+    "Sales",
+    "Customers",
+    "Products"
+  ],
+  "nodes": [
+    {
+      "name": "ThousandSep",
+      "kind": "variable"
+    },
+    {
+      "name": "DecimalSep",
+      "kind": "variable"
+    },
+    {
+      "name": "MoneyFormat",
+      "kind": "variable"
+    },
+    {
+      "name": "DateFormat",
+      "kind": "variable"
+    },
+    {
+      "name": "Sales.csv",
+      "kind": "source"
+    },
+    {
+      "name": "Sales",
+      "kind": "table",
+      "fields": [
+        "SaleID",
+        "CustomerID",
+        "ProductID",
+        "OrderDate",
+        "Amount",
+        "Quantity"
+      ]
+    },
+    {
+      "name": "Customers.csv",
+      "kind": "source"
+    },
+    {
+      "name": "Customers",
+      "kind": "table",
+      "fields": [
+        "CustomerID",
+        "CustomerName",
+        "Country",
+        "City",
+        "Region"
+      ]
+    },
+    {
+      "name": "Products.csv",
+      "kind": "source"
+    },
+    {
+      "name": "Products",
+      "kind": "table",
+      "fields": [
+        "ProductID",
+        "ProductName",
+        "CategoryID",
+        "UnitPrice"
+      ]
+    },
+    {
+      "name": "Categories",
+      "kind": "inline",
+      "fields": [
+        "CategoryID",
+        "CategoryName",
+        "Description"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "Sales.csv",
+      "target": "Sales",
+      "operation": "load"
+    },
+    {
+      "source": "Customers.csv",
+      "target": "Customers",
+      "operation": "load"
+    },
+    {
+      "source": "Products.csv",
+      "target": "Products",
+      "operation": "load"
+    }
+  ]
+}

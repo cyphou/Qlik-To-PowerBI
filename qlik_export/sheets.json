@@ -1,8 +1,9 @@
 [
   {
-    "name": "Tableau de Bord Ventes",
-    "description": "Vue d'ensemble des ventes",
     "id": "sheet-001",
+    "title": "",
+    "description": "Vue d'ensemble des ventes",
+    "rank": 0,
     "cells": [
       {
         "name": "KPI-001",
@@ -22,6 +23,7 @@
         "col": 0,
         "row": 1
       }
-    ]
+    ],
+    "layout": {}
   }
 ]
