@@ -608,6 +608,82 @@ class TestSyntheticKeyDetection:
         assert associations[1].get('_composite_key') is True
 
 
+class TestMaterializeAssociationKeys:
+    """FK key columns referenced by associations are materialized on tables."""
+
+    def test_missing_fk_column_added(self):
+        """An association FK absent from a table's columns is added."""
+        from qlik_export.format_adapter import _materialize_association_keys
+
+        datasources = [
+            {'name': 'Orders', 'columns': [{'name': 'OrderID', 'datatype': 'integer'}],
+             'tables': [{'name': 'Orders',
+                         'columns': [{'name': 'OrderID', 'datatype': 'integer'}]}]},
+            {'name': 'Products',
+             'columns': [{'name': 'ProductID', 'datatype': 'text'}],
+             'tables': [{'name': 'Products',
+                         'columns': [{'name': 'ProductID', 'datatype': 'text'}]}]},
+        ]
+        associations = [
+            {'table1': 'Orders', 'field1': 'ProductID',
+             'table2': 'Products', 'field2': 'ProductID'},
+        ]
+        _materialize_association_keys(datasources, associations)
+
+        orders_cols = {c['name'] for c in datasources[0]['tables'][0]['columns']}
+        assert 'ProductID' in orders_cols, "FK column should be added to Orders"
+        # Mirrored into DS-level columns too
+        assert 'ProductID' in {c['name'] for c in datasources[0]['columns']}
+
+    def test_existing_column_not_duplicated(self):
+        """A field already present is left untouched (no duplicate)."""
+        from qlik_export.format_adapter import _materialize_association_keys
+
+        datasources = [
+            {'name': 'Orders',
+             'columns': [{'name': 'CustomerID', 'datatype': 'integer'}],
+             'tables': [{'name': 'Orders',
+                         'columns': [{'name': 'CustomerID', 'datatype': 'integer'}]}]},
+            {'name': 'Customers',
+             'columns': [{'name': 'CustomerID', 'datatype': 'integer'}],
+             'tables': [{'name': 'Customers',
+                         'columns': [{'name': 'CustomerID', 'datatype': 'integer'}]}]},
+        ]
+        associations = [
+            {'table1': 'Orders', 'field1': 'CustomerID',
+             'table2': 'Customers', 'field2': 'CustomerID'},
+        ]
+        _materialize_association_keys(datasources, associations)
+
+        cols = [c['name'] for c in datasources[0]['tables'][0]['columns']]
+        assert cols.count('CustomerID') == 1, "No duplicate FK column"
+
+    def test_added_fk_enables_relationship(self):
+        """Materializing the FK lets _inject_relationships form the link."""
+        from qlik_export.format_adapter import (
+            _materialize_association_keys, _inject_relationships)
+
+        datasources = [
+            {'name': 'Orders', 'columns': [{'name': 'OrderID', 'datatype': 'integer'}],
+             'tables': [{'name': 'Orders',
+                         'columns': [{'name': 'OrderID', 'datatype': 'integer'}]}]},
+            {'name': 'Products',
+             'columns': [{'name': 'ProductID', 'datatype': 'integer'}],
+             'tables': [{'name': 'Products',
+                         'columns': [{'name': 'ProductID', 'datatype': 'integer'}]}]},
+        ]
+        associations = [
+            {'table1': 'Orders', 'field1': 'ProductID',
+             'table2': 'Products', 'field2': 'ProductID'},
+        ]
+        _materialize_association_keys(datasources, associations)
+        _inject_relationships(datasources, associations)
+
+        orders_cols = {c['name'] for c in datasources[0]['tables'][0]['columns']}
+        assert 'ProductID' in orders_cols
+        assert len(datasources[0].get('relationships', [])) == 1
+
+
 # ── Parameter (variable) tests ──────────────────────────────────────
 
 class TestParameterAdaptation:

@@ -318,10 +318,78 @@ def _adapt_datasources(
 
         datasources.append(adapted_ds)
 
+    # ── Materialize FK key columns referenced by associations ──
+    _materialize_association_keys(datasources, qlik_assoc)
+
     # ── Inject relationships from associations ──────────────
     _inject_relationships(datasources, qlik_assoc)
 
     return datasources
+
+
+def _materialize_association_keys(datasources: List[Dict], associations: List[Dict]):
+    """Ensure FK key columns referenced by associations exist on both tables.
+
+    Qlik associations can reference key fields (e.g. ``Orders.ProductID``) that
+    the source datasource column list omits — the load script materializes them
+    at reload time, but the static column metadata does not list them. Without
+    the column the relationship is dropped during TMDL validation, leaving the
+    dimension table (e.g. Products) unlinked in the model. This adds the missing
+    key column (hidden) so the relationship survives, inferring its data type
+    from the matching key column on the other table.
+    """
+    if not associations:
+        return
+
+    # Map table name → (table_entry, datasource) for column injection
+    table_entries: Dict[str, tuple] = {}
+    for ds in datasources:
+        for t in ds.get('tables', []):
+            table_entries.setdefault(t.get('name', ''), (t, ds))
+
+    # Datatype lookup from existing columns: (table, col_lower) → datatype
+    dtype_lookup: Dict[tuple, str] = {}
+    for tname, (t, _ds) in table_entries.items():
+        for c in t.get('columns', []):
+            dtype_lookup[(tname, c.get('name', '').lower())] = c.get('datatype', '')
+
+    def ensure_column(table_name, field, other_table, other_field):
+        entry = table_entries.get(table_name)
+        if not entry or not field:
+            return
+        t, ds = entry
+        existing = {c.get('name', '').lower() for c in t.get('columns', [])}
+        if field.lower() in existing:
+            return
+        # Infer datatype from the counterpart key column, else from the name
+        dtype = dtype_lookup.get((other_table, (other_field or '').lower()), '')
+        if not dtype:
+            dtype = _infer_column_datatype(field)
+        new_col = {
+            'name': field,
+            'datatype': dtype,
+            'caption': field,
+            'role': 'dimension',
+            'hidden': True,            # FK key column — hide from report view
+            'description': 'Foreign key (auto-added from association)',
+            'default_format': '',
+        }
+        t.setdefault('columns', []).append(new_col)
+        dtype_lookup[(table_name, field.lower())] = dtype
+        # Mirror into DS-level columns so paths reading ds['columns'] also see it
+        ds_cols = ds.get('columns')
+        if isinstance(ds_cols, list):
+            ds_existing = {c.get('name', '').lower() for c in ds_cols}
+            if field.lower() not in ds_existing:
+                ds_cols.append(dict(new_col))
+
+    for assoc in associations:
+        table1 = assoc.get('table1', assoc.get('fromTable', ''))
+        table2 = assoc.get('table2', assoc.get('toTable', ''))
+        field1 = assoc.get('field1', assoc.get('fromField', assoc.get('fromColumn', '')))
+        field2 = assoc.get('field2', assoc.get('toField', assoc.get('toColumn', '')))
+        ensure_column(table1, field1, table2, field2)
+        ensure_column(table2, field2, table1, field1)
 
 
 def _inject_relationships(datasources: List[Dict], associations: List[Dict]):
