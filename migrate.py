@@ -143,6 +143,60 @@ def print_step(step_num, total_steps, text):
     print("-" * 80)
 
 
+def _resolve_qvw_input(path: str):
+    """Resolve a .qvw input to a converted sibling file when available.
+
+    Returns:
+        tuple[str, str, bool]: (resolved_path, message, unresolved_qvw)
+            - resolved_path: input path or discovered sibling .json/.qvf
+            - message: informational/warning text (empty if no special handling)
+            - unresolved_qvw: True when input is .qvw and no converted sibling exists
+    """
+    if not path:
+        return path, "", False
+
+    ext = os.path.splitext(path)[1].lower()
+    if ext != '.qvw':
+        return path, "", False
+
+    base = os.path.splitext(path)[0]
+    candidates = [f"{base}.json", f"{base}.qvf"]
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            msg = (
+                f"QVW input detected: {path}\n"
+                f"Using converted sibling: {candidate}"
+            )
+            return candidate, msg, False
+
+    msg = (
+        f"QVW input detected: {path}\n"
+        "QVW is only partially supported and requires prior conversion.\n"
+        "Create a sibling '<name>.json' export or '<name>.qvf' converted file, then rerun migrate.py."
+    )
+    return path, msg, True
+
+
+def _collect_batch_inputs(batch_dir: str):
+        """Collect batch inputs with extension priority and stem-level de-duplication.
+
+        Priority by extension for files sharing the same stem:
+            1. .json
+            2. .qvf
+            3. .qvw
+        """
+        patterns = ['*.json', '*.qvf', '*.qvw']
+        files_by_stem = {}
+
+        for pattern in patterns:
+                for path in glob.glob(os.path.join(batch_dir, pattern)):
+                        stem = os.path.splitext(os.path.basename(path))[0].lower()
+                        if stem not in files_by_stem:
+                                files_by_stem[stem] = path
+
+        return sorted(files_by_stem.values())
+
+
 # ── Step 1: Qlik Extraction ─────────────────────────────────────────
 
 def run_extraction(qlik_file):
@@ -500,7 +554,7 @@ def _build_calc_map_from_tmdl(report_name, output_dir=None):
 def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
                         calendar_start=None, calendar_end=None, culture=None,
                         workers=None):
-    """Batch migrate all .qvf/.json files in a directory.
+    """Batch migrate all .qvf/.json/.qvw files in a directory.
 
     Args:
         batch_dir: Directory containing Qlik files
@@ -515,14 +569,11 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
         print(f"Error: Batch directory not found: {batch_dir}")
         return ExitCode.GENERAL_ERROR
 
-    # Find all Qlik files
-    patterns = ['*.qvf', '*.json']
-    qlik_files = []
-    for pattern in patterns:
-        qlik_files.extend(glob.glob(os.path.join(batch_dir, pattern)))
+    # Find all Qlik files with stem-level deduplication
+    qlik_files = _collect_batch_inputs(batch_dir)
 
     if not qlik_files:
-        print(f"Error: No .qvf/.json files found in {batch_dir}")
+        print(f"Error: No .qvf/.json/.qvw files found in {batch_dir}")
         return ExitCode.GENERAL_ERROR
 
     qlik_files.sort()
@@ -548,6 +599,14 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
         _stats = MigrationStats()
 
         file_results = {}
+
+        resolved_file, resolution_msg, unresolved_qvw = _resolve_qvw_input(qlik_file)
+        if resolution_msg:
+            print(f"  {resolution_msg}")
+        if unresolved_qvw:
+            logger.warning(f"QVW conversion required for {basename}")
+            return basename, {'success': False, 'error': 'qvw_requires_conversion'}
+        qlik_file = resolved_file
 
         # Step 1: Extract
         if not skip_extraction:
@@ -749,6 +808,14 @@ def _run_batch_config(args):
             results[raw_file] = {'success': False, 'error': 'file_not_found'}
             continue
 
+        resolved_file, resolution_msg, unresolved_qvw = _resolve_qvw_input(qlik_file)
+        if resolution_msg:
+            print(f"  [{i}/{len(entries)}] {resolution_msg}")
+        if unresolved_qvw:
+            results[raw_file] = {'success': False, 'error': 'qvw_requires_conversion'}
+            continue
+        qlik_file = resolved_file
+
         basename = os.path.splitext(os.path.basename(qlik_file))[0]
         print(f"\n{'=' * 80}")
         print(f"  [{i}/{len(entries)}] Migrating: {basename}")
@@ -825,7 +892,7 @@ def main():
         'qlik_file',
         nargs='?',
         default=None,
-        help='Path to the Qlik file (.qvf or .json export)'
+        help='Path to the Qlik file (.qvf, .json export, or .qvw with converted sibling .json/.qvf)'
     )
 
     parser.add_argument(
@@ -871,7 +938,7 @@ def main():
         '--batch',
         metavar='DIR',
         default=None,
-        help='Batch migrate all .qvf/.json files in the specified directory'
+        help='Batch migrate all .qvf/.json/.qvw files in the specified directory'
     )
 
     parser.add_argument(
@@ -1788,8 +1855,7 @@ def main():
             batch_dir = getattr(args, 'batch', None)
             app_files = []
             if batch_dir and os.path.isdir(batch_dir):
-                for pattern in ['*.qvf', '*.json']:
-                    app_files.extend(glob.glob(os.path.join(batch_dir, pattern)))
+                app_files = _collect_batch_inputs(batch_dir)
             elif args.qlik_file:
                 app_files = [args.qlik_file]
 
@@ -1799,12 +1865,18 @@ def main():
 
             apps = []
             for app_path in sorted(app_files):
+                resolved_app, resolution_msg, unresolved_qvw = _resolve_qvw_input(app_path)
+                if resolution_msg:
+                    print(f"  {resolution_msg}")
+                if unresolved_qvw:
+                    print(f"  \u2717 Skipping unresolved QVW input: {app_path}")
+                    continue
                 qlik_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
                 orchestrator = ExtractionOrchestrator(output_dir=qlik_dir)
-                orchestrator.extract(app_path)
+                orchestrator.extract(resolved_app)
                 extracted = orchestrator.get_extraction_summary_data()
                 adapted = adapt_qlik_for_generation(extracted)
-                app_name = os.path.splitext(os.path.basename(app_path))[0]
+                app_name = os.path.splitext(os.path.basename(resolved_app))[0]
                 apps.append({'name': app_name, 'data': adapted})
                 print(f"  \u2713 Analyzed: {app_name}")
 
@@ -1916,6 +1988,12 @@ def main():
     # ── Single file migration ─────────────────────────────────
     if not args.qlik_file:
         parser.error('qlik_file is required (or use --batch DIR)')
+
+    args.qlik_file, qvw_resolution_msg, unresolved_qvw = _resolve_qvw_input(args.qlik_file)
+    if qvw_resolution_msg and not json_mode:
+        print(qvw_resolution_msg)
+    if unresolved_qvw:
+        return ExitCode.FILE_NOT_FOUND
 
     if not json_mode:
         print_header("QLIK TO POWER BI MIGRATION")

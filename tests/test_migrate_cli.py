@@ -256,6 +256,39 @@ class TestMainWithMocks:
             assert call_kwargs[1].get('output_dir') == out or call_kwargs.kwargs.get('output_dir') == out
 
 
+class TestQvwResolution:
+
+    def test_resolve_qvw_to_sibling_json(self, tmp_dir):
+        qvw = tmp_dir / "legacy_app.qvw"
+        qvw.write_text("fake", encoding="utf-8")
+        sibling_json = tmp_dir / "legacy_app.json"
+        sibling_json.write_text("{}", encoding="utf-8")
+
+        resolved, msg, unresolved = migrate._resolve_qvw_input(str(qvw))
+        assert resolved == str(sibling_json)
+        assert unresolved is False
+        assert "Using converted sibling" in msg
+
+    def test_resolve_qvw_without_sibling_is_unresolved(self, tmp_dir):
+        qvw = tmp_dir / "legacy_only.qvw"
+        qvw.write_text("fake", encoding="utf-8")
+
+        resolved, msg, unresolved = migrate._resolve_qvw_input(str(qvw))
+        assert resolved == str(qvw)
+        assert unresolved is True
+        assert "requires prior conversion" in msg
+
+    def test_main_unresolved_qvw_exits_file_not_found(self, tmp_dir):
+        qvw = tmp_dir / "legacy_only.qvw"
+        qvw.write_text("fake", encoding="utf-8")
+
+        test_args = ['migrate.py', str(qvw)]
+        with patch('sys.argv', test_args):
+            result = main()
+
+        assert result == ExitCode.FILE_NOT_FOUND
+
+
 # ── Batch migration tests ───────────────────────────────────────────
 
 class TestBatchMigration:
@@ -270,6 +303,22 @@ class TestBatchMigration:
         from migrate import run_batch_migration
         result = run_batch_migration(str(tmp_dir / "nope"))
         assert result == ExitCode.GENERAL_ERROR
+
+    def test_collect_batch_inputs_includes_qvw(self, tmp_dir):
+        (tmp_dir / "legacy_only.qvw").write_text("dummy", encoding="utf-8")
+
+        files = migrate._collect_batch_inputs(str(tmp_dir))
+        assert len(files) == 1
+        assert files[0].endswith("legacy_only.qvw")
+
+    def test_collect_batch_inputs_prefers_json_then_qvf_then_qvw(self, tmp_dir):
+        (tmp_dir / "app.qvw").write_text("dummy", encoding="utf-8")
+        (tmp_dir / "app.qvf").write_text("dummy", encoding="utf-8")
+        (tmp_dir / "app.json").write_text("{}", encoding="utf-8")
+
+        files = migrate._collect_batch_inputs(str(tmp_dir))
+        assert len(files) == 1
+        assert files[0].endswith("app.json")
 
     def test_batch_config_invalid_json(self, tmp_dir):
         """Batch config with invalid JSON should error."""
