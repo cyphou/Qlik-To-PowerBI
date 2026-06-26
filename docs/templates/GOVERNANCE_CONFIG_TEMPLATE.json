@@ -1,0 +1,332 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Governance Gate Profile Template",
+  "description": "Define compliance rules, audit requirements, and data classification policies for migration workspace",
+  "version": "1.0",
+  "metadata": {
+    "created_date": "2026-06-26",
+    "intended_for": "all_migration_programs",
+    "enforcement_level": "recommended_for_regulated_workloads"
+  },
+  "workspace_metadata": {
+    "workspace_name": "default",
+    "workspace_owner": "migration_team@company.com",
+    "contact_escalation": "compliance_team@company.com"
+  },
+  "data_classification": {
+    "levels": [
+      {
+        "level": "public",
+        "description": "Non-sensitive data, can be shared externally",
+        "examples": ["Product catalog", "Published metrics"],
+        "retention_days": 365,
+        "access_level": "unrestricted",
+        "encryption_required": false
+      },
+      {
+        "level": "internal",
+        "description": "Organizational data, shared within company",
+        "examples": ["Sales pipeline", "HR analytics"],
+        "retention_days": 730,
+        "access_level": "authenticated_users",
+        "encryption_required": true
+      },
+      {
+        "level": "confidential",
+        "description": "Contains PII or business-sensitive data",
+        "examples": ["Customer financial data", "Executive compensation"],
+        "retention_days": 1825,
+        "access_level": "restricted_by_role",
+        "encryption_required": true,
+        "additional_controls": [
+          "data_masking_required",
+          "audit_trail_mandatory",
+          "row_level_security_required"
+        ]
+      }
+    ],
+    "default_classification": "internal",
+    "escalation_procedure": "Contact compliance_team@company.com if unsure"
+  },
+  "compliance_rules": {
+    "naming_conventions": {
+      "tables": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+        "max_length": 128,
+        "description": "Alphanumeric + underscores, start with letter/underscore",
+        "examples": ["Dim_Customer", "Fact_Sales"]
+      },
+      "columns": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+        "max_length": 128,
+        "forbidden_prefixes": ["__", "System_"],
+        "examples": ["CustomerID", "OrderDate"]
+      },
+      "measures": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_ ]*$",
+        "max_length": 255,
+        "prefix_recommended": "Msr_",
+        "examples": ["Msr_Total Sales", "Msr_Customer Count"]
+      }
+    },
+    "pii_detection": {
+      "enabled": true,
+      "sensitive_patterns": [
+        {
+          "pattern": "\\b\\d{3}-\\d{2}-\\d{4}\\b",
+          "name": "SSN (US)",
+          "classification": "confidential"
+        },
+        {
+          "pattern": "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b",
+          "name": "Email Address",
+          "classification": "internal"
+        },
+        {
+          "pattern": "\\b\\d{13,19}\\b",
+          "name": "Credit Card",
+          "classification": "confidential"
+        }
+      ],
+      "action_on_detect": "flag_in_audit_trail_and_require_review",
+      "masking_required_for": ["confidential"],
+      "sample_threshold": 100
+    },
+    "approval_workflow": {
+      "required_approvals": [
+        {
+          "role": "data_steward",
+          "required": true,
+          "turnaround_hours": 24
+        },
+        {
+          "role": "compliance_reviewer",
+          "required_for": ["confidential"],
+          "turnaround_hours": 48
+        }
+      ],
+      "sign_off_fields": [
+        "data_classification_confirmed",
+        "pii_review_completed",
+        "security_mapping_reviewed",
+        "lineage_audit_passed"
+      ]
+    }
+  },
+  "audit_trail": {
+    "enabled": true,
+    "retention_days": 2555,
+    "log_format": "jsonl",
+    "events_to_capture": [
+      {
+        "event_type": "extraction_start",
+        "fields": ["app_id", "timestamp", "initiated_by"]
+      },
+      {
+        "event_type": "extraction_complete",
+        "fields": ["app_id", "timestamp", "duration_sec", "table_count"]
+      },
+      {
+        "event_type": "generation_complete",
+        "fields": ["app_id", "fidelity_score", "formula_count"]
+      },
+      {
+        "event_type": "validation_gate_passed",
+        "fields": ["app_id", "gate_level", "approver"]
+      },
+      {
+        "event_type": "deployment_approved",
+        "fields": ["app_id", "approver", "deployment_timestamp"]
+      },
+      {
+        "event_type": "data_access",
+        "fields": ["user_id", "app_id", "timestamp", "query_count"]
+      }
+    ],
+    "storage": {
+      "location": "logs/audit_trail/",
+      "format": "jsonl",
+      "rotation_policy": "daily",
+      "encryption": "AES-256"
+    }
+  },
+  "role_based_access_control": {
+    "roles": [
+      {
+        "role_name": "migration_analyst",
+        "permissions": [
+          "read_qvf_source",
+          "execute_migration",
+          "view_artifacts",
+          "edit_manifest"
+        ],
+        "restrictions": [
+          "cannot_approve_deployment",
+          "cannot_delete_artifacts"
+        ]
+      },
+      {
+        "role_name": "data_steward",
+        "permissions": [
+          "read_all_artifacts",
+          "approve_deployment",
+          "classify_data",
+          "override_fidelity_threshold"
+        ],
+        "restrictions": [
+          "cannot_modify_code"
+        ]
+      },
+      {
+        "role_name": "compliance_reviewer",
+        "permissions": [
+          "read_audit_trail",
+          "review_pii_detection",
+          "approve_confidential_deployments",
+          "generate_compliance_report"
+        ]
+      }
+    ],
+    "default_role": "migration_analyst",
+    "role_assignment_procedure": "Contact workspace_admin@company.com"
+  },
+  "retention_policies": {
+    "source_artifacts": {
+      "retention_days": 90,
+      "description": "Extraction JSON files (11 intermediate files)"
+    },
+    "migration_outputs": {
+      "retention_days": 365,
+      "description": "Generated Power BI projects (.pbip)"
+    },
+    "validation_reports": {
+      "retention_days": 365,
+      "description": "Fidelity, cross-platform, lineage reports"
+    },
+    "audit_logs": {
+      "retention_days": 2555,
+      "description": "JSONL event logs (7+ years for compliance)"
+    },
+    "backup_and_recovery": {
+      "backup_frequency": "daily",
+      "retention_backup": 30,
+      "recovery_rpo_hours": 24,
+      "recovery_rto_hours": 4
+    }
+  },
+  "security_validation": {
+    "rls_mapping": {
+      "enabled": true,
+      "review_required_for": ["internal", "confidential"],
+      "expected_review_duration_hours": 2,
+      "sign_off_required": true,
+      "mapping_template": "docs/guides/SECURITY_AUDIT_CHECKLIST.md"
+    },
+    "ols_detection": {
+      "enabled": true,
+      "description": "Object-Level Security (OLS) annotation tracking"
+    },
+    "encryption": {
+      "in_transit": "TLS 1.2+",
+      "at_rest": "AES-256",
+      "key_rotation_days": 90
+    },
+    "ip_whitelisting": {
+      "enabled_for": ["confidential"],
+      "allowed_ips": [
+        "10.0.0.0/8"
+      ]
+    }
+  },
+  "validation_gates": {
+    "dev_gate": {
+      "level": "structural",
+      "checks": [
+        "TMDL syntax valid",
+        "DAX expressions balanced",
+        "Column references exist",
+        "No XXE/ZIP-slip vulnerabilities"
+      ],
+      "pass_threshold": "100% (all checks must pass)",
+      "documentation": "docs/guides/CLI_REFERENCE.md"
+    },
+    "test_gate": {
+      "level": "functional",
+      "checks": [
+        "Cross-platform value match (Qlik vs. PBI)",
+        "Schema validation (expected columns)",
+        "Measure calculation ±0.1%",
+        "No orphaned tables/columns"
+      ],
+      "pass_threshold": "Fidelity >= 85%"
+    },
+    "prod_gate": {
+      "level": "production_readiness",
+      "checks": [
+        "Preceptor quality score >= 80%",
+        "All self-healing rules pass",
+        "Cutover readiness confirmed",
+        "Security audit completed",
+        "Compliance approval received"
+      ],
+      "pass_threshold": "All mandatory checks pass"
+    }
+  },
+  "incident_management": {
+    "severity_levels": [
+      {
+        "level": "critical",
+        "description": "Data loss, security breach, compliance violation",
+        "escalation_minutes": 15,
+        "contact": "ciso@company.com"
+      },
+      {
+        "level": "high",
+        "description": "Deployment failure, fidelity <70%, PII leak",
+        "escalation_minutes": 60,
+        "contact": "migration_lead@company.com"
+      },
+      {
+        "level": "medium",
+        "description": "Fidelity 70-84%, minor formula error",
+        "escalation_minutes": 240,
+        "contact": "data_steward@company.com"
+      }
+    ],
+    "post_incident_procedure": [
+      "Document root cause within 48 hours",
+      "Implement preventive control",
+      "Update runbook/checklist",
+      "Brief team in next standup"
+    ]
+  },
+  "compliance_certifications": {
+    "applicable": [
+      {
+        "standard": "SOC 2 Type II",
+        "requirement": "Audit trail retained 7 years"
+      },
+      {
+        "standard": "GDPR",
+        "requirement": "PII detection mandatory, right-to-deletion process"
+      },
+      {
+        "standard": "HIPAA",
+        "requirement": "Encryption in transit/rest, access controls, audit"
+      }
+    ],
+    "compliance_attestation": "This governance profile aligns with company compliance standards as of 2026-06-26"
+  },
+  "escalation_contacts": {
+    "migration_lead": "migration_lead@company.com",
+    "compliance_officer": "compliance_team@company.com",
+    "ciso": "ciso@company.com",
+    "data_steward": "data_steward@company.com",
+    "emergency_on_call": "+1-555-0123"
+  },
+  "related_documents": [
+    "docs/guides/SECURITY_AUDIT_CHECKLIST.md",
+    "docs/guides/WORKSPACE_BLUEPRINT.md",
+    "docs/reports/FULL_MIGRATION_WORKSPACE_ROADMAP_2026-06-26.md"
+  ]
+}

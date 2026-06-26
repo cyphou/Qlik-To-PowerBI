@@ -1,0 +1,272 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Connection Map Template for Qlik-to-Power BI Migration",
+  "description": "Standardized mapping of Qlik datasources to Power Query M connectors and Power BI semantic model",
+  "version": "1.0",
+  "metadata": {
+    "created_date": "2026-06-26",
+    "purpose": "Define datasource connections, M query patterns, and column mappings",
+    "supported_connectors": 42,
+    "examples_included": true
+  },
+  "datasources": [
+    {
+      "id": "ds_001",
+      "name": "Sales Database",
+      "connector_type": "sql_server",
+      "server": "server.database.windows.net",
+      "database": "SalesDB",
+      "authentication": "service_principal",
+      "m_query_pattern": "let\n  Source = Sql.Database(\"server.database.windows.net\", \"SalesDB\"),\n  Navigation = Source{[Schema=\"dbo\", Item=\"Table\"]},\n  Table = Navigation[Data]\nin\n  Table",
+      "tables": [
+        {
+          "source_table": "dbo.Orders",
+          "target_table": "Orders",
+          "columns": [
+            {
+              "source_column": "OrderID",
+              "target_column": "OrderID",
+              "data_type": "int64",
+              "description": "Unique order identifier"
+            },
+            {
+              "source_column": "OrderDate",
+              "target_column": "OrderDate",
+              "data_type": "date",
+              "description": "Date order was placed"
+            },
+            {
+              "source_column": "Amount",
+              "target_column": "Amount",
+              "data_type": "decimal",
+              "description": "Order total amount"
+            }
+          ],
+          "m_transforms": [
+            {
+              "step_name": "FilterRecent",
+              "step_type": "filter",
+              "condition": "OrderDate >= Date.AddYears(DateTime.Today(), -2)",
+              "description": "Keep last 2 years of data"
+            },
+            {
+              "step_name": "CleanAmount",
+              "step_type": "replace_value",
+              "column": "Amount",
+              "condition": "is_null",
+              "replacement_value": 0,
+              "description": "Replace null amounts with 0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ds_002",
+      "name": "Customer Data",
+      "connector_type": "csv",
+      "file_path": "blob://container/customers.csv",
+      "encoding": "UTF-8",
+      "delimiter": ",",
+      "first_row_as_headers": true,
+      "m_query_pattern": "let\n  Source = Csv.Document(File.Contents(\"blob://container/customers.csv\"), [Delimiter=\",\", Encoding=65001, FirstRowAsHeaders=true]),\n  Table = Source\nin\n  Table",
+      "tables": [
+        {
+          "source_table": "Sheet1",
+          "target_table": "Customers",
+          "columns": [
+            {
+              "source_column": "CustomerID",
+              "target_column": "CustomerID",
+              "data_type": "text",
+              "description": "Customer unique ID"
+            },
+            {
+              "source_column": "CustomerName",
+              "target_column": "CustomerName",
+              "data_type": "text",
+              "description": "Full customer name"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ds_003",
+      "name": "Analytics Snowflake",
+      "connector_type": "snowflake",
+      "server": "xy12345.snowflakecomputing.com",
+      "warehouse": "COMPUTE_WH",
+      "database": "ANALYTICS",
+      "schema": "PUBLIC",
+      "authentication": "oauth",
+      "m_query_pattern": "let\n  Source = Snowflake.Databases(\"xy12345.snowflakecomputing.com\", \"COMPUTE_WH\"),\n  Analytics = Source{[Name=\"ANALYTICS\"]},\n  Public = Analytics{[Name=\"PUBLIC\"]}\nin\n  Public",
+      "tables": [
+        {
+          "source_table": "DIM_DATE",
+          "target_table": "DimDate",
+          "columns": [
+            {
+              "source_column": "DATE_KEY",
+              "target_column": "DateKey",
+              "data_type": "int64"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "connector_patterns": {
+    "sql_server": {
+      "m_template": "Sql.Database(\"<server>\", \"<database>\"){[Schema=\"<schema>\", Item=\"<table>\"]}[Data]",
+      "authentication_options": [
+        "windows",
+        "database_user",
+        "service_principal"
+      ],
+      "example_transform_steps": [
+        "Filter by date",
+        "Remove nulls",
+        "Deduplicate",
+        "Join with lookup table"
+      ]
+    },
+    "csv": {
+      "m_template": "Csv.Document(File.Contents(\"<filepath>\"), [Delimiter=\"<delimiter>\", FirstRowAsHeaders=<true/false>])",
+      "authentication_options": [
+        "none",
+        "storage_key",
+        "sas_token"
+      ]
+    },
+    "excel": {
+      "m_template": "Excel.Workbook(File.Contents(\"<filepath>\"), [DelimitedColumns=false])",
+      "supported_versions": ["97-2003", "2007+"]
+    },
+    "snowflake": {
+      "m_template": "Snowflake.Databases(\"<server>\", \"<warehouse>\"){[Name=\"<database>\"]}{[Name=\"<schema>\"]}",
+      "authentication_options": [
+        "username_password",
+        "oauth",
+        "sso"
+      ]
+    },
+    "bigquery": {
+      "m_template": "GoogleBigQuery.Database(<project_id>, [UseStorageAPI=true])",
+      "authentication_options": [
+        "service_account",
+        "oauth"
+      ]
+    },
+    "oracle": {
+      "m_template": "Oracle.Database(\"<server>:<port>/<database>\", [Query=\"SELECT * FROM <table>\"])",
+      "authentication_options": [
+        "database_user",
+        "service_account"
+      ]
+    },
+    "sharepoint": {
+      "m_template": "SharePoint.Contents(\"<site_url>\")[RelativeUrl=\"<relative_path>\"]",
+      "authentication_options": [
+        "organizational",
+        "service_principal"
+      ]
+    },
+    "json": {
+      "m_template": "Json.Document(Web.Contents(\"<url>\"))",
+      "encoding": "UTF-8",
+      "authentication_options": [
+        "none",
+        "api_key",
+        "oauth"
+      ]
+    },
+    "web": {
+      "m_template": "Csv.Document(Web.Contents(\"<url>\"), [Delimiter=\",\"])",
+      "authentication_options": [
+        "none",
+        "api_key",
+        "basic_auth"
+      ]
+    }
+  },
+  "transform_patterns": {
+    "filter": {
+      "description": "Remove rows matching condition",
+      "example": "Table.SelectRows(Source, each [Column] > 0)"
+    },
+    "remove_duplicates": {
+      "description": "Keep first occurrence of duplicate",
+      "example": "Table.Distinct(Source, {\"ColumnName\"})"
+    },
+    "join": {
+      "description": "Combine two tables",
+      "types": ["inner", "left_outer", "right_outer", "full_outer"],
+      "example": "Table.Join(Table1, \"KeyColumn\", Table2, \"KeyColumn\", JoinKind.LeftOuter)"
+    },
+    "group_and_aggregate": {
+      "description": "Summarize by groups",
+      "example": "Table.Group(Source, {\"GroupColumn\"}, {{\"Total\", each List.Sum([Amount]), type number}})"
+    },
+    "pivot": {
+      "description": "Unpivot wide table to long format",
+      "example": "Table.Unpivot(Source, {\"Year2025\", \"Year2026\"}, \"Year\", \"Value\")"
+    },
+    "add_index": {
+      "description": "Add sequential row numbers",
+      "example": "Table.AddIndexColumn(Source, \"Index\", 1, 1)"
+    }
+  },
+  "validation_rules": {
+    "connection_validation": [
+      "Test connection before migration",
+      "Verify credentials and permissions",
+      "Check table/column accessibility",
+      "Measure query performance (expected duration <5 sec)"
+    ],
+    "column_type_mapping": {
+      "qlik_type": "power_bi_type",
+      "examples": {
+        "integer": "Int64",
+        "real": "Decimal",
+        "text": "Text",
+        "date": "Date",
+        "timestamp": "DateTime",
+        "boolean": "Logical"
+      }
+    },
+    "null_handling": [
+      "Decide: allow nulls, replace with default, or remove rows",
+      "Document per-column null strategy"
+    ],
+    "data_quality_checks": [
+      "Row count validation (extract vs. Qlik)",
+      "Column count match",
+      "Data type inference accuracy",
+      "Duplicate detection and resolution"
+    ]
+  },
+  "relationship_mapping": {
+    "description": "Define join keys and cardinality between tables",
+    "example_relationships": [
+      {
+        "source_table": "Orders",
+        "source_key": "CustomerID",
+        "target_table": "Customers",
+        "target_key": "CustomerID",
+        "cardinality": "many_to_one",
+        "cross_filter_direction": "single"
+      }
+    ]
+  },
+  "performance_recommendations": {
+    "incremental_refresh": "Configure for large fact tables (>100M rows)",
+    "partitioning": "Use date-based partitions for time-series data",
+    "caching": "Cache dimension tables (< 1M rows) in memory",
+    "query_folding": "Ensure Power Query steps fold to source database"
+  },
+  "example_usage": {
+    "command": "python migrate.py app.qvf --connection-map docs/templates/CONNECTION_MAP_TEMPLATE.json",
+    "description": "Use this template during generation phase to guide M query and relationship creation"
+  }
+}
