@@ -690,6 +690,7 @@ m_query = generate_m_query({
 | 📋 | [Qlik Objects Coverage](docs/technical/QLIK_OBJECTS_COVERAGE.md) | 72 Qlik objects — 100% coverage |
 | 🧭 | [Live Dev Plan](docs/DEV_PLAN_v12.md) | Current execution plan (v12.x) |
 | ✅ | [Roadmap Status Snapshot](docs/reports/ROADMAP_STATUS_2026-06-24.md) | Reconciled status and milestones |
+| 🧭 | [Full Migration Workspace Roadmap 2026-06-26](docs/reports/FULL_MIGRATION_WORKSPACE_ROADMAP_2026-06-26.md) | Next execution roadmap for managing full migration workspaces |
 | 🛠️ | [Parity Checker Script](tools/analysis/parity_status_check.py) | Automated parity/drift verification |
 | 🤝 | [Tableau Agent/Feature Parity Report](docs/reports/TABLEAU_AGENT_FEATURE_PARITY_2026-06-24.md) | Upstream parity workflow and findings |
 | 🔍 | [Agent Feature Parity Script](tools/analysis/agent_feature_parity_check.py) | Local and optional upstream parity checker |
