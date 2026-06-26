@@ -523,6 +523,43 @@ class TestConcat:
 
 
 # ═══════════════════════════════════════════════════════════════
+#  Inline DISTINCT keyword (Qlik Count(DISTINCT x))
+# ═══════════════════════════════════════════════════════════════
+
+class TestInlineDistinct:
+    def test_count_distinct_to_distinctcount(self):
+        col_map = {"OrderID": "Orders"}
+        result = dax("Count(DISTINCT OrderID)", table="Orders",
+                     col_table_map=col_map)
+        assert result == "DISTINCTCOUNT('Orders'[OrderID])"
+        assert "DISTINCT " not in result  # no leftover keyword
+
+    def test_count_distinct_lowercase(self):
+        col_map = {"CustomerID": "Orders"}
+        result = dax("Count(distinct CustomerID)", table="Orders",
+                     col_table_map=col_map)
+        assert result == "DISTINCTCOUNT('Orders'[CustomerID])"
+
+    def test_count_distinct_in_expression(self):
+        col_map = {"Sales": "Orders", "OrderID": "Orders"}
+        result = dax("Sum(Sales) / Count(DISTINCT OrderID)", table="Orders",
+                     col_table_map=col_map)
+        assert result == "SUM('Orders'[Sales]) / DISTINCTCOUNT('Orders'[OrderID])"
+
+    def test_plain_count_not_distinct(self):
+        col_map = {"OrderID": "Orders"}
+        result = dax("Count(OrderID)", table="Orders", col_table_map=col_map)
+        assert result == "COUNT('Orders'[OrderID])"
+
+    def test_sum_distinct_drops_keyword(self):
+        col_map = {"Amount": "Orders"}
+        result = dax("Sum(DISTINCT Amount)", table="Orders",
+                     col_table_map=col_map)
+        assert "DISTINCT " not in result
+        assert result == "SUM('Orders'[Amount])"
+
+
+# ═══════════════════════════════════════════════════════════════
 #  convert_qlik_format_to_dax
 # ═══════════════════════════════════════════════════════════════
 

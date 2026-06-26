@@ -301,6 +301,11 @@ def convert_qlik_expression_to_dax(
     # Phase 5b: KeepChar() deterministic conversion
     dax = _convert_keepchar(dax)
 
+    # Phase 5c: Inline DISTINCT keyword in aggregations
+    # Qlik allows Count(DISTINCT field); DAX has no inline DISTINCT keyword.
+    # Count(DISTINCT x) → DISTINCTCOUNT(x); other aggs drop the keyword.
+    dax = _convert_inline_distinct(dax)
+
     # Phase 6: Simple function mapping (175+ replacements)
     for pattern, replacement in _COMPILED_FUNCTION_MAP:
         if _TEMPLATE_RE.search(replacement):
@@ -438,6 +443,34 @@ def _convert_keepchar(expr: str) -> str:
         expr = expr[:m.start()] + replacement + expr[i:]
 
     return expr
+
+
+# Aggregations that accept an inline Qlik DISTINCT keyword.
+_INLINE_DISTINCT_RE = re.compile(
+    r'\b(Count|Sum|Avg|Average|Min|Max|Median|Stdev|Only)\s*'
+    r'\(\s*Distinct\s+',
+    re.IGNORECASE,
+)
+
+
+def _convert_inline_distinct(expr: str) -> str:
+    """Convert Qlik inline ``DISTINCT`` keyword in aggregation calls.
+
+    DAX has no inline ``DISTINCT`` keyword, so:
+
+    * ``Count(DISTINCT field)`` → ``DISTINCTCOUNT(field)``
+    * other aggregations drop the keyword: ``Sum(DISTINCT field)`` →
+      ``Sum(field)`` (best-effort; DAX aggregates over column values).
+
+    The bare ``field`` is qualified later by ``_qualify_aggregation_columns``.
+    """
+    def _replace(m):
+        func = m.group(1)
+        if func.lower() == 'count':
+            return 'DISTINCTCOUNT('
+        return f'{func}('
+
+    return _INLINE_DISTINCT_RE.sub(_replace, expr)
 
 
 # ── Operator conversion ──────────────────────────────────────────
