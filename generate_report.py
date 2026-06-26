@@ -111,6 +111,8 @@ def generate_html(assessments, reports, metadata):
     total_exact = sum(r.get("summary", {}).get("exact", 0) for r in reports.values())
     total_approx = sum(r.get("summary", {}).get("approximate", 0) for r in reports.values())
     total_unsupported = sum(r.get("summary", {}).get("unsupported", 0) for r in reports.values())
+    total_placeholder = sum(r.get("summary", {}).get("placeholder", 0) for r in reports.values())
+    total_skipped = sum(r.get("summary", {}).get("skipped", 0) for r in reports.values())
 
     total_tables = sum(m.get("tmdl_stats", {}).get("tables", 0) for m in metadata.values())
     total_measures = sum(m.get("tmdl_stats", {}).get("measures", 0) for m in metadata.values())
@@ -197,11 +199,18 @@ def generate_html(assessments, reports, metadata):
 
     # Donut: Conversion Status
     html += '<div class="chart-card"><h4>&#127919; Conversion Status</h4>'
-    html += donut_chart([
+    donut_segments = [
         ("Exact", total_exact, SUCCESS),
         ("Approximate", total_approx, "#c19c00"),
         ("Unsupported", total_unsupported, FAIL),
-    ], center_text=f"{avg_fidelity:.0f}%")
+    ]
+    # Surface skipped/placeholder items so legend percentages match the true
+    # total (otherwise Exact reads 100% even when fidelity is below 100%).
+    if total_placeholder:
+        donut_segments.append(("Placeholder", total_placeholder, ORANGE))
+    if total_skipped:
+        donut_segments.append(("Skipped", total_skipped, PBI_GRAY))
+    html += donut_chart(donut_segments, center_text=f"{avg_fidelity:.0f}%")
     html += '</div>'
 
     # Bar: By Category

@@ -222,6 +222,25 @@ class TestBulkAddMethods:
         assert r.items[0]["category"] == "datasource"
         assert "2 table" in r.items[0]["note"]
 
+    def test_add_datasources_raw_schema(self):
+        """Raw extracted schema (connectionType/tableName) resolves correctly."""
+        r = MigrationReport("test")
+        r.add_datasources([{
+            "connectionType": "sqlserver",
+            "tableName": "Orders",
+            "columns": [{"name": "OrderID"}],
+        }])
+        item = r.items[0]
+        assert item["name"] == "Orders"
+        assert item["note"] == "SQL Server, 1 table(s)"
+
+    def test_add_datasources_unknown_connector(self):
+        """Unrecognised connector falls back to the raw value, not '?'."""
+        r = MigrationReport("test")
+        r.add_datasources([{"connectionType": "fancydb", "tableName": "X"}])
+        assert "fancydb" in r.items[0]["note"]
+        assert "?" not in r.items[0]["note"]
+
 
 # ═══════════════════════════════════════════════════════════════
 #  add_user_filters

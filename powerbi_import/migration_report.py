@@ -56,6 +56,22 @@ class MigrationReport:
 
     _VALID_STATUSES = {EXACT, APPROXIMATE, PLACEHOLDER, UNSUPPORTED, SKIPPED}
 
+    # Map raw connector keys → human-readable Power BI connector names
+    _CONNECTOR_DISPLAY = {
+        'sqlserver': 'SQL Server', 'sql_server': 'SQL Server', 'mssql': 'SQL Server',
+        'azuresql': 'Azure SQL', 'azure_sql': 'Azure SQL', 'synapse': 'Azure Synapse',
+        'postgresql': 'PostgreSQL', 'postgres': 'PostgreSQL',
+        'oracle': 'Oracle', 'mysql': 'MySQL', 'mariadb': 'MariaDB',
+        'csv': 'CSV', 'excel': 'Excel', 'xlsx': 'Excel',
+        'snowflake': 'Snowflake', 'bigquery': 'BigQuery', 'redshift': 'Redshift',
+        'databricks': 'Databricks', 'teradata': 'Teradata', 'sap_hana': 'SAP HANA',
+        'saphana': 'SAP HANA', 'db2': 'DB2', 'vertica': 'Vertica', 'impala': 'Impala',
+        'qvd': 'QVD', 'odbc': 'ODBC', 'oledb': 'OLE DB', 'odata': 'OData',
+        'rest': 'REST', 'web': 'Web', 'json': 'JSON', 'xml': 'XML',
+        'sharepoint': 'SharePoint', 'salesforce': 'Salesforce', 'mongodb': 'MongoDB',
+        'cosmosdb': 'Cosmos DB', 'dataverse': 'Dataverse', 'loadscript': 'Load Script',
+    }
+
     def __init__(self, report_name):
         self.report_name = report_name
         self.created_at = datetime.now().isoformat()
@@ -237,14 +253,36 @@ class MigrationReport:
                               note='User filter → RLS role with USERPRINCIPALNAME()')
 
     def add_datasources(self, datasources):
-        """Add datasource migration entries."""
+        """Add datasource migration entries.
+
+        Accepts both the raw extracted schema (flat ``connectionType`` /
+        ``tableName`` keys, one entry per table) and the adapted schema
+        (nested ``connection`` dict + ``tables`` list).
+        """
         for ds in datasources:
-            name = ds.get('name') or ds.get('caption', 'Unknown')
+            name = (ds.get('name') or ds.get('tableName')
+                    or ds.get('caption') or 'Unknown')
+            # Connection type can be a nested connection dict (adapted form)
+            # or a flat connectionType/type key (raw extracted form).
             conn = ds.get('connection', {})
-            conn_type = conn.get('class', conn.get('type', '?'))
-            tables = len(ds.get('tables', []))
+            if isinstance(conn, dict):
+                raw_conn = (conn.get('class') or conn.get('type')
+                            or ds.get('connectionType') or ds.get('type') or '')
+            else:
+                raw_conn = ds.get('connectionType') or ds.get('type') or ''
+            conn_type = self._CONNECTOR_DISPLAY.get(
+                str(raw_conn).lower(), raw_conn or 'Unknown')
+            # Raw entries represent a single source table; adapted entries
+            # carry an explicit 'tables' list.
+            tables_list = ds.get('tables')
+            if isinstance(tables_list, list) and tables_list:
+                table_count = len(tables_list)
+            elif ds.get('tableName') or ds.get('columns'):
+                table_count = 1
+            else:
+                table_count = 0
             self.add_item('datasource', name, self.EXACT,
-                          note=f"{conn_type}, {tables} table(s)")
+                          note=f"{conn_type}, {table_count} table(s)")
 
     # ── Classification helpers ───────────────────────────────────
 
