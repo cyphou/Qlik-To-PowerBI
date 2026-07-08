@@ -10,6 +10,7 @@ Covers:
 import json
 import os
 import tempfile
+import zlib
 import pytest
 from qlik_export.extraction_orchestrator import ExtractionOrchestrator
 
@@ -167,6 +168,83 @@ class TestExtractFromJson:
         finally:
             os.unlink(path)
 
+    def test_qvf_extension_with_binary_export_payload_fallback(self):
+        """Binary Qlik exports with embedded compressed JSON should be decoded."""
+        metadata = {
+            "qTitle": "Binary Export App",
+            "description": "Exported from Qlik",
+            "qLastReloadTime": "2026-07-08T06:32:43.836Z",
+        }
+        sheet = {
+            "qMetaData": {"qType": "sheet"},
+            "qRoot": {
+                "qProperty": {
+                    "qInfo": {"qId": "sheet-1", "qType": "sheet"},
+                    "qMetaDef": {"title": "Sheet 1", "description": ""},
+                    "rank": 0,
+                    "cells": [
+                        {
+                            "name": "viz-1",
+                            "type": "table",
+                            "bounds": {"x": 0, "y": 0, "width": 100, "height": 100},
+                        }
+                    ],
+                },
+                "qChildren": [
+                    {
+                        "qProperty": {
+                            "qInfo": {"qId": "viz-1", "qType": "table"},
+                            "qHyperCubeDef": {
+                                "qDimensions": [
+                                    {"qDef": {"qFieldDefs": ["Region"], "qFieldLabels": ["Region"]}}
+                                ],
+                                "qMeasures": [
+                                    {"qDef": {"qLabel": "Sales", "qDef": "Sum(Sales)"}}
+                                ],
+                            },
+                        }
+                    }
+                ],
+            },
+        }
+        script = {"qScript": "LOAD * INLINE [Region,Sales\nA,1\n];"}
+        variable_list = {
+            "qId": "user_variablelist",
+            "qEntryList": [
+                {
+                    "qProperties": {
+                        "qInfo": {"qId": "var-1", "qType": "variable"},
+                        "qName": "vTest",
+                        "qDefinition": "42",
+                    }
+                }
+            ],
+        }
+        payload = (
+            b"qvapp_approperties"
+            + zlib.compress(json.dumps(metadata).encode("utf-8"))
+            + b"qvapp_allproperties"
+            + zlib.compress(json.dumps(sheet).encode("utf-8"))
+            + b"qvapp_appscript"
+            + zlib.compress(json.dumps(script).encode("utf-8"))
+            + b"qvapp_variablelist"
+            + zlib.compress(json.dumps(variable_list).encode("utf-8"))
+        )
+        with tempfile.NamedTemporaryFile(suffix=".qvf", delete=False) as f:
+            f.write(payload)
+            path = f.name
+        try:
+            orch = ExtractionOrchestrator()
+            result = orch.extract(path)
+            assert result["app_metadata"]["name"] == "Binary Export App"
+            assert result["loadscript"]["script"].startswith("LOAD * INLINE")
+            assert any(dim["field"] == "Region" for dim in result["dimensions"])
+            assert any(measure["expression"] == "Sum(Sales)" for measure in result["measures"])
+            assert len(result["visualizations"]) == 1
+            assert result["variables"][0]["name"] == "vTest"
+        finally:
+            os.unlink(path)
+
 
 # ═══════════════════════════════════════════════════════════════
 #  load_intermediate_json
@@ -214,6 +292,20 @@ class TestLoadIntermediateJson:
         with tempfile.TemporaryDirectory() as tmpdir:
             result = ExtractionOrchestrator.load_intermediate_json(tmpdir)
             assert isinstance(result, dict)
+
+
+class TestExtractColumnsFromMQuery:
+    def test_extract_columns_strips_trailing_table_label_fragment(self):
+        m_query = (
+            'let\n'
+            '    Source = Sql.Database("ServerName", "DatabaseName"),\n'
+            '    Table = Source{{[Schema="dbo",Item="TableName"]}}[Data],\n'
+            '    SelectedColumns = Table.SelectColumns(Table, {"QCLG_CODE_ENTITE", "ID_CHGT_TECH;\n\n[QUAL_QUESTPAT_CLOT_GENERIQUE]:"})\n'
+            'in\n'
+            '    SelectedColumns\n'
+        )
+        columns = ExtractionOrchestrator._extract_columns_from_m_query(m_query)
+        assert [c["name"] for c in columns] == ["QCLG_CODE_ENTITE", "ID_CHGT_TECH"]
 
 
 # ═══════════════════════════════════════════════════════════════

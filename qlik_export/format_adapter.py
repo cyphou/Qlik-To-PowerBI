@@ -32,6 +32,17 @@ from qlik_export.qlik_model_converter import _infer_column_datatype
 logger = logging.getLogger(__name__)
 
 
+def _first_non_empty(*values: Any) -> str:
+    """Return the first non-empty string-ish value, else empty string."""
+    for value in values:
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return ""
+
+
 # ── Visual type mapping (Qlik → PBI chart_type) ────────────────────
 
 _QLIK_CHART_TYPE_MAP = {
@@ -171,9 +182,11 @@ def adapt_qlik_for_generation(qlik_data: Dict[str, Any]) -> Dict[str, Any]:
     for p in parameters:
         val = p.get('value', '')
         if val and _AGG_PATTERN.search(val):
+            calc_name = _first_non_empty(p.get('name'), p.get('caption'))
+            calc_caption = _first_non_empty(p.get('caption'), p.get('displayName'), calc_name)
             promoted.append({
-                'name': p['name'],
-                'caption': p.get('caption', p['name']),
+                'name': calc_name,
+                'caption': calc_caption,
                 'formula': val,
                 'role': 'measure',
                 'datatype': 'double',
@@ -973,10 +986,11 @@ def _adapt_parameters(qlik_variables: List[Dict]) -> List[Dict]:
         if name.startswith('$') or name.startswith('_'):
             continue
 
+        caption = _first_non_empty(v.get('label'), v.get('comment'), name)
         parameters.append({
             'name': name,
-            'caption': v.get('label', v.get('comment', name)),
-            'displayName': v.get('label', name),
+            'caption': caption,
+            'displayName': _first_non_empty(v.get('label'), name),
             'value': definition,
             'currentValue': definition,
             'datatype': 'string',   # Qlik variables are untyped

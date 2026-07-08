@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import zipfile
+import zlib
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -181,10 +182,17 @@ class ExtractionOrchestrator:
                 self._extract_from_json(qvf_path)
                 return
 
-            raise ValueError(
-                f"Invalid QVF file '{qvf_path}': file is not a ZIP archive and does not contain JSON. "
-                "Provide a valid .qvf export or a .json Qlik export file."
-            ) from exc
+            try:
+                qvf_data = self._extract_from_binary_qvf_export(qvf_path)
+                logger.warning(
+                    "QVF is not a ZIP archive (%s) — decoded as a binary Qlik export",
+                    exc,
+                )
+            except ValueError:
+                raise ValueError(
+                    f"Invalid QVF file '{qvf_path}': file is not a ZIP archive and does not contain JSON. "
+                    "Provide a valid .qvf export or a .json Qlik export file."
+                ) from exc
 
         # Normalize known QVFExtractor key variants to orchestrator schema.
         if isinstance(qvf_data, dict):
@@ -207,6 +215,287 @@ class ExtractionOrchestrator:
             "bookmarks": self._build_bookmarks(qvf_data),
             "master_items": self._build_master_items(qvf_data),
         }
+
+    def _extract_from_binary_qvf_export(self, qvf_path: Path) -> Dict[str, Any]:
+        """Decode Qlik binary app exports that embed compressed JSON records."""
+        raw_bytes = qvf_path.read_bytes()
+        if b"qvapp_" not in raw_bytes:
+            raise ValueError("Not a recognized Qlik binary export")
+
+        payloads = self._collect_embedded_json_payloads(raw_bytes)
+        if not payloads:
+            raise ValueError("No embedded JSON payloads found in Qlik binary export")
+
+        qvf_data: Dict[str, Any] = {
+            "metadata": {},
+            "loadScript": "",
+            "dimensions": [],
+            "measures": [],
+            "sheets": [],
+            "visualizations": [],
+            "dataModel": {},
+            "variables": [],
+        }
+        qvf_types_found = set()
+
+        for payload in payloads:
+            if not isinstance(payload, dict):
+                continue
+
+            if "qTitle" in payload and not payload.get("qMetaData"):
+                qvf_data["metadata"] = {
+                    "qTitle": payload.get("qTitle", ""),
+                    "qDescription": payload.get("description", ""),
+                    "modifiedDate": payload.get("qLastReloadTime", ""),
+                    "qSavedInProductVersion": payload.get("qSavedInProductVersion", ""),
+                }
+                qvf_types_found.add("metadata")
+                continue
+
+            if "qScript" in payload:
+                qvf_data["loadScript"] = payload.get("qScript", "")
+                qvf_types_found.add("script")
+                continue
+
+            q_type = (
+                payload.get("qMetaData", {}).get("qType")
+                or payload.get("qRoot", {}).get("qProperty", {}).get("qInfo", {}).get("qType")
+                or payload.get("qId")
+            )
+            if q_type == "LoadModel":
+                qvf_data["dataModel"] = self._normalize_binary_load_model(payload)
+                qvf_types_found.add("loadmodel")
+                continue
+
+            if q_type == "sheet":
+                sheet, visuals = self._normalize_binary_sheet(payload)
+                qvf_data["sheets"].append(sheet)
+                qvf_data["visualizations"].extend(visuals)
+                qvf_types_found.add("sheet")
+                continue
+
+            if q_type and str(q_type).endswith("variablelist"):
+                qvf_data["variables"].extend(self._normalize_binary_variable_list(payload))
+                qvf_types_found.add("variables")
+
+        if not qvf_types_found.intersection({"metadata", "script", "sheet", "loadmodel", "variables"}):
+            raise ValueError("No recognized Qlik objects found in binary export")
+
+        qvf_data["dimensions"] = self._collect_binary_dimensions(qvf_data["visualizations"])
+        qvf_data["measures"] = self._collect_binary_measures(qvf_data["visualizations"])
+        return qvf_data
+
+    @staticmethod
+    def _collect_embedded_json_payloads(raw_bytes: bytes) -> List[Any]:
+        """Extract decompressible JSON payloads from a binary Qlik export."""
+        payloads: List[Any] = []
+        seen_offsets = set()
+        signatures = (b"\x78\x9c", b"\x78\x01", b"\x78\xda", b"\x1f\x8b")
+
+        for sig in signatures:
+            start = 0
+            while True:
+                idx = raw_bytes.find(sig, start)
+                if idx < 0:
+                    break
+                start = idx + 1
+                if idx in seen_offsets:
+                    continue
+                seen_offsets.add(idx)
+
+                try:
+                    if sig == b"\x1f\x8b":
+                        data = zlib.decompress(raw_bytes[idx:], 31)
+                    else:
+                        data = zlib.decompress(raw_bytes[idx:])
+                except zlib.error:
+                    continue
+
+                text = data.decode("utf-8", errors="ignore").rstrip("\x00").strip()
+                if not text.startswith(("{", "[")):
+                    continue
+                try:
+                    payloads.append(json.loads(text))
+                except json.JSONDecodeError:
+                    continue
+
+        return payloads
+
+    @staticmethod
+    def _normalize_binary_load_model(payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize a decoded LoadModel payload into extractor-friendly data."""
+        qprop = payload.get("qRoot", {}).get("qProperty", {})
+        tables = []
+        for table in qprop.get("tables", []):
+            fields = []
+            for field in table.get("fields", []):
+                fields.append({
+                    "qName": field.get("name", field.get("qName", "")),
+                    "qType": field.get("type", field.get("qType", "text")),
+                })
+            tables.append({
+                "qName": table.get("name", table.get("qName", "")),
+                "qFields": fields,
+                "type": table.get("type", table.get("connectionType", "unknown")),
+            })
+
+        associations = qprop.get("associations", [])
+        if isinstance(associations, dict):
+            associations = associations.get("qAssociations", []) or []
+
+        return {
+            "tables": tables,
+            "associations": associations,
+        }
+
+    def _normalize_binary_sheet(self, payload: Dict[str, Any]):
+        """Normalize a decoded sheet payload into sheet + visual objects."""
+        qroot = payload.get("qRoot", {})
+        qprop = qroot.get("qProperty", {})
+        children = qroot.get("qChildren", [])
+        child_map = {}
+        for child in children:
+            child_prop = child.get("qProperty", {})
+            child_id = child_prop.get("qInfo", {}).get("qId")
+            if child_id:
+                child_map[child_id] = child_prop
+
+        sheet_id = qprop.get("qInfo", {}).get("qId", "")
+        sheet = {
+            "id": sheet_id,
+            "title": qprop.get("qMetaDef", {}).get("title", ""),
+            "description": qprop.get("qMetaDef", {}).get("description", ""),
+            "rank": qprop.get("rank", 0),
+            "cells": [],
+            "layout": {
+                "columns": qprop.get("columns"),
+                "rows": qprop.get("rows"),
+                "gridResolution": qprop.get("gridResolution"),
+            },
+        }
+        visuals = []
+
+        for idx, cell in enumerate(qprop.get("cells", [])):
+            vis_id = cell.get("name", cell.get("id", f"{sheet_id}_vis_{idx}"))
+            child_prop = child_map.get(vis_id, {})
+            dimensions = self._extract_binary_hypercube_dimensions(child_prop)
+            measures = self._extract_binary_hypercube_measures(child_prop)
+            title = (
+                child_prop.get("title")
+                or child_prop.get("qMetaDef", {}).get("title")
+                or child_prop.get("qHyperCubeDef", {}).get("qTitle", {}).get("qv", "")
+                or cell.get("title", "")
+            )
+            settings = child_prop if child_prop else cell.get("properties", {})
+            position = cell.get("position", cell.get("bounds", {}))
+            normalized_cell = {
+                "name": vis_id,
+                "id": vis_id,
+                "type": cell.get("type", child_prop.get("qInfo", {}).get("qType", "unknown")),
+                "title": title,
+                "bounds": cell.get("bounds", {}),
+                "position": position,
+                "dimensions": dimensions,
+                "measures": measures,
+                "properties": settings,
+            }
+            sheet["cells"].append(normalized_cell)
+            visuals.append({
+                "id": vis_id,
+                "type": normalized_cell["type"],
+                "title": title,
+                "sheetId": sheet_id,
+                "dimensions": dimensions,
+                "measures": measures,
+                "settings": settings,
+                "position": position,
+            })
+
+        return sheet, visuals
+
+    @staticmethod
+    def _extract_binary_hypercube_dimensions(child_prop: Dict[str, Any]) -> List[Dict[str, Any]]:
+        dims = []
+        hypercube = child_prop.get("qHyperCubeDef", {})
+        for dim in hypercube.get("qDimensions", []):
+            qdef = dim.get("qDef", {})
+            fields = qdef.get("qFieldDefs", [])
+            labels = qdef.get("qFieldLabels", [])
+            field = fields[0] if fields else ""
+            label = labels[0] if labels else field
+            dims.append({
+                "field": field,
+                "name": field,
+                "label": label,
+            })
+        return dims
+
+    @staticmethod
+    def _extract_binary_hypercube_measures(child_prop: Dict[str, Any]) -> List[Dict[str, Any]]:
+        measures = []
+        hypercube = child_prop.get("qHyperCubeDef", {})
+        for idx, measure in enumerate(hypercube.get("qMeasures", [])):
+            qdef = measure.get("qDef", {})
+            expression = qdef.get("qDef", "")
+            label = qdef.get("qLabel") or qdef.get("qLabelExpression") or child_prop.get("title") or f"Measure {idx + 1}"
+            measures.append({
+                "name": label,
+                "label": label,
+                "expression": expression,
+            })
+        return measures
+
+    @staticmethod
+    def _normalize_binary_variable_list(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+        variables = []
+        for entry in payload.get("qEntryList", []):
+            props = entry.get("qProperties", {})
+            variables.append({
+                "qName": props.get("qName", ""),
+                "qDefinition": props.get("qDefinition", ""),
+                "qComment": props.get("qComment", ""),
+                "qIsScriptCreated": props.get("qIsScriptCreated", False),
+            })
+        return variables
+
+    @staticmethod
+    def _collect_binary_dimensions(visualizations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        dims = []
+        seen = set()
+        for vis in visualizations:
+            for dim in vis.get("dimensions", []):
+                field = dim.get("field", "")
+                if not field or field in seen:
+                    continue
+                seen.add(field)
+                dims.append({
+                    "id": field,
+                    "name": dim.get("label", field),
+                    "field": field,
+                    "label": dim.get("label", field),
+                    "fields": [field],
+                })
+        return dims
+
+    @staticmethod
+    def _collect_binary_measures(visualizations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        measures = []
+        seen = set()
+        for vis in visualizations:
+            for measure in vis.get("measures", []):
+                key = (measure.get("name", ""), measure.get("expression", ""))
+                if not key[0] and not key[1]:
+                    continue
+                if key in seen:
+                    continue
+                seen.add(key)
+                measures.append({
+                    "id": key[0],
+                    "name": measure.get("name", ""),
+                    "expression": measure.get("expression", ""),
+                    "label": measure.get("label", measure.get("name", "")),
+                })
+        return measures
 
     def _extract_from_json(self, json_path: Path) -> None:
         """Extract from a Qlik Sense JSON export."""
@@ -973,6 +1262,17 @@ class ExtractionOrchestrator:
         columns: List[Dict] = []
         seen: set = set()
 
+        def _clean_column_name(name: str) -> str:
+            text = (name or "").strip()
+            if not text:
+                return ""
+            # Drop accidental table-label fragments leaked from statement splits,
+            # e.g. `ID_CHGT_TECH;\n\n[QUAL_QUESTPAT_CLOT_GENERIQUE]:`.
+            text = _re.sub(r';\s*\[.*?\]:\s*$', '', text, flags=_re.DOTALL)
+            text = _re.sub(r'\s*\[.*?\]:\s*$', '', text, flags=_re.DOTALL)
+            text = text.split(';', 1)[0].strip()
+            return text
+
         # Prefer Table.SelectColumns(..., {"Col1", "Col2"}) pattern first
         sc_match = _re.search(
             r'Table\.SelectColumns\s*\([^,]+,\s*\{([^{}]+)\}', m_query
@@ -980,6 +1280,9 @@ class ExtractionOrchestrator:
         if sc_match:
             names = _re.findall(r'"([^"]+)"', sc_match.group(1))
             for name in names:
+                name = _clean_column_name(name)
+                if not name:
+                    continue
                 if name not in seen:
                     seen.add(name)
                     columns.append({"name": name, "dataType": "string"})
@@ -996,6 +1299,9 @@ class ExtractionOrchestrator:
             if len(names) >= 2 and '[' not in inner and '=' not in inner:
                 best_names = names
         for name in best_names:
+            name = _clean_column_name(name)
+            if not name:
+                continue
             if name not in seen:
                 seen.add(name)
                 columns.append({"name": name, "dataType": "string"})

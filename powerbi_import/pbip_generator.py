@@ -12,6 +12,7 @@ from datetime import datetime
 import uuid
 import re
 import sys
+import shutil
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +168,21 @@ class PowerBIProjectGenerator:
         """Creates the SemanticModel structure (format identical to PBI Hero reference)"""
         
         sm_dir = os.path.join(project_dir, f"{report_name}.SemanticModel")
+        if os.path.exists(sm_dir):
+            try:
+                shutil.rmtree(sm_dir)
+            except OSError:
+                for root, dirs, files in os.walk(sm_dir, topdown=False):
+                    for name in files:
+                        try:
+                            os.remove(os.path.join(root, name))
+                        except OSError:
+                            pass
+                    for name in dirs:
+                        try:
+                            os.rmdir(os.path.join(root, name))
+                        except OSError:
+                            pass
         os.makedirs(sm_dir, exist_ok=True)
         
         # 1. Create .platform
@@ -1362,6 +1378,32 @@ class PowerBIProjectGenerator:
         
         if not cleaned_fields:
             return None
+
+        # Filter out fields that don't resolve to any table in the model.
+        # This prevents Missing_References errors for Qlik runtime-only fields
+        # (e.g. fields created by the load script at reload but absent from
+        # the static metadata extracted from the binary export).
+        if hasattr(self, '_field_map'):
+            validated_fields = []
+            for f in cleaned_fields:
+                clean = f['name']
+                if clean in self._field_map:
+                    validated_fields.append(f)
+                elif hasattr(self, '_bim_measure_names') and clean in self._bim_measure_names:
+                    validated_fields.append(f)
+                elif hasattr(self, '_measure_names') and clean in self._measure_names:
+                    validated_fields.append(f)
+                else:
+                    logger.debug("Visual field '%s' not in model — skipping binding", clean)
+            cleaned_fields = validated_fields
+            if not cleaned_fields:
+                # All original fields are unresolvable — bind to the first
+                # available column from the model so the visual isn't empty.
+                if self._field_map:
+                    fallback_col = next(iter(self._field_map))
+                    cleaned_fields = [{'name': fallback_col, 'role': 'dimension'}]
+                else:
+                    return None
         
         query_state = {}
         
@@ -2741,6 +2783,7 @@ class PowerBIProjectGenerator:
                 "theme_detail": theme_detail
             },
             "tmdl_stats": tmdl_stats,
+            "measure_renames": getattr(self, '_measure_renames', {}) or {},
             "visual_type_mappings": visual_types_used,
             "approximations": approximations,
         }

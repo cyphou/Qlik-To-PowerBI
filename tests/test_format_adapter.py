@@ -199,6 +199,30 @@ class TestOutputStructure:
         assert isinstance(result['aliases'], dict)
 
 
+class TestVariablePromotion:
+
+    def test_variable_measure_promotion_uses_name_when_comment_is_empty(self):
+        qlik_data = {
+            'datasources': [],
+            'dimensions': [],
+            'measures': [],
+            'visualizations': [],
+            'sheets': [],
+            'variables': [
+                {'name': 'D_E_TO_Reel_P', 'definition': 'Sum(Revenue)', 'comment': ''},
+            ],
+            'loadscript': {},
+            'associations': [],
+            'bookmarks': [],
+            'master_items': [],
+            'app_metadata': {},
+        }
+        result = adapt_qlik_for_generation(qlik_data)
+        promoted = [c for c in result['calculations'] if c['name'] == 'D_E_TO_Reel_P']
+        assert len(promoted) == 1
+        assert promoted[0]['caption'] == 'D_E_TO_Reel_P'
+
+
 # ── Datasource adaptation tests ──────────────────────────────────────
 
 class TestDatasourceAdaptation:

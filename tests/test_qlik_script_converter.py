@@ -131,6 +131,33 @@ class TestParseQlikLoad:
         stmt = Conv.parse_qlik_load("LOAD A, B, C, D FROM [data.csv];")
         assert len(stmt.fields) >= 4
 
+    def test_load_ignores_inline_comment_fields(self):
+        stmt = Conv.parse_qlik_load(
+            "LOAD A, // comment about field\n B FROM [data.csv];"
+        )
+        assert stmt.fields == ["A", "B"]
+
+    def test_load_stops_before_sql_select_clause(self):
+        stmt = Conv.parse_qlik_load(
+            'LOAD ID_FEI, DATE_DEC_FEI; SQL SELECT "ID_FEI", "DATE_DEC_FEI" FROM MY_TABLE;'
+        )
+        assert stmt.source_type == "sql"
+        assert stmt.fields == ["ID_FEI", "DATE_DEC_FEI"]
+
+    def test_load_stops_before_plain_select_clause(self):
+        stmt = Conv.parse_qlik_load(
+            'LOAD ID_FEI, DATE_DEC_FEI; SELECT "ID_FEI", "DATE_DEC_FEI" FROM MY_TABLE;'
+        )
+        assert stmt.source_type == "sql"
+        assert stmt.fields == ["ID_FEI", "DATE_DEC_FEI"]
+
+    def test_load_strips_bracketed_label_before_select_clause(self):
+        stmt = Conv.parse_qlik_load(
+            'LOAD QCLG_CODE_ENTITE, ID_CHGT_TECH;\n\n[QUAL_QUESTPAT_CLOT_GENERIQUE]:\nSELECT "QCLG_CODE_ENTITE", "ID_CHGT_TECH" FROM MY_TABLE;'
+        )
+        assert stmt.source_type == "sql"
+        assert stmt.fields == ["QCLG_CODE_ENTITE", "ID_CHGT_TECH"]
+
 
 # ═══════════════════════════════════════════════════════════════
 #  convert_load_to_powerquery
@@ -184,6 +211,15 @@ class TestConvertLoadToPowerQuery:
         )
         pq = Conv.convert_load_to_powerquery(stmt)
         assert "SelectRows" in pq or "Active" in pq
+
+    def test_selected_columns_escape_quotes(self):
+        stmt = QlikLoadStatement(
+            fields=['ID_FEI', 'DATE_DEC_FEI "RAW"'],
+            source='data.csv',
+            source_type='file',
+        )
+        pq = Conv.convert_load_to_powerquery(stmt)
+        assert '"DATE_DEC_FEI ""RAW"""' in pq
 
 
 # ═══════════════════════════════════════════════════════════════

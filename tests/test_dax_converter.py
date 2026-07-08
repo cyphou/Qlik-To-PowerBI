@@ -27,6 +27,16 @@ from qlik_export.dax_converter import (
 )
 
 
+def test_set_analysis_with_bracketed_fields_and_distinct_prefix():
+    expr = "sum({<[Type Info (Nop Mensuel)]={'REEL'},[%Calendar_Prec] = {'non'},[ID Ordre (Nop Regroupement)]={'1'}>} [Montant (Nop Mensuel)])/count(distinct{<[%Calendar_Prec] = {'non'}>} [%Month_Id])"
+    dax = convert_qlik_expression_to_dax(expr, table_name='Table36')
+    assert "CALCULATE(SUM('Table36'[Montant (Nop Mensuel)])" in dax
+    assert "'Table36'[Type Info (Nop Mensuel)] = \"REEL\"" in dax
+    assert "'Table36'[%Calendar_Prec] = \"non\"" in dax
+    assert "'Table36'[ID Ordre (Nop Regroupement)] = 1" in dax
+    assert "CALCULATE(DISTINCTCOUNT('Table36'[%Month_Id])" in dax
+
+
 # ═══════════════════════════════════════════════════════════════
 #  Helpers
 # ═══════════════════════════════════════════════════════════════
@@ -162,6 +172,24 @@ class TestSetAnalysis:
         result = dax("Count(Distinct {<Year={2024}>} CustomerID)")
         assert isinstance(result, str)  # doesn't crash
 
+    def test_threshold_expression_modifier(self):
+        result = dax(
+            "Sum({<CustomerName={\">=SUMX(VALUES(CustomerName), [Sales])\"}>} Sales)"
+        )
+        assert "CALCULATE" in result
+        assert "FILTER(ALL('Sales'[CustomerName])" in result
+        assert "SUMX(" in result
+        assert '">=SUMX' not in result
+
+    def test_threshold_expression_topn_suffix(self):
+        result = dax(
+            "Sum({<CustomerName={\">=SUMX(VALUES(CustomerName), [Sales])[-10]\"}>} Sales)"
+        )
+        assert "FILTER(ALL('Sales'[CustomerName])" in result
+        assert "RANKX(" in result
+        assert "<= 10" in result
+        assert "[-10]" not in result
+
 
 # ═══════════════════════════════════════════════════════════════
 #  Phase 3b: TOTAL qualifier
@@ -229,6 +257,9 @@ class TestInterRecord:
     def test_above_with_offset(self):
         result = dax("Above(Sum(Sales), 2)")
         assert "OFFSET" in result
+        assert "CALCULATE(SUM(" in result
+        assert "OFFSET(-2" in result
+        assert result.count("(") == result.count(")")
 
     def test_below(self):
         result = dax("Below(Sum(Sales))")
@@ -243,6 +274,12 @@ class TestInterRecord:
         result = dax("Peek(Amount, -1)")
         assert "OFFSET" in result
 
+    def test_peek_nested_expression(self):
+        result = dax("Peek(Sum(Sales), -1)")
+        assert "OFFSET(-1" in result
+        assert "CALCULATE(SUM(" in result
+        assert result.count("(") == result.count(")")
+
     def test_peek_no_offset(self):
         result = dax("Peek(Amount)")
         assert "OFFSET" in result
@@ -250,6 +287,7 @@ class TestInterRecord:
     def test_rangesum_above_running_total(self):
         result = dax("RangeSum(Above(Sum(Sales), 0, RowNo()))")
         assert "running total" in result.lower() or "CALCULATE" in result
+        assert "SUM(SUM(" not in result
 
     def test_rank(self):
         result = dax("Rank(Sum(Sales))")

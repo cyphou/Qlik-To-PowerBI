@@ -92,6 +92,56 @@ _DAX_TO_M_TYPE = {
 }
 
 
+def _inject_date_part_columns(table: dict, columns: list) -> None:
+    """Inject derived date-part columns (Year, Month, Quarter) for each date column.
+
+    When Qlik measures reference bare field names like [Year] these are
+    typically computed from a date column at report-run time.  In Power BI
+    there is no implicit year field, so the validator flags them as unknown.
+    This function detects date/datetime source columns, emits M
+    Table.AddColumn steps for the missing parts, and registers the
+    corresponding BIM column definitions so the validator resolves them.
+
+    Only adds a derived column when no column with that name already exists
+    in the table (avoids duplicates when the source already has a Year column).
+    """
+    _DATE_PARTS = [
+        ("Year",    "Date.Year",    "int64",    "Int64.Type"),
+        ("Month",   "Date.Month",   "int64",    "Int64.Type"),
+        ("Quarter", "Date.QuarterOfYear", "int64", "Int64.Type"),
+    ]
+
+    existing_names = {c.get("name", "") for c in table.get("columns", [])}
+    date_cols = [c for c in columns if c.get("datatype") in ("date", "datetime", "Date", "DateTime")]
+    if not date_cols:
+        return
+
+    # Use first date column as the source for derived parts
+    date_col_name = date_cols[0].get("name", "")
+    if not date_col_name:
+        return
+
+    steps_to_inject: list[tuple[str, str]] = []
+    for part_name, m_func, _dax_type, m_type in _DATE_PARTS:
+        if part_name in existing_names:
+            continue  # source already has this column
+        steps_to_inject.append(
+            (f'Added {part_name}',
+             f'Table.AddColumn(#"{{prev}}", "{part_name}", each {m_func}([{date_col_name}]), {m_type})')
+        )
+        table["columns"].append({
+            "name": part_name,
+            "dataType": "int64",
+            "sourceColumn": part_name,
+            "summarizeBy": "none",
+            "isHidden": True,
+        })
+        existing_names.add(part_name)
+
+    if steps_to_inject:
+        _inject_m_steps_into_partition(table, steps_to_inject)
+
+
 def _inject_column_types_step(m_query: str, columns: list) -> str:
     """Inject a Table.TransformColumnTypes step into the M query.
 
@@ -885,6 +935,22 @@ def _build_semantic_model(datasources, report_name="Report", extra_objects=None,
     if n_renamed:
         print(f"  ✓ Renamed {n_renamed} measure(s) to avoid column-name collisions")
 
+    # Phase 11d: Materialize columns referenced by measures but missing from tables.
+    # Some Qlik variables reference fields that only exist at reload time (from
+    # external QVD files or inline transformations not embedded in the export).
+    # Without stub columns the measure shows Missing_References in PBI.
+    n_materialized = _materialize_measure_referenced_columns(model)
+    if n_materialized:
+        print(f"  ✓ Materialized {n_materialized} stub column(s) for measure references")
+
+    # Phase 11e: Downgrade manyToMany relationships to oneDirection.
+    # bothDirections + manyToMany causes ambiguous filter propagation warnings
+    # in Power BI and forces relationship deactivation. Switch to oneDirection
+    # so more relationships can remain active.
+    n_downgraded_m2m = _downgrade_many_to_many_direction(model)
+    if n_downgraded_m2m:
+        print(f"  ✓ Downgraded {n_downgraded_m2m} manyToMany relationship(s) to oneDirection")
+
     # Phase 12: Auto-generate perspectives from table list
     all_table_names = [t.get('name', '') for t in model["model"]["tables"]]
     model["model"]["perspectives"] = [{
@@ -975,6 +1041,66 @@ def _resolve_measure_column_collisions(model):
                 m["expression"] = _rewrite(m["expression"])
 
     return len(rename_map)
+
+
+def _materialize_measure_referenced_columns(model):
+    """Add hidden stub columns for fields referenced in measures but missing from tables.
+
+    Qlik variables promoted to measures may reference columns that only exist at
+    reload time (from external QVD files, inline transformations, or calculated
+    fields not embedded in the binary export). Without physical column stubs,
+    Power BI shows Missing_References errors.
+
+    Returns:
+        int: number of columns materialized.
+    """
+    tables = model.get("model", {}).get("tables", [])
+    total = 0
+
+    for table in tables:
+        tname = table.get("name", "")
+        col_names = {c.get("name", "") for c in table.get("columns", [])}
+        for measure in table.get("measures", []):
+            expr = measure.get("expression", "")
+            if not expr:
+                continue
+            # Find 'TableName'[Column] references targeting this table
+            pattern = re.compile(r"'" + re.escape(tname) + r"'\[([^\]]+)\]")
+            for match in pattern.finditer(expr):
+                col_ref = match.group(1)
+                if col_ref not in col_names:
+                    # Materialize as a hidden string column
+                    table["columns"].append({
+                        "name": col_ref,
+                        "dataType": "String",
+                        "sourceColumn": col_ref,
+                        "summarizeBy": "none",
+                        "isHidden": True,
+                    })
+                    col_names.add(col_ref)
+                    total += 1
+
+    return total
+
+
+def _downgrade_many_to_many_direction(model):
+    """Switch manyToMany + bothDirections relationships to oneDirection.
+
+    Power BI deactivates most bothDirections relationships when multiple
+    paths exist between tables. Downgrading to oneDirection allows more
+    relationships to remain active and avoids ambiguous filter propagation.
+
+    Returns:
+        int: number of relationships downgraded.
+    """
+    relationships = model.get("model", {}).get("relationships", [])
+    count = 0
+    for rel in relationships:
+        if (rel.get("crossFilteringBehavior") == "bothDirections"
+                and rel.get("cardinality") in ("manyToMany", None)):
+            rel["crossFilteringBehavior"] = "oneDirection"
+            count += 1
+    return count
 
 
 def _build_m_transform_steps(columns, col_metadata_map):
@@ -1195,6 +1321,8 @@ def _build_table(table, connection, calculations, columns_metadata, dax_context=
     for calc in calculations:
         calc_name = calc.get('name', '').replace('[', '').replace(']', '')
         caption = calc.get('caption', calc_name)
+        if not caption or not str(caption).strip():
+            caption = calc_name or 'Measure'
         formula = calc.get('formula', '').strip()
         role = calc.get('role', 'measure')
         datatype = calc.get('datatype', 'string')
@@ -1331,6 +1459,11 @@ def _build_table(table, connection, calculations, columns_metadata, dax_context=
     # Inject accumulated M steps into the partition (replaces DAX calc cols)
     if m_calc_steps:
         _inject_m_steps_into_partition(result_table, m_calc_steps)
+
+    # Inject hidden derived date-part columns (Year, Month, Quarter) for any
+    # date column so that Qlik measures referencing bare [Year]/[Month] etc.
+    # resolve correctly in Power BI instead of producing validator warnings.
+    _inject_date_part_columns(result_table, columns)
 
     return result_table
 
@@ -1496,6 +1629,16 @@ def _infer_cross_table_relationships(model):
     _KEY_SUFFIXES = {'id', 'key', 'code', 'no', 'number', 'num', 'pk', 'fk', 'sk'}
     all_table_names = list(table_columns.keys())
 
+    # Build a frequency map: how many tables contain each column name.
+    # Columns appearing in too many tables (e.g. audit/technical columns
+    # like ID_CHGT_TECH, CODE_USER_NT_CRE) are not meaningful FKs and
+    # would create a fully-connected graph that PBI cannot resolve.
+    _col_table_freq: dict = {}
+    for _tname, _tcols in table_columns.items():
+        for _c in _tcols:
+            _col_table_freq[_c] = _col_table_freq.get(_c, 0) + 1
+    _MAX_TABLE_FREQ = 5  # columns in >5 tables are excluded as join keys
+
     for i, t1 in enumerate(all_table_names):
         for t2 in all_table_names[i + 1:]:
             if (t1, t2) in connected_pairs:
@@ -1512,6 +1655,9 @@ def _infer_cross_table_relationships(model):
 
             common_cols = t1_cols & t2_cols
             for col in common_cols:
+                # Skip columns that appear in too many tables (audit/tech columns)
+                if _col_table_freq.get(col, 0) > _MAX_TABLE_FREQ:
+                    continue
                 col_lower = col.lower().rstrip('_')
                 # Score: exact ID/key column names get highest priority
                 # Split on underscores/spaces AND CamelCase boundaries
@@ -4235,7 +4381,10 @@ def _write_table_tmdl(tables_dir, table):
 
 def _write_measure(lines, measure):
     """Write a measure in TMDL."""
-    mname = _quote_name(measure.get('name', 'Measure'))
+    raw_name = measure.get('name', 'Measure')
+    if not raw_name or not str(raw_name).strip():
+        raw_name = 'Measure'
+    mname = _quote_name(raw_name)
     expression = measure.get('expression') or '0'
 
     if '\n' in expression:

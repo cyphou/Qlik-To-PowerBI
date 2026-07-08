@@ -8,6 +8,70 @@ from enum import Enum
 logger = logging.getLogger(__name__)
 
 
+def _m_quote(text: str) -> str:
+    """Quote a string literal for Power Query M."""
+    return '"' + str(text).replace('"', '""') + '"'
+
+
+def _split_top_level_csv(text: str) -> List[str]:
+    """Split comma-separated fields while respecting quotes, brackets, and calls."""
+    parts: List[str] = []
+    current: List[str] = []
+    paren_depth = 0
+    bracket_depth = 0
+    in_single = False
+    in_double = False
+
+    for ch in text:
+        if ch == "'" and not in_double:
+            in_single = not in_single
+            current.append(ch)
+            continue
+        if ch == '"' and not in_single:
+            in_double = not in_double
+            current.append(ch)
+            continue
+        if not in_single and not in_double:
+            if ch == '(':
+                paren_depth += 1
+            elif ch == ')' and paren_depth > 0:
+                paren_depth -= 1
+            elif ch == '[':
+                bracket_depth += 1
+            elif ch == ']' and bracket_depth > 0:
+                bracket_depth -= 1
+            elif ch == ',' and paren_depth == 0 and bracket_depth == 0:
+                part = ''.join(current).strip()
+                if part:
+                    parts.append(part)
+                current = []
+                continue
+        current.append(ch)
+
+    tail = ''.join(current).strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+def _clean_load_field_segment(fields_str: str) -> str:
+    """Remove Qlik comments and trailing SQL clauses from LOAD field text."""
+    cleaned_lines: List[str] = []
+    for line in fields_str.splitlines():
+        if '//' in line:
+            line = line.split('//', 1)[0]
+        cleaned_lines.append(line)
+    cleaned = '\n'.join(cleaned_lines)
+    cleaned = re.sub(r'/\*.*?\*/', ' ', cleaned, flags=re.DOTALL)
+    cleaned = re.sub(r';\s*\[[^\]]+\]:\s*$', '', cleaned, flags=re.DOTALL)
+    cleaned = re.sub(r';\s*SQL\s+SELECT\b.*$', '', cleaned, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = re.sub(r';\s*SELECT\b.*$', '', cleaned, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = re.sub(r'\bSQL\s+SELECT\b.*$', '', cleaned, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = re.sub(r'\bSELECT\b.*$', '', cleaned, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = cleaned.strip().rstrip(';').strip()
+    return cleaned
+
+
 class QlikCommandType(Enum):
     """Types de commandes Qlik."""
     LOAD = 'LOAD'
@@ -176,8 +240,8 @@ class QlikScriptToPowerQueryConverter:
         Returns:
             QlikLoadStatement parsé
         """
-        # Nettoyer le script
-        script = ' '.join(qlik_script.split())
+        # Preserve line boundaries so // comments can be stripped safely.
+        script = qlik_script.strip()
 
         # Strip CONCATENATE(...) and JOIN(...) prefixes before LOAD
         script = re.sub(
@@ -187,7 +251,7 @@ class QlikScriptToPowerQueryConverter:
         
         # Extraire les champs (entre LOAD et FROM/RESIDENT/INLINE)
         load_match = re.search(
-            r'LOAD\s+(.*?)\s+(?:FROM|RESIDENT|INLINE)',
+            r'LOAD\s+(.*?)(?=\s+(?:FROM|RESIDENT|INLINE|SQL\s+SELECT|SELECT)\b)',
             script,
             re.IGNORECASE | re.DOTALL
         )
@@ -195,11 +259,15 @@ class QlikScriptToPowerQueryConverter:
         if not load_match:
             raise ValueError("LOAD statement mal formé")
         
-        fields_str = load_match.group(1)
-        fields = [f.strip().rstrip(',') for f in fields_str.split(',')]
+        fields_str = _clean_load_field_segment(load_match.group(1))
+        fields = [f.strip().rstrip(',') for f in _split_top_level_csv(fields_str) if f.strip().rstrip(',')]
         
         # Déterminer le type de source
-        if 'FROM' in script.upper():
+        if re.search(r'\b(?:SQL\s+)?SELECT\b', script, re.IGNORECASE):
+            source_type = 'sql'
+            sql_match = re.search(r'((?:SQL\s+)?SELECT.*?)(?:;|$)', script, re.IGNORECASE | re.DOTALL)
+            source = sql_match.group(1).strip() if sql_match else ''
+        elif 'FROM' in script.upper():
             source_type = 'file'
             from_match = re.search(r'FROM\s+\[(.*?)\]', script, re.IGNORECASE)
             source = from_match.group(1) if from_match else ''
@@ -314,14 +382,14 @@ class QlikScriptToPowerQueryConverter:
             # Ajouter les colonnes calculées
             if calculated_columns:
                 for i, (col_name, pq_expr) in enumerate(calculated_columns):
-                    pq_script.append(f',\n    AddColumn{i+1} = Table.AddColumn({base_table}, "{col_name}", each {pq_expr})')
+                    pq_script.append(f',\n    AddColumn{i+1} = Table.AddColumn({base_table}, {_m_quote(col_name)}, each {pq_expr})')
                     base_table = f'AddColumn{i+1}'
             
             # Sélectionner uniquement les colonnes nécessaires si spécifié
             if simple_columns or calculated_columns:
                 all_columns = simple_columns + [name for name, _ in calculated_columns]
-                column_list = '", "'.join(all_columns)
-                pq_script.append(f',\n    SelectedColumns = Table.SelectColumns({base_table}, {{"{column_list}"}})')
+                column_list = ', '.join(_m_quote(col) for col in all_columns)
+                pq_script.append(f',\n    SelectedColumns = Table.SelectColumns({base_table}, {{{column_list}}})')
                 base_table = 'SelectedColumns'
         
         # Étape 3: Appliquer WHERE clause

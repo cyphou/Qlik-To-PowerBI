@@ -264,6 +264,7 @@ def convert_qlik_expression_to_dax(
         return qlik_expr or ""
 
     dax = qlik_expr.strip()
+    dax = _balance_parentheses(dax)
 
     # Phase 1: Operator conversions
     dax = _convert_operators(dax)
@@ -335,6 +336,29 @@ def convert_qlik_expression_to_dax(
 
     logger.debug(f"Converted: {qlik_expr!r} → {dax!r}")
     return dax
+
+
+def _balance_parentheses(expr: str) -> str:
+    """Append missing closing parentheses for mildly malformed source expressions."""
+    depth = 0
+    in_str = False
+    str_char = ''
+    for ch in expr:
+        if in_str:
+            if ch == str_char:
+                in_str = False
+            continue
+        if ch in ('"', "'"):
+            in_str = True
+            str_char = ch
+        elif ch == '(':
+            depth += 1
+        elif ch == ')' and depth > 0:
+            depth -= 1
+
+    if depth > 0:
+        return expr + (')' * depth)
+    return expr
 
 
 def _resolve_evaluate_policy(policy: Optional[str]) -> str:
@@ -553,11 +577,12 @@ def _convert_set_analysis(expr: str, table_name: str = "") -> str:
     DAX:  CALCULATE(DISTINCTCOUNT('Table'[CustomerID]), REMOVEFILTERS('Table'[Year]))
     """
     # Use a regex to find the start: AggFunc( { — then bracket-match the rest
-    start_pattern = re.compile(r'(\b\w+)\s*\(\s*\{', re.IGNORECASE)
+    start_pattern = re.compile(r'(\b\w+)\s*\(\s*(Distinct\s*)?\{', re.IGNORECASE)
 
     matches = list(start_pattern.finditer(expr))
     for m in reversed(matches):
         agg_func = m.group(1)
+        has_distinct_prefix = bool(m.group(2) and m.group(2).strip())
         brace_start = m.end() - 1  # position of '{'
 
         # Bracket-match to find closing '}' (handles nested {})
@@ -574,12 +599,15 @@ def _convert_set_analysis(expr: str, table_name: str = "") -> str:
 
         # Now expect whitespace + field + closing ')'
         rest = expr[i:]
-        field_m = re.match(r'\s+((?:Distinct\s+)?\w+)\s*\)', rest, re.IGNORECASE)
+        field_m = re.match(r'\s+((?:Distinct\s+)?(?:\[[^\]]+\]|\w+))\s*\)', rest, re.IGNORECASE)
         if not field_m:
             continue
 
         field = field_m.group(1)
         full_end = i + field_m.end()
+
+        if has_distinct_prefix and not field.lower().startswith('distinct '):
+            field = f'Distinct {field}'
 
         # Map aggregation function
         dax_agg = _map_aggregation(agg_func, field, table_name)
@@ -619,11 +647,13 @@ def _map_aggregation(agg_func: str, field: str, table_name: str = "") -> str:
         is_distinct = True
         field_clean = field_clean[9:].strip()
 
+    normalized_field = _normalize_field_name(field_clean)
+
     # Qualify field with table name
-    if table_name and '.' not in field_clean and '[' not in field_clean:
-        qualified = f"'{table_name}'[{field_clean}]"
+    if table_name and '.' not in normalized_field and not normalized_field.startswith("'"):
+        qualified = f"'{table_name}'[{normalized_field}]"
     else:
-        qualified = field_clean
+        qualified = field_clean if field_clean.startswith("'") else f"[{normalized_field}]" if field_clean.startswith('[') else normalized_field
 
     mapping = {
         'sum': f'SUM({qualified})',
@@ -666,16 +696,16 @@ def _parse_set_modifiers(set_expr: str, table_name: str = "") -> List[str]:
 
     # ── P() and E() set functions ─────────────────────────────
     # P({1} <Field>) → FILTER(ALL('T'[Field]), ...) — all possible values
-    p_pattern = re.compile(r'P\s*\(\s*\{[^}]*\}\s+(\w+)\s*\)', re.IGNORECASE)
+    p_pattern = re.compile(r'P\s*\(\s*\{[^}]*\}\s+(\[[^\]]+\]|\w+)\s*\)', re.IGNORECASE)
     for m in p_pattern.finditer(expr):
-        field = m.group(1)
+        field = _normalize_field_name(m.group(1))
         filters.append(f"ALL({tbl}[{field}])")
     expr = p_pattern.sub('', expr)
 
     # E({1} <Field>) → EXCEPT(ALL, VALUES) — excluded values
-    e_pattern = re.compile(r'E\s*\(\s*\{[^}]*\}\s+(\w+)\s*\)', re.IGNORECASE)
+    e_pattern = re.compile(r'E\s*\(\s*\{[^}]*\}\s+(\[[^\]]+\]|\w+)\s*\)', re.IGNORECASE)
     for m in e_pattern.finditer(expr):
-        field = m.group(1)
+        field = _normalize_field_name(m.group(1))
         filters.append(f"EXCEPT(ALL({tbl}[{field}]), VALUES({tbl}[{field}]))")
     expr = e_pattern.sub('', expr)
 
@@ -694,19 +724,15 @@ def _parse_set_modifiers(set_expr: str, table_name: str = "") -> List[str]:
     )
 
     # Parse field={value}, field=value+{extra}, field=value-{remove} patterns
-    modifier_pattern = re.compile(
-        r'(\w+)\s*=\s*\{([^}]*)\}',
-        re.IGNORECASE
-    )
     # Extended: field=Current+{extra} or field=Current-{remove}
     ext_pattern = re.compile(
-        r'(\w+)\s*=\s*(\w+)\s*([+\-])\s*\{([^}]*)\}',
+        r'(\[[^\]]+\]|\w+)\s*=\s*(\w+)\s*([+\-])\s*\{([^}]*)\}',
         re.IGNORECASE
     )
 
     # Process extended set operators first
     for m in ext_pattern.finditer(expr):
-        field = m.group(1)
+        field = _normalize_field_name(m.group(1))
         _base = m.group(2)  # e.g., 'Year' (current values)
         operator = m.group(3)  # + or -
         values_str = m.group(4).strip()
@@ -720,13 +746,71 @@ def _parse_set_modifiers(set_expr: str, table_name: str = "") -> List[str]:
             if val_filters:
                 filters.append(val_filters)
 
+    # Comparison thresholds: {">=SUMX(...)"} or {">100"}
+    cmp_value_pattern = re.compile(
+        r'^["\']\s*(<=|>=|<>|<|>|=)\s*(.+?)\s*["\']$|^(<=|>=|<>|<|>|=)\s*(.+)$'
+    )
+
+    def _iter_braced_modifiers(text: str):
+        """Yield (field, values) for field={...} using balanced-brace parsing."""
+        n = len(text)
+        i = 0
+        while i < n:
+            if text[i] in ',>':
+                i += 1
+                continue
+            if text[i].isspace():
+                i += 1
+                continue
+
+            field_match = re.match(r'(\[[^\]]+\]|\w+)\s*=\s*\{', text[i:])
+            if not field_match:
+                i += 1
+                continue
+
+            field = _normalize_field_name(field_match.group(1))
+            brace_open = i + field_match.end() - 1
+            depth = 1
+            j = brace_open + 1
+            while j < n and depth > 0:
+                if text[j] == '{':
+                    depth += 1
+                elif text[j] == '}':
+                    depth -= 1
+                j += 1
+            if depth != 0:
+                break
+
+            values_str = text[brace_open + 1:j - 1].strip()
+            yield field, values_str
+            i = j
+
     # Process standard modifiers (skip fields already handled by ext_pattern)
     ext_fields = {m.group(1) for m in ext_pattern.finditer(expr)}
-    for m in modifier_pattern.finditer(expr):
-        field = m.group(1)
+    for field, values_str in _iter_braced_modifiers(expr):
         if field in ext_fields:
             continue
-        values_str = m.group(2).strip()
+
+        cmp_match = cmp_value_pattern.match(values_str)
+        if cmp_match:
+            operator = cmp_match.group(1) or cmp_match.group(3)
+            rhs_raw = (cmp_match.group(2) or cmp_match.group(4) or '').strip()
+            if rhs_raw:
+                topn_match = re.match(r'(.+?)\[\s*-\s*(\d+)\s*\]$', rhs_raw)
+                if topn_match and operator in ('>=', '>', '<=', '<'):
+                    base_expr = topn_match.group(1).strip()
+                    top_n = int(topn_match.group(2))
+                    base_dax = convert_qlik_expression_to_dax(base_expr, table_name=table_name)
+                    sort_dir = 'DESC' if operator in ('>=', '>') else 'ASC'
+                    filters.append(
+                        f'FILTER(ALL({tbl}[{field}]), RANKX(ALL({tbl}[{field}]), {base_dax}, , {sort_dir}) <= {top_n})'
+                    )
+                else:
+                    rhs_dax = convert_qlik_expression_to_dax(rhs_raw, table_name=table_name)
+                    filters.append(
+                        f'FILTER(ALL({tbl}[{field}]), {tbl}[{field}] {operator} ({rhs_dax}))'
+                    )
+                continue
 
         if not values_str:
             # Empty set = remove filter
@@ -741,19 +825,28 @@ def _parse_set_modifiers(set_expr: str, table_name: str = "") -> List[str]:
             # Single value
             val = values_str.strip('"').strip("'")
             try:
-                num = float(val)
+                float(val)
                 filters.append(f"{tbl}[{field}] = {val}")
             except ValueError:
                 filters.append(f'{tbl}[{field}] = "{val}"')
 
     # Parse field= (without value = remove filter)
-    clear_pattern = re.compile(r'(\w+)\s*=\s*(?=[,>]|$)')
+    clear_pattern = re.compile(r'(\[[^\]]+\]|\w+)\s*=\s*(?=[,>]|$)')
     for m in clear_pattern.finditer(expr):
-        field = m.group(1)
-        if not modifier_pattern.search(f"{field}="):
+        field = _normalize_field_name(m.group(1))
+        has_braced = re.search(rf'{re.escape(field)}\s*=\s*\{{', expr)
+        if not has_braced:
             filters.append(f"REMOVEFILTERS({tbl}[{field}])")
 
     return filters
+
+
+def _normalize_field_name(field: str) -> str:
+    """Strip outer Qlik brackets so fields can be re-qualified in DAX."""
+    field = (field or '').strip()
+    if field.startswith('[') and field.endswith(']'):
+        return field[1:-1].strip()
+    return field
 
 
 # ── Sum(If(...)) → CALCULATE / SUMX ──────────────────────────────
@@ -1167,54 +1260,80 @@ def _convert_inter_record(expr: str, table_name: str = "") -> str:
     # ── RangeSum(Above(field, 0, RowNo())) → running total ────
     expr = re.sub(
         r'\bRangeSum\s*\(\s*Above\s*\(\s*([^,]+),\s*0\s*,\s*RowNo\s*\(\s*\)\s*\)\s*\)',
-        lambda m: f'CALCULATE(SUM({m.group(1).strip()}), ALLSELECTED({tbl}), '
-                  f'VAR _cur = MAX({m.group(1).strip()}) '
-                  f'RETURN FILTER(ALL({tbl}), {m.group(1).strip()} <= _cur))'
-                  f' /* running total */',
+        lambda m: (
+            (lambda _base: (
+                f"CALCULATE({_base}, ALLSELECTED({tbl}), "
+                f"VAR _cur = MAX({_base}) "
+                f"RETURN FILTER(ALL({tbl}), {_base} <= _cur))"
+                f" /* running total */"
+            ))(
+                m.group(1).strip()
+                if re.match(r'^\s*(SUM|AVERAGE|COUNT|MIN|MAX|DISTINCTCOUNT)\s*\(', m.group(1).strip(), re.IGNORECASE)
+                else f"SUM({m.group(1).strip()})"
+            )
+        ),
         expr, flags=re.IGNORECASE,
     )
 
-    # ── Peek(field, offset) → OFFSET ─────
-    expr = re.sub(
-        r'\bPeek\s*\(\s*([^,]+),\s*(-?\d+)\s*\)',
-        lambda m: f'OFFSET({m.group(2)}, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
-        expr, flags=re.IGNORECASE,
+    def _replace_call(text: str, func_name: str, builder) -> str:
+        pattern = re.compile(rf'\b{func_name}\s*\(', re.IGNORECASE)
+        matches = list(pattern.finditer(text))
+        for m in reversed(matches):
+            depth = 1
+            i = m.end()
+            while i < len(text) and depth > 0:
+                if text[i] == '(':
+                    depth += 1
+                elif text[i] == ')':
+                    depth -= 1
+                i += 1
+            if depth != 0:
+                continue
+            args_str = text[m.end():i - 1]
+            args = _split_top_level_args(args_str)
+            replacement = builder(args)
+            if replacement:
+                text = text[:m.start()] + replacement + text[i:]
+        return text
+
+    def _build_offset(args: List[str], direction: str, default_offset: str = '1') -> str:
+        if not args:
+            return ''
+        field_expr = args[0].strip()
+        offset_expr = args[1].strip() if len(args) > 1 and args[1].strip() else default_offset
+        if direction == 'above':
+            if re.fullmatch(r'-?\d+', offset_expr):
+                offset_expr = str(-int(offset_expr))
+            else:
+                offset_expr = f'-({offset_expr})'
+        return (
+            f'CALCULATE({field_expr}, '
+            f'OFFSET({offset_expr}, ALLSELECTED({tbl}), ORDERBY({field_expr})))'
+        )
+
+    expr = _replace_call(
+        expr,
+        'Peek',
+        lambda args: _build_offset(
+            [args[0], args[1] if len(args) > 1 else '-1'] if args else [],
+            direction='below',
+            default_offset='-1',
+        ),
     )
-    # Peek(field) with no offset → previous row
-    expr = re.sub(
-        r'\bPeek\s*\(\s*([^,)]+)\s*\)',
-        lambda m: f'OFFSET(-1, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
-        expr, flags=re.IGNORECASE,
+    expr = _replace_call(
+        expr,
+        'Previous',
+        lambda args: _build_offset([args[0], '-1'] if args else [], direction='below', default_offset='-1'),
     )
-    # Previous(field) → OFFSET(-1, ...)
-    expr = re.sub(
-        r'\bPrevious\s*\(\s*([^)]+)\)',
-        lambda m: f'OFFSET(-1, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
-        expr, flags=re.IGNORECASE,
+    expr = _replace_call(
+        expr,
+        'Above',
+        lambda args: _build_offset(args, direction='above', default_offset='1'),
     )
-    # Above(field, offset, count) → OFFSET(-offset, ...)
-    expr = re.sub(
-        r'\bAbove\s*\(\s*([^,)]+),\s*(\d+)\s*(?:,\s*\d+\s*)?\)',
-        lambda m: f'OFFSET(-{m.group(2)}, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
-        expr, flags=re.IGNORECASE,
-    )
-    # Above(field) with no offset → OFFSET(-1, ...)
-    expr = re.sub(
-        r'\bAbove\s*\(\s*([^,)]+)\s*\)',
-        lambda m: f'OFFSET(-1, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
-        expr, flags=re.IGNORECASE,
-    )
-    # Below(field, offset, count) → OFFSET(+offset, ...)
-    expr = re.sub(
-        r'\bBelow\s*\(\s*([^,)]+),\s*(\d+)\s*(?:,\s*\d+\s*)?\)',
-        lambda m: f'OFFSET({m.group(2)}, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
-        expr, flags=re.IGNORECASE,
-    )
-    # Below(field) with no offset → OFFSET(1, ...)
-    expr = re.sub(
-        r'\bBelow\s*\(\s*([^,)]+)\s*\)',
-        lambda m: f'OFFSET(1, ALLSELECTED({tbl}), ORDERBY({m.group(1).strip()}))[{m.group(1).strip()}]',
-        expr, flags=re.IGNORECASE,
+    expr = _replace_call(
+        expr,
+        'Below',
+        lambda args: _build_offset(args, direction='below', default_offset='1'),
     )
     # FieldValue(field, n) → INDEX
     expr = re.sub(
