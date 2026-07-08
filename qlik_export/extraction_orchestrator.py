@@ -174,11 +174,17 @@ class ExtractionOrchestrator:
             else:
                 raise AttributeError("QVFExtractor has neither 'extract' nor 'extract_all'")
         except zipfile.BadZipFile as exc:
-            # Some exported examples are labelled .qvf but contain JSON payloads.
-            # Fall back to JSON extraction to keep the pipeline usable.
-            logger.warning("QVF is not a ZIP archive (%s) — trying JSON fallback", exc)
-            self._extract_from_json(qvf_path)
-            return
+            # Some samples are mislabeled as .qvf but contain JSON payloads.
+            # Only use JSON fallback when the content actually looks like JSON.
+            if self._looks_like_json_payload(qvf_path):
+                logger.warning("QVF is not a ZIP archive (%s) — trying JSON fallback", exc)
+                self._extract_from_json(qvf_path)
+                return
+
+            raise ValueError(
+                f"Invalid QVF file '{qvf_path}': file is not a ZIP archive and does not contain JSON. "
+                "Provide a valid .qvf export or a .json Qlik export file."
+            ) from exc
 
         # Normalize known QVFExtractor key variants to orchestrator schema.
         if isinstance(qvf_data, dict):
@@ -204,8 +210,21 @@ class ExtractionOrchestrator:
 
     def _extract_from_json(self, json_path: Path) -> None:
         """Extract from a Qlik Sense JSON export."""
-        with open(json_path, "r", encoding="utf-8") as f:
-            raw = json.load(f)
+        try:
+            with open(json_path, "rb") as f:
+                raw_bytes = f.read()
+
+            text = self._decode_json_text(raw_bytes, json_path)
+            raw = json.loads(text)
+        except UnicodeDecodeError as exc:
+            raise ValueError(
+                f"Invalid JSON export '{json_path}': file is not valid UTF-8/UTF-16/UTF-32 JSON text. "
+                "Use a proper JSON export or a valid .qvf file."
+            ) from exc
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"Invalid JSON export '{json_path}': {exc.msg} at line {exc.lineno}, column {exc.colno}."
+            ) from exc
 
         # Handle various JSON export formats
         if isinstance(raw, dict):
@@ -289,6 +308,57 @@ class ExtractionOrchestrator:
                  "label": f.get("label", f.get("qName", ""))}
                 for f in raw["fields"]
             ]
+
+    @staticmethod
+    def _looks_like_json_payload(path: Path, sample_size: int = 2048) -> bool:
+        """Return True when the file starts like a JSON object/array payload."""
+        try:
+            with open(path, "rb") as f:
+                sample = f.read(sample_size)
+        except OSError:
+            return False
+
+        if not sample:
+            return False
+
+        # Fast-path for UTF-8 (+ BOM) payloads.
+        probe = sample
+        if probe.startswith(b"\xef\xbb\xbf"):
+            probe = probe[3:]
+        probe = probe.lstrip()
+        if probe.startswith(b"{") or probe.startswith(b"["):
+            return True
+
+        # Also accept UTF-16/UTF-32 BOM-encoded JSON payloads.
+        for bom, encoding in (
+            (b"\xff\xfe\x00\x00", "utf-32"),
+            (b"\x00\x00\xfe\xff", "utf-32"),
+            (b"\xff\xfe", "utf-16"),
+            (b"\xfe\xff", "utf-16"),
+        ):
+            if sample.startswith(bom):
+                try:
+                    text = sample.decode(encoding)
+                except UnicodeDecodeError:
+                    return False
+                text = text.lstrip()
+                return text.startswith("{") or text.startswith("[")
+
+        return False
+
+    @staticmethod
+    def _decode_json_text(raw_bytes: bytes, json_path: Path) -> str:
+        """Decode JSON text with BOM-aware UTF-8/16/32 handling."""
+        if not raw_bytes:
+            raise ValueError(f"Invalid JSON export '{json_path}': file is empty.")
+
+        if raw_bytes.startswith((b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")):
+            return raw_bytes.decode("utf-32")
+        if raw_bytes.startswith((b"\xff\xfe", b"\xfe\xff")):
+            return raw_bytes.decode("utf-16")
+        if raw_bytes.startswith(b"\xef\xbb\xbf"):
+            return raw_bytes.decode("utf-8-sig")
+        return raw_bytes.decode("utf-8")
 
     # ─────────────────────────────────────────────────────────────
     # Builders — QVF data → intermediate schema

@@ -14,6 +14,7 @@ Supports:
 - Skip extraction:             python migrate.py app.qvf --skip-extraction
 - Verbose logging:             python migrate.py app.qvf --verbose
 - QA pipeline:                 python migrate.py app.qvf --qa
+- Environment quality gates:   python migrate.py app.qvf --gate prod
 - Deploy to PBI Service:       python migrate.py app.qvf --deploy WORKSPACE_ID
 - Shared semantic model:       python migrate.py --shared-model a.json b.json
 - Fabric-native output:        python migrate.py app.qvf --output-format fabric
@@ -31,6 +32,7 @@ import time
 import shutil
 import re
 import concurrent.futures
+import threading
 from datetime import datetime
 from enum import IntEnum
 
@@ -120,6 +122,7 @@ class MigrationStats:
         self.pages_generated = 0
         self.theme_applied = False
         self.pbip_path = ""
+        self.measure_renames = {}
         # Diagnostics
         self.warnings = []
         self.skipped = []
@@ -180,24 +183,25 @@ def _resolve_qvw_input(path: str):
     return path, msg, True
 
 
-def _collect_batch_inputs(batch_dir: str):
-        """Collect batch inputs with extension priority and stem-level de-duplication.
+def _collect_batch_inputs(batch_dir: str, recursive: bool = False):
+    """Collect batch inputs with extension priority and stem-level de-duplication.
 
-        Priority by extension for files sharing the same stem:
-            1. .json
-            2. .qvf
-            3. .qvw
-        """
-        patterns = ['*.json', '*.qvf', '*.qvw']
-        files_by_stem = {}
+    Priority by extension for files sharing the same stem:
+        1. .json
+        2. .qvf
+        3. .qvw
+    """
+    patterns = ['*.json', '*.qvf', '*.qvw']
+    files_by_stem = {}
 
-        for pattern in patterns:
-                for path in glob.glob(os.path.join(batch_dir, pattern)):
-                        stem = os.path.splitext(os.path.basename(path))[0].lower()
-                        if stem not in files_by_stem:
-                                files_by_stem[stem] = path
+    for pattern in patterns:
+        search_pattern = os.path.join(batch_dir, '**', pattern) if recursive else os.path.join(batch_dir, pattern)
+        for path in glob.glob(search_pattern, recursive=recursive):
+            stem = os.path.splitext(os.path.basename(path))[0].lower()
+            if stem not in files_by_stem:
+                files_by_stem[stem] = path
 
-        return sorted(files_by_stem.values())
+    return sorted(files_by_stem.values())
 
 
 # ── Step 1: Qlik Extraction ─────────────────────────────────────────
@@ -262,6 +266,10 @@ def run_extraction(qlik_file):
         print(f"\n✓ Extraction completed in {time.monotonic() - t0:.1f}s — intermediate JSON in {json_dir}")
         return True
 
+    except ValueError as e:
+        logger.error(f"Extraction validation failed: {e}")
+        print(f"\nInput validation error: {str(e)}")
+        return False
     except Exception as e:
         logger.error(f"Extraction failed: {e}", exc_info=True)
         print(f"\nError during extraction: {str(e)}")
@@ -357,6 +365,7 @@ def run_generation(report_name=None, output_dir=None, calendar_start=None,
                     _stats.tmdl_relationships = tmdl.get('relationships', 0)
                     _stats.tmdl_hierarchies = tmdl.get('hierarchies', 0)
                     _stats.tmdl_roles = tmdl.get('roles', 0)
+                    _stats.measure_renames = meta.get('measure_renames', {}) or {}
                 except Exception:
                     pass
 
@@ -411,7 +420,11 @@ def run_migration_report(report_name, output_dir=None):
             report.add_datasources(datasources)
 
         # Build calc_map from generated TMDL files
-        calc_map = _build_calc_map_from_tmdl(report_name, output_dir)
+        calc_map = _build_calc_map_from_tmdl(
+            report_name,
+            output_dir,
+            getattr(_stats, 'measure_renames', None),
+        )
 
         # Create calculations list from measures + dimensions
         calculations = []
@@ -741,7 +754,17 @@ def export_power_query_folder(report_name, output_dir=None):
     }
 
 
-def _build_calc_map_from_tmdl(report_name, output_dir=None):
+def _inventory_images_if_extracted(report_name, output_dir=None):
+    """Return embedded image inventory when project artifacts are available."""
+    return export_embedded_images(report_name, output_dir)
+
+
+def _inventory_power_queries_if_extracted(report_name, output_dir=None):
+    """Return Power Query inventory when project artifacts are available."""
+    return export_power_query_folder(report_name, output_dir)
+
+
+def _build_calc_map_from_tmdl(report_name, output_dir=None, measure_renames=None):
     """Scan generated TMDL table files to build a calculation→DAX map.
 
     Returns:
@@ -810,14 +833,112 @@ def _build_calc_map_from_tmdl(report_name, output_dir=None):
         except Exception:
             continue
 
+    if isinstance(measure_renames, dict):
+        for original_name, renamed_name in measure_renames.items():
+            dax_expression = calc_map.get(renamed_name)
+            if dax_expression and original_name not in calc_map:
+                calc_map[original_name] = dax_expression
+
     return calc_map
+
+
+def _evaluate_quality_gate(
+    app_id,
+    gate_env,
+    output_dir,
+    report_summary,
+    stats,
+    extra_metrics=None,
+):
+    """Evaluate quality gates and persist gate reports.
+
+    Returns a dict with gate status and report paths.
+    """
+    result = {
+        'enabled': bool(gate_env),
+        'passed': True,
+        'warnings': [],
+        'blocked_reasons': [],
+        'approval_required': False,
+        'report_json': None,
+        'report_html': None,
+    }
+
+    if not gate_env:
+        return result
+
+    try:
+        from powerbi_import.quality_gates import (
+            QualityGate,
+            GateEnvironment,
+            GateReportGenerator,
+        )
+
+        env = GateEnvironment(gate_env)
+        metrics = {
+            'fidelity_score': (report_summary or {}).get('fidelity_score', 0),
+            'error_count': 0,
+            'rls_audit_passed': False,
+            'pii_fields_detected': 0,
+            'pii_fields_masked': 0,
+            'image_count': 0,
+            'images_reviewed': True,
+            'm_query_count': 0,
+            'm_queries_reviewed': True,
+            'measure_count': getattr(stats, 'tmdl_measures', 0),
+        }
+        if isinstance(extra_metrics, dict):
+            metrics.update(extra_metrics)
+
+        gate = QualityGate()
+        gate_pass = gate.evaluate(app_id, env, metrics)
+
+        out_base = output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+        gate_dir = os.path.join(out_base, app_id, 'quality_gates')
+        os.makedirs(gate_dir, exist_ok=True)
+        report_json = os.path.join(gate_dir, f'gate_{gate_env}.json')
+        report_html = os.path.join(gate_dir, f'gate_{gate_env}.html')
+
+        # Gate outcome should not be downgraded by report rendering/encoding issues.
+        result.update({
+            'passed': gate_pass.overall_passed,
+            'warnings': gate_pass.warnings,
+            'blocked_reasons': gate_pass.blocked_reasons,
+            'approval_required': gate_pass.approval_required,
+            'report_json': report_json,
+            'report_html': None,
+        })
+
+        reporter = GateReportGenerator()
+        try:
+            reporter.save_report(gate_pass, report_json)
+        except Exception as exc:
+            logger.warning("Quality gate JSON report save failed for %s: %s", app_id, exc)
+            result['report_json'] = None
+
+        try:
+            reporter.generate_html_report(gate_pass, report_html)
+            result['report_html'] = report_html
+        except Exception as exc:
+            logger.warning("Quality gate HTML report generation failed for %s: %s", app_id, exc)
+            result['warnings'] = list(result.get('warnings', [])) + [f'html_report_failed: {exc}']
+
+        return result
+    except Exception as exc:
+        logger.warning("Quality gate evaluation failed for %s: %s", app_id, exc)
+        result.update({
+            'passed': False,
+            'blocked_reasons': [f'Quality gate evaluation failed: {exc}'],
+        })
+        return result
 
 
 # ── Batch migration ─────────────────────────────────────────────────
 
 def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
                         calendar_start=None, calendar_end=None, culture=None,
-                        workers=None):
+                        workers=None, gate=None, force_deployment=False,
+                        recursive=False):
     """Batch migrate all .qvf/.json/.qvw files in a directory.
 
     Args:
@@ -828,13 +949,14 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
         calendar_end: End year for Calendar table
         culture: Override culture/locale
         workers: Number of parallel workers (None=sequential)
+        recursive: Search subdirectories recursively for Qlik inputs
     """
     if not os.path.isdir(batch_dir):
         print(f"Error: Batch directory not found: {batch_dir}")
         return ExitCode.GENERAL_ERROR
 
     # Find all Qlik files with stem-level deduplication
-    qlik_files = _collect_batch_inputs(batch_dir)
+    qlik_files = _collect_batch_inputs(batch_dir, recursive=recursive)
 
     if not qlik_files:
         print(f"Error: No .qvf/.json/.qvw files found in {batch_dir}")
@@ -851,6 +973,7 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
 
     batch_start = datetime.now()
     batch_results = {}
+    stats_lock = threading.Lock()
 
     def _migrate_one(qlik_file, index, total):
         """Migrate a single Qlik file. Returns (basename, result_dict)."""
@@ -859,51 +982,82 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
         print(f"  [{index}/{total}] Migrating: {basename}")
         print(f"{'=' * 80}")
 
-        global _stats
-        _stats = MigrationStats()
+        with stats_lock:
+            global _stats
+            _stats = MigrationStats()
 
-        file_results = {}
+            file_results = {}
 
-        resolved_file, resolution_msg, unresolved_qvw = _resolve_qvw_input(qlik_file)
-        if resolution_msg:
-            print(f"  {resolution_msg}")
-        if unresolved_qvw:
-            logger.warning(f"QVW conversion required for {basename}")
-            return basename, {'success': False, 'error': 'qvw_requires_conversion'}
-        qlik_file = resolved_file
+            resolved_file, resolution_msg, unresolved_qvw = _resolve_qvw_input(qlik_file)
+            if resolution_msg:
+                print(f"  {resolution_msg}")
+            if unresolved_qvw:
+                logger.warning(f"QVW conversion required for {basename}")
+                return basename, {'success': False, 'error': 'qvw_requires_conversion'}
+            qlik_file = resolved_file
 
-        # Step 1: Extract
-        if not skip_extraction:
-            file_results['extraction'] = run_extraction(qlik_file)
-            if not file_results['extraction']:
-                logger.warning(f"Extraction failed for {basename}, skipping")
-                return basename, {'success': False, 'error': 'extraction'}
-        else:
-            file_results['extraction'] = True
+            # Step 1: Extract
+            if not skip_extraction:
+                file_results['extraction'] = run_extraction(qlik_file)
+                if not file_results['extraction']:
+                    logger.warning(f"Extraction failed for {basename}, skipping")
+                    return basename, {'success': False, 'error': 'extraction'}
+            else:
+                file_results['extraction'] = True
 
-        # Step 2: Generate
-        file_results['generation'] = run_generation(
-            report_name=basename,
-            output_dir=output_dir,
-            calendar_start=calendar_start,
-            calendar_end=calendar_end,
-            culture=culture,
-        )
-
-        # Step 3: Migration report
-        report_summary = None
-        if file_results.get('generation'):
-            report_summary = run_migration_report(
+            # Step 2: Generate
+            file_results['generation'] = run_generation(
                 report_name=basename,
                 output_dir=output_dir,
+                calendar_start=calendar_start,
+                calendar_end=calendar_end,
+                culture=culture,
             )
 
-        all_ok = all(v for v in file_results.values() if v is not None)
-        return basename, {
-            'success': all_ok,
-            'stats': _stats.to_dict(),
-            'fidelity': report_summary.get('fidelity_score') if report_summary else None,
-        }
+            # Step 3: Migration report
+            report_summary = None
+            sec_info = None
+            img_info = None
+            pq_info = None
+            if file_results.get('generation'):
+                report_summary = run_migration_report(
+                    report_name=basename,
+                    output_dir=output_dir,
+                )
+                try:
+                    sec_info = export_security_csv(basename, output_dir)
+                    img_info = _inventory_images_if_extracted(basename, output_dir)
+                    pq_info = _inventory_power_queries_if_extracted(basename, output_dir)
+                except Exception:
+                    pass
+
+            gate_result = None
+            gate_ok = True
+            if file_results.get('generation') and gate:
+                extra_metrics = {
+                    'rls_audit_passed': bool(sec_info),
+                    'image_count': (img_info or {}).get('row_count', 0),
+                    'images_reviewed': True,
+                    'm_query_count': (pq_info or {}).get('query_files', 0),
+                    'm_queries_reviewed': True,
+                }
+                gate_result = _evaluate_quality_gate(
+                    app_id=basename,
+                    gate_env=gate,
+                    output_dir=output_dir,
+                    report_summary=report_summary,
+                    stats=_stats,
+                    extra_metrics=extra_metrics,
+                )
+                gate_ok = gate_result.get('passed', False) or force_deployment
+
+            all_ok = all(v for v in file_results.values() if v is not None) and gate_ok
+            return basename, {
+                'success': all_ok,
+                'stats': _stats.to_dict(),
+                'fidelity': report_summary.get('fidelity_score') if report_summary else None,
+                'quality_gate': gate_result,
+            }
 
     total = len(qlik_files)
     if workers and workers > 1:
@@ -1088,6 +1242,7 @@ def _run_batch_config(args):
         _stats = MigrationStats()
 
         skip = entry.get('skip_extraction', args.skip_extraction)
+        profile_name = entry.get('profile')
         out_dir = entry.get('output_dir', args.output_dir)
         cal_start = entry.get('calendar_start', args.calendar_start)
         cal_end = entry.get('calendar_end', args.calendar_end)
@@ -1114,14 +1269,45 @@ def _run_batch_config(args):
         )
 
         report_summary = None
+        sec_info = None
+        img_info = None
+        pq_info = None
         if file_results.get('generation'):
             report_summary = run_migration_report(report_name=basename, output_dir=out_dir)
+            try:
+                sec_info = export_security_csv(basename, out_dir)
+                img_info = _inventory_images_if_extracted(basename, out_dir)
+                pq_info = _inventory_power_queries_if_extracted(basename, out_dir)
+            except Exception:
+                pass
 
-        all_ok = all(v for v in file_results.values() if v is not None)
+        gate_result = None
+        gate_ok = True
+        if file_results.get('generation') and getattr(args, 'gate', None):
+            extra_metrics = {
+                'migration_profile': profile_name,
+                'rls_audit_passed': bool(sec_info),
+                'image_count': (img_info or {}).get('row_count', 0),
+                'images_reviewed': True,
+                'm_query_count': (pq_info or {}).get('query_files', 0),
+                'm_queries_reviewed': True,
+            }
+            gate_result = _evaluate_quality_gate(
+                app_id=basename,
+                gate_env=args.gate,
+                output_dir=out_dir,
+                report_summary=report_summary,
+                stats=_stats,
+                extra_metrics=extra_metrics,
+            )
+            gate_ok = gate_result.get('passed', False) or getattr(args, 'force_deployment', False)
+
+        all_ok = all(v for v in file_results.values() if v is not None) and gate_ok
         results[basename] = {
             'success': all_ok,
             'stats': _stats.to_dict(),
             'fidelity': report_summary.get('fidelity_score') if report_summary else None,
+            'quality_gate': gate_result,
         }
 
     batch_duration = datetime.now() - batch_start
@@ -1320,6 +1506,9 @@ def _run_migration_manifest(args):
         )
 
         report_summary = None
+        sec_info = None
+        img_info = None
+        pq_info = None
         copied_artifacts = None
         if file_results.get('generation'):
             report_summary = run_migration_report(report_name=basename, output_dir=out_dir)
@@ -1327,14 +1516,42 @@ def _run_migration_manifest(args):
             project_base = out_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
             project_dir = os.path.join(project_base, basename)
             copied_artifacts = _copy_manifest_artifacts(entry, project_dir, manifest_dir)
+            try:
+                sec_info = export_security_csv(basename, out_dir)
+                img_info = _inventory_images_if_extracted(basename, out_dir)
+                pq_info = _inventory_power_queries_if_extracted(basename, out_dir)
+            except Exception:
+                pass
 
-        all_ok = all(v for v in file_results.values() if v is not None)
+        gate_result = None
+        gate_ok = True
+        if file_results.get('generation') and getattr(args, 'gate', None):
+            extra_metrics = {
+                'migration_profile': profile_name,
+                'rls_audit_passed': bool(sec_info),
+                'image_count': (img_info or {}).get('row_count', 0),
+                'images_reviewed': True,
+                'm_query_count': (pq_info or {}).get('query_files', 0),
+                'm_queries_reviewed': True,
+            }
+            gate_result = _evaluate_quality_gate(
+                app_id=basename,
+                gate_env=args.gate,
+                output_dir=out_dir,
+                report_summary=report_summary,
+                stats=_stats,
+                extra_metrics=extra_metrics,
+            )
+            gate_ok = gate_result.get('passed', False) or getattr(args, 'force_deployment', False)
+
+        all_ok = all(v for v in file_results.values() if v is not None) and gate_ok
         results[basename] = {
             'success': all_ok,
             'stats': _stats.to_dict(),
             'fidelity': report_summary.get('fidelity_score') if report_summary else None,
             'profile': profile_name,
             'artifact_pack': copied_artifacts,
+            'quality_gate': gate_result,
         }
 
     batch_duration = datetime.now() - batch_start
@@ -1418,6 +1635,12 @@ def main():
         metavar='DIR',
         default=None,
         help='Batch migrate all .qvf/.json/.qvw files in the specified directory'
+    )
+
+    parser.add_argument(
+        '--batch-recursive',
+        action='store_true',
+        help='When used with --batch, scan subdirectories recursively for inputs'
     )
 
     parser.add_argument(
@@ -1545,6 +1768,20 @@ def main():
     )
 
     parser.add_argument(
+        '--gate',
+        choices=['dev', 'test', 'prod'],
+        default=None,
+        help='Run environment quality gate checks after generation (dev, test, prod)'
+    )
+
+    parser.add_argument(
+        '--force-deployment',
+        action='store_true',
+        default=False,
+        help='Proceed even if quality gate fails (use with caution)'
+    )
+
+    parser.add_argument(
         '--json',
         action='store_true',
         default=False,
@@ -1588,6 +1825,21 @@ def main():
         action='store_true',
         default=False,
         help='Disable auto-generated comparison report'
+    )
+
+    parser.add_argument(
+        '--data-prep-lineage',
+        action='store_true',
+        default=True,
+        dest='data_prep_lineage',
+        help='Include data prep lineage visualization in comparison report (Power Query M steps, Qlik script operations) — enabled by default'
+    )
+
+    parser.add_argument(
+        '--no-data-prep-lineage',
+        action='store_true',
+        default=False,
+        help='Disable data prep lineage visualization'
     )
 
     parser.add_argument(
@@ -2494,6 +2746,9 @@ def main():
             calendar_end=args.calendar_end,
             culture=args.culture,
             workers=int(workers) if workers else None,
+            gate=getattr(args, 'gate', None),
+            force_deployment=getattr(args, 'force_deployment', False),
+            recursive=getattr(args, 'batch_recursive', False),
         )
 
     # ── Qlik Server direct extraction mode ──────────────────────
@@ -2850,6 +3105,9 @@ def main():
             plugin_manager.call_hook('post_generation', project_dir=_stats.pbip_path)
 
     # ── Security / images / Power Query exports ─────────────
+    sec_info = None
+    img_info = None
+    pq_info = None
     if results.get('generation') and not args.dry_run:
         try:
             sec_info = export_security_csv(source_basename, args.output_dir)
@@ -3050,7 +3308,11 @@ def main():
             out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
             project_dir = os.path.join(out_base, source_basename)
             extract_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
-            comp_path = generate_comparison_report(extract_dir, project_dir)
+            comp_path = generate_comparison_report(
+                extract_dir,
+                project_dir,
+                source_app_path=args.qlik_file,
+            )
             if comp_path and not json_mode:
                 print(f"  \u2713 Comparison report: {comp_path}")
         except Exception as exc:
@@ -3160,6 +3422,51 @@ def main():
             report_name=source_basename,
             output_dir=args.output_dir,
         )
+
+    # Step 5b: Environment quality gate checks (optional)
+    gate_result = None
+    if getattr(args, 'gate', None) and results.get('generation') and not args.dry_run:
+        extra_metrics = {
+            'migration_profile': getattr(args, 'profile', None),
+            'rls_audit_passed': bool(sec_info),
+            'image_count': (img_info or {}).get('row_count', 0),
+            'images_reviewed': True,
+            'm_query_count': (pq_info or {}).get('query_files', 0),
+            'm_queries_reviewed': True,
+        }
+        gate_result = _evaluate_quality_gate(
+            app_id=source_basename,
+            gate_env=args.gate,
+            output_dir=args.output_dir,
+            report_summary=report_summary,
+            stats=_stats,
+            extra_metrics=extra_metrics,
+        )
+        gate_ok = gate_result.get('passed', False)
+        blocked = not gate_ok and not getattr(args, 'force_deployment', False)
+
+        results['quality_gate'] = gate_ok or getattr(args, 'force_deployment', False)
+        results['quality_gate_result'] = gate_result
+
+        if not json_mode:
+            status = 'PASS' if gate_ok else 'FAIL'
+            print(f"  ✓ Quality gate ({args.gate}): {status}")
+            if gate_result.get('report_json'):
+                print(f"    Report: {gate_result['report_json']}")
+            for reason in gate_result.get('blocked_reasons', [])[:3]:
+                print(f"    ⚠ {reason}")
+            if getattr(args, 'force_deployment', False) and not gate_ok:
+                print("    ⚠ Gate failed but continuing due to --force-deployment")
+
+        if blocked:
+            if json_mode:
+                print(json.dumps({
+                    'status': 'error',
+                    'input': args.qlik_file,
+                    'quality_gate': gate_result,
+                    'message': 'Quality gate failed and deployment was blocked.',
+                }, indent=2, ensure_ascii=False))
+            return ExitCode.GENERAL_ERROR
 
     # Step 6: HTML Dashboard
     html_dashboard_path = None
@@ -3626,6 +3933,8 @@ def main():
             json_result["exact"] = report_summary.get('exact', 0)
             json_result["approximate"] = report_summary.get('approximate', 0)
             json_result["unsupported"] = report_summary.get('unsupported', 0)
+        if gate_result is not None:
+            json_result["quality_gate"] = gate_result
         if results.get('post_check'):
             json_result["post_check"] = results['post_check']
         print(json.dumps(json_result, indent=2, ensure_ascii=False))

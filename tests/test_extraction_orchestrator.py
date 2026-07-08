@@ -129,6 +129,44 @@ class TestExtractFromJson:
         finally:
             os.unlink(path)
 
+    def test_qvf_extension_with_binary_payload_raises_clear_error(self):
+        """Binary non-ZIP .qvf files should not be parsed as JSON fallback."""
+        with tempfile.NamedTemporaryFile(suffix=".qvf", delete=False) as f:
+            f.write(b"\xff\xfe\x00\x01not-json")
+            path = f.name
+        try:
+            orch = ExtractionOrchestrator()
+            with pytest.raises(ValueError, match="Invalid QVF file"):
+                orch.extract(path)
+        finally:
+            os.unlink(path)
+
+    def test_qvf_extension_with_malformed_json_payload_raises_json_error(self):
+        """A .qvf that looks like JSON but is invalid should return a JSON parse error."""
+        with tempfile.NamedTemporaryFile(suffix=".qvf", delete=False, mode="w", encoding="utf-8") as f:
+            f.write('{"datasources": [}')
+            path = f.name
+        try:
+            orch = ExtractionOrchestrator()
+            with pytest.raises(ValueError, match="Invalid JSON export"):
+                orch.extract(path)
+        finally:
+            os.unlink(path)
+
+    def test_qvf_extension_with_utf16_json_payload_fallback(self):
+        """UTF-16 JSON payloads mislabeled as .qvf should still be parsed."""
+        text = '{"datasources": [{"name": "Orders", "connectionType": "csv"}], "sheets": []}'
+        with tempfile.NamedTemporaryFile(suffix=".qvf", delete=False) as f:
+            f.write(text.encode("utf-16"))
+            path = f.name
+        try:
+            orch = ExtractionOrchestrator()
+            result = orch.extract(path)
+            assert isinstance(result, dict)
+            assert len(result.get("datasources", [])) == 1
+        finally:
+            os.unlink(path)
+
 
 # ═══════════════════════════════════════════════════════════════
 #  load_intermediate_json
