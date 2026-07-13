@@ -1377,6 +1377,13 @@ class PowerBIProjectGenerator:
     
     def _clean_field_name(self, name):
         """Strip all known source derivation prefixes from a field name"""
+        # Coerce non-string names (some Qlik exports embed dicts/lists)
+        if not isinstance(name, str):
+            if isinstance(name, dict):
+                name = name.get('name') or name.get('field') or name.get('qName') or ''
+            elif isinstance(name, (list, tuple)) and name:
+                name = name[0]
+            name = str(name) if name is not None else ''
         # Remove derivation prefixes (none:, usr:, yr:, tmn:, etc.)
         clean = re.sub(r'^(none|sum|avg|count|min|max|usr|yr|mn|dy|qr|wk|attr|md|mdy|hms|hr|mt|sc|thr|trunc|tmn):',
                         '', name)
@@ -1399,7 +1406,8 @@ class PowerBIProjectGenerator:
         for f in fields:
             raw_name = f.get('name', '')
             clean = self._clean_field_name(raw_name)
-            if clean in skip_names or raw_name in skip_names:
+            raw_str = raw_name if isinstance(raw_name, str) else clean
+            if clean in skip_names or raw_str in skip_names:
                 continue
             # Deduplicate: same field from different shelves
             if clean in seen_names:

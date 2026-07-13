@@ -578,6 +578,27 @@ def _adapt_worksheets(qlik_visuals: List[Dict]) -> List[Dict]:
     """Convert Qlik visualizations → Tableau worksheet format."""
     worksheets = []
 
+    def _as_field_str(value) -> str:
+        """Coerce a dim/measure field value to a plain string.
+
+        Binary Qlik exports can embed dicts (e.g. a nested qDef) where a
+        field name is expected. Downstream consumers hash/regex these values,
+        so normalize at this adapter boundary to a single source of truth.
+        """
+        if isinstance(value, str):
+            return value
+        if isinstance(value, dict):
+            for k in ('field', 'name', 'qName', 'label', 'title', 'qDef'):
+                v = value.get(k)
+                if isinstance(v, str) and v:
+                    return v
+                if isinstance(v, list) and v and isinstance(v[0], str):
+                    return v[0]
+            return ''
+        if isinstance(value, (list, tuple)) and value:
+            return _as_field_str(value[0])
+        return str(value) if value is not None else ''
+
     for viz in qlik_visuals:
         qlik_type = (viz.get('type', '')
                      or viz.get('visualType', '')
@@ -589,12 +610,18 @@ def _adapt_worksheets(qlik_visuals: List[Dict]) -> List[Dict]:
                 logger.warning("Unmapped Qlik chart type '%s' → defaulting to clusteredBarChart", qlik_type)
 
         name = viz.get('title', viz.get('name', viz.get('id', f'Visual_{len(worksheets)}')))
+        if not isinstance(name, str):
+            name = _as_field_str(name) or f'Visual_{len(worksheets)}'
 
         # Build dimensions list
         dimensions = []
         for dim in viz.get('dimensions', []):
-            dim_field = dim if isinstance(dim, str) else dim.get('field', dim.get('name', dim.get('label', '')))
-            dim_label = dim if isinstance(dim, str) else dim.get('label', dim.get('name', dim_field))
+            if isinstance(dim, str):
+                dim_field = dim
+                dim_label = dim
+            else:
+                dim_field = _as_field_str(dim.get('field', dim.get('name', dim.get('label', ''))))
+                dim_label = _as_field_str(dim.get('label', dim.get('name', dim_field))) or dim_field
             if dim_field:
                 dimensions.append({
                     'field': dim_field,
@@ -605,9 +632,14 @@ def _adapt_worksheets(qlik_visuals: List[Dict]) -> List[Dict]:
         # Build measures list
         measures = []
         for meas in viz.get('measures', []):
-            m_name = meas if isinstance(meas, str) else meas.get('name', meas.get('label', ''))
-            m_expr = '' if isinstance(meas, str) else meas.get('expression', meas.get('definition', ''))
-            m_label = meas if isinstance(meas, str) else meas.get('label', meas.get('name', m_name))
+            if isinstance(meas, str):
+                m_name = meas
+                m_expr = ''
+                m_label = meas
+            else:
+                m_name = _as_field_str(meas.get('name', meas.get('label', '')))
+                m_expr = _as_field_str(meas.get('expression', meas.get('definition', '')))
+                m_label = _as_field_str(meas.get('label', meas.get('name', m_name))) or m_name
             if m_name:
                 measures.append({
                     'name': m_name,
