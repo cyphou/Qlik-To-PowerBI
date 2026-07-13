@@ -41,6 +41,19 @@
   dict-coercion, measure-column materialization, m2m downgrade (incl. `cardinality=None`),
   load-field cleaning, top-level CSV splitting.
 
+### Roadmap Delivery (post-v12.1.0)
+- **Real-corpus regression harness** (`tests/test_real_corpus_regression.py`) — runs all
+  real Qlik exports (JSON + binary QVF) through the full pipeline, asserting 0 validation
+  errors and resolved semantic references. Immediately caught 3 dict-coercion bugs the
+  unit tests missed. Source-level fix in `_adapt_worksheets._as_field_str()`.
+- **Auto-chart type inference** — `auto-chart`/unmapped Qlik visuals are inferred from the
+  dimension × measure shape (card/scatter/line/bar/column/table) instead of always
+  defaulting to a bar chart. EN + FR date-token detection for line charts.
+- **Binary master item extraction** — decodes master measures (`qMeasure.qDef`) and master
+  dimensions (`qDim.qFieldDefs`, incl. calculated) from binary QVF `qType=measure/dimension`
+  payloads that were previously dropped. Merges with inferred items (master wins).
+- Test total: 2,965 → 3,005 (+40).
+
 ## v12.0.0 — Preceptorship, Self-Healing & Reporting
 
 ### New Modules (14)
