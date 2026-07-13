@@ -237,6 +237,8 @@ class ExtractionOrchestrator:
             "variables": [],
         }
         qvf_types_found = set()
+        master_measures: List[Dict[str, Any]] = []
+        master_dimensions: List[Dict[str, Any]] = []
 
         for payload in payloads:
             if not isinstance(payload, dict):
@@ -260,6 +262,7 @@ class ExtractionOrchestrator:
             q_type = (
                 payload.get("qMetaData", {}).get("qType")
                 or payload.get("qRoot", {}).get("qProperty", {}).get("qInfo", {}).get("qType")
+                or payload.get("qInfo", {}).get("qType")
                 or payload.get("qId")
             )
             if q_type == "LoadModel":
@@ -274,16 +277,98 @@ class ExtractionOrchestrator:
                 qvf_types_found.add("sheet")
                 continue
 
+            # Master measure (library item) — carries a reusable DAX-convertible
+            # expression that would otherwise be lost.
+            if q_type == "measure" and "qMeasure" in payload:
+                m = self._normalize_binary_master_measure(payload)
+                if m:
+                    master_measures.append(m)
+                    qvf_types_found.add("master_measure")
+                continue
+
+            # Master dimension (library item)
+            if q_type == "dimension" and "qDim" in payload:
+                d = self._normalize_binary_master_dimension(payload)
+                if d:
+                    master_dimensions.append(d)
+                    qvf_types_found.add("master_dimension")
+                continue
+
             if q_type and str(q_type).endswith("variablelist"):
                 qvf_data["variables"].extend(self._normalize_binary_variable_list(payload))
                 qvf_types_found.add("variables")
 
-        if not qvf_types_found.intersection({"metadata", "script", "sheet", "loadmodel", "variables"}):
+        if not qvf_types_found.intersection(
+            {"metadata", "script", "sheet", "loadmodel", "variables",
+             "master_measure", "master_dimension"}
+        ):
             raise ValueError("No recognized Qlik objects found in binary export")
 
-        qvf_data["dimensions"] = self._collect_binary_dimensions(qvf_data["visualizations"])
-        qvf_data["measures"] = self._collect_binary_measures(qvf_data["visualizations"])
+        # Merge master items with those inferred from visualizations
+        # (master items take precedence — they carry real expressions/labels).
+        inferred_dims = self._collect_binary_dimensions(qvf_data["visualizations"])
+        inferred_meas = self._collect_binary_measures(qvf_data["visualizations"])
+        qvf_data["dimensions"] = self._merge_binary_items(master_dimensions, inferred_dims, key="field")
+        qvf_data["measures"] = self._merge_binary_items(master_measures, inferred_meas, key="name")
         return qvf_data
+
+    @staticmethod
+    def _normalize_binary_master_measure(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Extract a master measure from a decoded binary payload."""
+        q_meas = payload.get("qMeasure", {})
+        meta = payload.get("qMetaDef", {})
+        info = payload.get("qInfo", {})
+        title = meta.get("title") or q_meas.get("qLabel") or ""
+        expr = q_meas.get("qDef", "")
+        if not title and not expr:
+            return None
+        return {
+            "id": info.get("qId", ""),
+            "name": str(title) if title else str(expr),
+            "expression": str(expr),
+            "label": str(q_meas.get("qLabel") or title),
+            "description": meta.get("description", ""),
+            "formatString": q_meas.get("qNumFormat", {}).get("qFmt", ""),
+        }
+
+    @staticmethod
+    def _normalize_binary_master_dimension(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Extract a master dimension from a decoded binary payload."""
+        q_dim = payload.get("qDim", {})
+        meta = payload.get("qMetaDef", {})
+        info = payload.get("qInfo", {})
+        field_defs = q_dim.get("qFieldDefs", []) or []
+        field_labels = q_dim.get("qFieldLabels", []) or []
+        field = field_defs[0] if field_defs else ""
+        if not isinstance(field, str):
+            field = str(field)
+        title = meta.get("title") or q_dim.get("qAlias") or (field_labels[0] if field_labels else field)
+        if not field and not title:
+            return None
+        return {
+            "id": info.get("qId", ""),
+            "name": str(title) if title else field,
+            "field": field,
+            "label": str(field_labels[0]) if field_labels else str(title),
+            "description": meta.get("description", ""),
+            "grouping": q_dim.get("qGrouping", "N"),
+            "fields": [str(f) for f in field_defs],
+        }
+
+    @staticmethod
+    def _merge_binary_items(primary: List[Dict[str, Any]],
+                            secondary: List[Dict[str, Any]],
+                            key: str) -> List[Dict[str, Any]]:
+        """Merge primary (master) items with secondary (inferred), dedup by key."""
+        merged: List[Dict[str, Any]] = []
+        seen = set()
+        for item in list(primary) + list(secondary):
+            k = str(item.get(key, "")).lower()
+            if not k or k in seen:
+                continue
+            seen.add(k)
+            merged.append(item)
+        return merged
 
     @staticmethod
     def _collect_embedded_json_payloads(raw_bytes: bytes) -> List[Any]:

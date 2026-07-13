@@ -534,3 +534,54 @@ class TestCollectBinaryDimensions:
         vis = [{}]
         result = ExtractionOrchestrator._collect_binary_dimensions(vis)
         assert result == []
+
+
+# == Binary master measure/dimension extraction (roadmap #2) =========
+
+class TestBinaryMasterItemExtraction:
+    def test_master_measure_extracted(self):
+        payload = {
+            "qInfo": {"qId": "m1", "qType": "measure"},
+            "qMeasure": {"qLabel": "Sales", "qDef": "Sum(Sales)",
+                         "qNumFormat": {"qFmt": "#,##0"}},
+            "qMetaDef": {"title": "Sales", "description": "Total sales"},
+        }
+        m = ExtractionOrchestrator._normalize_binary_master_measure(payload)
+        assert m["name"] == "Sales"
+        assert m["expression"] == "Sum(Sales)"
+        assert m["label"] == "Sales"
+        assert m["formatString"] == "#,##0"
+
+    def test_master_measure_empty_returns_none(self):
+        payload = {"qInfo": {"qId": "x"}, "qMeasure": {}, "qMetaDef": {}}
+        assert ExtractionOrchestrator._normalize_binary_master_measure(payload) is None
+
+    def test_master_dimension_extracted(self):
+        payload = {
+            "qInfo": {"qId": "d1", "qType": "dimension"},
+            "qDim": {"qFieldDefs": ["Region"], "qFieldLabels": ["Region"],
+                     "qGrouping": "N"},
+            "qMetaDef": {"title": "Region"},
+        }
+        d = ExtractionOrchestrator._normalize_binary_master_dimension(payload)
+        assert d["name"] == "Region"
+        assert d["field"] == "Region"
+        assert d["fields"] == ["Region"]
+
+    def test_master_dimension_calculated_field(self):
+        payload = {
+            "qInfo": {"qId": "d2", "qType": "dimension"},
+            "qDim": {"qFieldDefs": ["=Year([Date])"], "qFieldLabels": ["Year"]},
+            "qMetaDef": {"title": "Year"},
+        }
+        d = ExtractionOrchestrator._normalize_binary_master_dimension(payload)
+        assert d["name"] == "Year"
+        assert d["field"] == "=Year([Date])"
+
+    def test_merge_prefers_master_over_inferred(self):
+        master = [{"name": "Sales", "expression": "Sum(Sales)"}]
+        inferred = [{"name": "sales", "expression": ""}, {"name": "Cost", "expression": ""}]
+        merged = ExtractionOrchestrator._merge_binary_items(master, inferred, key="name")
+        # 'Sales' from master wins (case-insensitive dedup), 'Cost' added
+        assert len(merged) == 2
+        assert merged[0]["expression"] == "Sum(Sales)"
