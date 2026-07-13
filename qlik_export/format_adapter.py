@@ -574,6 +574,62 @@ def _inject_calculations_into_datasources(
 
 # ── Worksheets (from Qlik visualizations) ───────────────────────────
 
+def _infer_visual_type_from_shape(dimensions: List[Dict], measures: List[Dict],
+                                  title: str = '') -> str:
+    """Infer a Power BI visual type from the dimension × measure shape.
+
+    Qlik ``auto-chart`` objects (and unmapped types) adapt their rendering to
+    the data at runtime. Rather than always defaulting to a clustered bar
+    chart, pick a visual that matches the field cardinality, mirroring what
+    Qlik's auto-chart would most likely have shown.
+
+    Heuristics (dims, measures):
+      (0, 0) → card              (nothing to bind)
+      (0, 1) → card              single KPI value
+      (0, 2) → scatterChart      two measures, no category
+      (0, 3+)→ scatterChart      x/y/size
+      (1, 0) → tableEx           just a list of categories
+      (1, 1) → lineChart if date-like dim else clusteredBarChart
+      (1, 2) → lineClusteredColumnComboChart if date else clusteredColumnChart
+      (1, 3+)→ lineChart if date else clusteredColumnChart
+      (2, 1) → clusteredBarChart (grouped)
+      (2, 2+)→ clusteredColumnChart
+      (3+, *)→ tableEx           high-dim → table
+    """
+    n_dim = len(dimensions)
+    n_mea = len(measures)
+
+    def _is_date_dim() -> bool:
+        title_l = (title or '').lower()
+        if 'trend' in title_l or 'over time' in title_l or 'par mois' in title_l:
+            return True
+        for d in dimensions:
+            f = (d.get('field') or d.get('name') or '').lower()
+            if any(tok in f for tok in ('date', 'year', 'annee', 'année', 'month',
+                                        'mois', 'quarter', 'trimestre', 'week', 'day', 'jour', 'time')):
+                return True
+        return False
+
+    if n_dim == 0:
+        if n_mea <= 1:
+            return 'card'
+        return 'scatterChart'  # 2+ measures, no category
+    if n_dim == 1:
+        if n_mea == 0:
+            return 'tableEx'
+        if _is_date_dim():
+            return 'lineChart'
+        if n_mea == 1:
+            return 'clusteredBarChart'
+        return 'clusteredColumnChart'
+    if n_dim == 2:
+        if n_mea <= 1:
+            return 'clusteredBarChart'
+        return 'clusteredColumnChart'
+    # 3+ dimensions → tabular presentation
+    return 'tableEx'
+
+
 def _adapt_worksheets(qlik_visuals: List[Dict]) -> List[Dict]:
     """Convert Qlik visualizations → Tableau worksheet format."""
     worksheets = []
@@ -604,10 +660,9 @@ def _adapt_worksheets(qlik_visuals: List[Dict]) -> List[Dict]:
                      or viz.get('visualType', '')
                      or viz.get('chart_type', '')).lower()
         pbi_type = _QLIK_CHART_TYPE_MAP.get(qlik_type)
-        if pbi_type is None:
-            pbi_type = 'clusteredBarChart'
-            if qlik_type:
-                logger.warning("Unmapped Qlik chart type '%s' → defaulting to clusteredBarChart", qlik_type)
+        # Defer the fallback decision until dim/measure shape is known so we
+        # can infer a sensible visual for 'auto-chart' and unmapped types.
+        _needs_inference = pbi_type is None
 
         name = viz.get('title', viz.get('name', viz.get('id', f'Visual_{len(worksheets)}')))
         if not isinstance(name, str):
@@ -646,6 +701,15 @@ def _adapt_worksheets(qlik_visuals: List[Dict]) -> List[Dict]:
                     'label': m_label,
                     'expression': m_expr,
                 })
+
+        # Infer a sensible visual type for 'auto-chart' / unmapped types
+        # from the dimension × measure shape instead of always defaulting
+        # to a bar chart.
+        if _needs_inference:
+            pbi_type = _infer_visual_type_from_shape(dimensions, measures, name)
+            if qlik_type and qlik_type != 'auto-chart':
+                logger.warning("Unmapped Qlik chart type '%s' → inferred '%s' from data shape",
+                               qlik_type, pbi_type)
 
         # Build fields list (combined dims + measures for the legacy path)
         fields = []

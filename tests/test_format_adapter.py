@@ -474,10 +474,19 @@ class TestWorksheetAdaptation:
         assert 'measure' in roles
 
     def test_unknown_chart_type_defaults_to_bar(self):
-        """Unknown Qlik chart type should default with a warning."""
+        """Unknown Qlik chart type with 1 dim + 1 measure infers a bar chart.
+
+        Unmapped types are now inferred from the dim × measure shape rather
+        than blindly defaulting to a bar chart (roadmap #4). A single-dimension,
+        single-measure widget still resolves to clusteredBarChart.
+        """
         data = {
             'datasources': [], 'dimensions': [], 'measures': [],
-            'visualizations': [{'type': 'unknownWidget', 'title': 'Mystery'}],
+            'visualizations': [{
+                'type': 'unknownWidget', 'title': 'Mystery',
+                'dimensions': [{'field': 'Region'}],
+                'measures': [{'name': 'Sales'}],
+            }],
             'sheets': [], 'variables': [], 'loadscript': {},
             'associations': [], 'bookmarks': [], 'master_items': [],
             'app_metadata': {},
@@ -808,3 +817,80 @@ class TestExpressionPassthrough:
         result = adapt_qlik_for_generation(data)
         calc = next(c for c in result['calculations'] if c['name'] == 'Complex')
         assert calc['formula'] == expr
+
+
+# == Auto-chart type inference (roadmap #4) ==========================
+
+from qlik_export.format_adapter import _infer_visual_type_from_shape, _adapt_worksheets
+
+
+class TestInferVisualTypeFromShape:
+    def test_no_fields_is_card(self):
+        assert _infer_visual_type_from_shape([], []) == "card"
+
+    def test_single_measure_is_card(self):
+        assert _infer_visual_type_from_shape([], [{"name": "Sales"}]) == "card"
+
+    def test_two_measures_no_dim_is_scatter(self):
+        assert _infer_visual_type_from_shape([], [{"name": "X"}, {"name": "Y"}]) == "scatterChart"
+
+    def test_one_dim_no_measure_is_table(self):
+        assert _infer_visual_type_from_shape([{"field": "Region"}], []) == "tableEx"
+
+    def test_one_dim_one_measure_is_bar(self):
+        assert _infer_visual_type_from_shape([{"field": "Region"}], [{"name": "Sales"}]) == "clusteredBarChart"
+
+    def test_date_dim_is_line(self):
+        assert _infer_visual_type_from_shape([{"field": "OrderDate"}], [{"name": "Sales"}]) == "lineChart"
+
+    def test_french_date_dim_is_line(self):
+        assert _infer_visual_type_from_shape([{"field": "Annee"}], [{"name": "CA"}]) == "lineChart"
+
+    def test_trend_title_is_line(self):
+        assert _infer_visual_type_from_shape([{"field": "Region"}], [{"name": "S"}], "Sales Trend") == "lineChart"
+
+    def test_one_dim_multi_measure_is_column(self):
+        assert _infer_visual_type_from_shape([{"field": "Region"}], [{"name": "A"}, {"name": "B"}]) == "clusteredColumnChart"
+
+    def test_two_dim_one_measure_is_bar(self):
+        assert _infer_visual_type_from_shape([{"field": "R"}, {"field": "C"}], [{"name": "S"}]) == "clusteredBarChart"
+
+    def test_high_dim_is_table(self):
+        dims = [{"field": "A"}, {"field": "B"}, {"field": "C"}]
+        assert _infer_visual_type_from_shape(dims, [{"name": "S"}]) == "tableEx"
+
+
+class TestAutoChartAdaptation:
+    def test_auto_chart_infers_line_for_date(self):
+        visuals = [{
+            "type": "auto-chart",
+            "title": "Revenue",
+            "dimensions": [{"field": "OrderDate"}],
+            "measures": [{"name": "Revenue", "expression": "Sum(Rev)"}],
+        }]
+        ws = _adapt_worksheets(visuals)
+        assert ws[0]["chart_type"] == "lineChart"
+
+    def test_auto_chart_infers_card_for_single_measure(self):
+        visuals = [{
+            "type": "auto-chart",
+            "title": "Total",
+            "dimensions": [],
+            "measures": [{"name": "Total", "expression": "Sum(X)"}],
+        }]
+        ws = _adapt_worksheets(visuals)
+        assert ws[0]["chart_type"] == "card"
+
+
+class TestWorksheetDictCoercion:
+    def test_dict_field_value_coerced(self):
+        """Binary QVF exports can embed dicts as field values (roadmap #1 fix)."""
+        visuals = [{
+            "type": "barchart",
+            "title": "Chart",
+            "dimensions": [{"field": {"qName": "Region"}}],
+            "measures": [{"name": {"name": "Sales"}, "expression": "Sum(S)"}],
+        }]
+        ws = _adapt_worksheets(visuals)
+        assert ws[0]["dimensions"][0]["field"] == "Region"
+        assert ws[0]["measures"][0]["name"] == "Sales"
