@@ -21,6 +21,8 @@ from qlik_export.qlik_script_converter import (
     QlikScriptMigrator,
     QlikLoadStatement,
     _detect_stacked_load,
+    _clean_load_field_segment,
+    _split_top_level_csv,
 )
 
 
@@ -371,3 +373,55 @@ class TestEdgeCases:
             "LOAD A, B FROM [data.csv] WHERE Year=2024 AND Status='Active';")
         assert stmt.where_clause is not None
         assert "2024" in stmt.where_clause
+
+
+# ═══════════════════════════════════════════════════════════════
+#  _clean_load_field_segment
+# ═══════════════════════════════════════════════════════════════
+
+class TestCleanLoadFieldSegment:
+    def test_strips_inline_comments(self):
+        """Strips inline // comments."""
+        result = _clean_load_field_segment("FieldA, // this is a comment\nFieldB")
+        assert "//" not in result
+        assert "FieldA" in result
+        assert "FieldB" in result
+
+    def test_preserves_url_in_quotes(self):
+        """Preserves URL with // inside quotes."""
+        result = _clean_load_field_segment("'http://example.com' as URL")
+        assert "http://example.com" in result
+
+    def test_strips_trailing_table_label(self):
+        """Strips trailing [TableLabel]: at end of field segment."""
+        result = _clean_load_field_segment("FieldA, FieldB; [MyTable]:")
+        assert "MyTable" not in result
+        assert "FieldA" in result
+
+    def test_strips_block_comments(self):
+        """Strips block comments /* ... */."""
+        result = _clean_load_field_segment("FieldA, /* block comment */ FieldB")
+        assert "block comment" not in result
+        assert "FieldA" in result
+        assert "FieldB" in result
+
+
+# ═══════════════════════════════════════════════════════════════
+#  _split_top_level_csv
+# ═══════════════════════════════════════════════════════════════
+
+class TestSplitTopLevelCsv:
+    def test_simple_csv(self):
+        """Simple 'A, B, C' → ['A', 'B', 'C']."""
+        result = _split_top_level_csv("A, B, C")
+        assert result == ["A", "B", "C"]
+
+    def test_nested_parens(self):
+        """Nested parens 'Func(A, B), C' → ['Func(A, B)', 'C']."""
+        result = _split_top_level_csv("Func(A, B), C")
+        assert result == ["Func(A, B)", "C"]
+
+    def test_quoted_strings(self):
+        """Quoted strings \"'A,B', C\" → [\"'A,B'\", 'C']."""
+        result = _split_top_level_csv("'A,B', C")
+        assert result == ["'A,B'", "C"]

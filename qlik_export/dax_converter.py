@@ -786,7 +786,7 @@ def _parse_set_modifiers(set_expr: str, table_name: str = "") -> List[str]:
             i = j
 
     # Process standard modifiers (skip fields already handled by ext_pattern)
-    ext_fields = {m.group(1) for m in ext_pattern.finditer(expr)}
+    ext_fields = {_normalize_field_name(m.group(1)) for m in ext_pattern.finditer(expr)}
     for field, values_str in _iter_braced_modifiers(expr):
         if field in ext_fields:
             continue

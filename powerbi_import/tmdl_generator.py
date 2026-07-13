@@ -1060,12 +1060,13 @@ def _materialize_measure_referenced_columns(model):
     for table in tables:
         tname = table.get("name", "")
         col_names = {c.get("name", "") for c in table.get("columns", [])}
+        # Compile regex once per table (not per measure)
+        pattern = re.compile(r"'" + re.escape(tname) + r"'\[([^\]]+)\]")
         for measure in table.get("measures", []):
             expr = measure.get("expression", "")
             if not expr:
                 continue
             # Find 'TableName'[Column] references targeting this table
-            pattern = re.compile(r"'" + re.escape(tname) + r"'\[([^\]]+)\]")
             for match in pattern.finditer(expr):
                 col_ref = match.group(1)
                 if col_ref not in col_names:
@@ -1096,10 +1097,12 @@ def _downgrade_many_to_many_direction(model):
     relationships = model.get("model", {}).get("relationships", [])
     count = 0
     for rel in relationships:
-        if (rel.get("crossFilteringBehavior") == "bothDirections"
-                and rel.get("cardinality") in ("manyToMany", None)):
-            rel["crossFilteringBehavior"] = "oneDirection"
-            count += 1
+        if rel.get("crossFilteringBehavior") == "bothDirections":
+            if rel.get("cardinality") is None:
+                logger.debug("Relationship %s has no cardinality at Phase 11e", rel.get("name", "?"))
+            if rel.get("cardinality") in ("manyToMany", None):
+                rel["crossFilteringBehavior"] = "oneDirection"
+                count += 1
     return count
 
 

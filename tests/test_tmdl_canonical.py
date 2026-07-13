@@ -23,6 +23,8 @@ from powerbi_import.tmdl_generator import (
     _optimize_cross_filter_direction,
     _validate_relationships,
     _resolve_measure_column_collisions,
+    _materialize_measure_referenced_columns,
+    _downgrade_many_to_many_direction,
 )
 
 
@@ -1315,3 +1317,84 @@ class TestUnifiedEnums:
         assert RelationshipCardinality.MANY_TO_ONE.value == 'ManyToOne'
         assert CrossFilterDirection.SINGLE.value == 'Single'
         assert CrossFilterDirection.BOTH.value == 'Both'
+
+
+# ═══════════════════════════════════════════════════════════════
+#  _materialize_measure_referenced_columns
+# ═══════════════════════════════════════════════════════════════
+
+class TestMaterializeMeasureReferencedColumns:
+    def test_missing_column_gets_materialized_as_hidden(self):
+        """Measure referencing 'Table1'[MissingCol] → column materialized as hidden."""
+        model = {"model": {"tables": [{
+            "name": "Table1",
+            "columns": [{"name": "ExistingCol", "dataType": "String"}],
+            "measures": [{"name": "M1", "expression": "SUM('Table1'[MissingCol])"}],
+        }]}}
+        count = _materialize_measure_referenced_columns(model)
+        assert count == 1
+        col_names = [c["name"] for c in model["model"]["tables"][0]["columns"]]
+        assert "MissingCol" in col_names
+        new_col = [c for c in model["model"]["tables"][0]["columns"] if c["name"] == "MissingCol"][0]
+        assert new_col["isHidden"] is True
+        assert new_col["dataType"] == "String"
+
+    def test_existing_column_not_duplicated(self):
+        """Measure referencing existing column → no extra column added."""
+        model = {"model": {"tables": [{
+            "name": "Sales",
+            "columns": [{"name": "Amount", "dataType": "Double"}],
+            "measures": [{"name": "Total", "expression": "SUM('Sales'[Amount])"}],
+        }]}}
+        count = _materialize_measure_referenced_columns(model)
+        assert count == 0
+        assert len(model["model"]["tables"][0]["columns"]) == 1
+
+    def test_table_with_no_measures_returns_zero(self):
+        """Table with no measures → returns 0."""
+        model = {"model": {"tables": [{
+            "name": "Dim",
+            "columns": [{"name": "ID", "dataType": "Int64"}],
+            "measures": [],
+        }]}}
+        count = _materialize_measure_referenced_columns(model)
+        assert count == 0
+
+
+# ═══════════════════════════════════════════════════════════════
+#  _downgrade_many_to_many_direction
+# ═══════════════════════════════════════════════════════════════
+
+class TestDowngradeManyToManyDirection:
+    def test_both_directions_many_to_many_becomes_one_direction(self):
+        """bothDirections + manyToMany → becomes oneDirection."""
+        model = {"model": {"relationships": [{
+            "name": "R1",
+            "crossFilteringBehavior": "bothDirections",
+            "cardinality": "manyToMany",
+        }]}}
+        count = _downgrade_many_to_many_direction(model)
+        assert count == 1
+        assert model["model"]["relationships"][0]["crossFilteringBehavior"] == "oneDirection"
+
+    def test_both_directions_many_to_one_stays(self):
+        """bothDirections + manyToOne → stays bothDirections (not downgraded)."""
+        model = {"model": {"relationships": [{
+            "name": "R2",
+            "crossFilteringBehavior": "bothDirections",
+            "cardinality": "manyToOne",
+        }]}}
+        count = _downgrade_many_to_many_direction(model)
+        assert count == 0
+        assert model["model"]["relationships"][0]["crossFilteringBehavior"] == "bothDirections"
+
+    def test_one_direction_many_to_many_stays(self):
+        """oneDirection + manyToMany → stays oneDirection."""
+        model = {"model": {"relationships": [{
+            "name": "R3",
+            "crossFilteringBehavior": "oneDirection",
+            "cardinality": "manyToMany",
+        }]}}
+        count = _downgrade_many_to_many_direction(model)
+        assert count == 0
+        assert model["model"]["relationships"][0]["crossFilteringBehavior"] == "oneDirection"

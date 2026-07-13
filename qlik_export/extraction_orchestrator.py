@@ -308,7 +308,11 @@ class ExtractionOrchestrator:
                         data = zlib.decompress(raw_bytes[idx:], 31)
                     else:
                         data = zlib.decompress(raw_bytes[idx:])
-                except zlib.error:
+                except (zlib.error, OverflowError, MemoryError):
+                    continue
+
+                # Guard against decompression bombs (max 256 MB)
+                if len(data) > 256 * 1024 * 1024:
                     continue
 
                 text = data.decode("utf-8", errors="ignore").rstrip("\x00").strip()

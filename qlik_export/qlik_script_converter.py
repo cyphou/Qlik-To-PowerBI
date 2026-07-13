@@ -58,8 +58,17 @@ def _clean_load_field_segment(fields_str: str) -> str:
     """Remove Qlik comments and trailing SQL clauses from LOAD field text."""
     cleaned_lines: List[str] = []
     for line in fields_str.splitlines():
-        if '//' in line:
-            line = line.split('//', 1)[0]
+        # Strip // comments but respect quoted strings (e.g. URLs)
+        in_sq = False
+        in_dq = False
+        for ci, ch in enumerate(line):
+            if ch == "'" and not in_dq:
+                in_sq = not in_sq
+            elif ch == '"' and not in_sq:
+                in_dq = not in_dq
+            elif ch == '/' and ci + 1 < len(line) and line[ci + 1] == '/' and not in_sq and not in_dq:
+                line = line[:ci]
+                break
         cleaned_lines.append(line)
     cleaned = '\n'.join(cleaned_lines)
     cleaned = re.sub(r'/\*.*?\*/', ' ', cleaned, flags=re.DOTALL)
