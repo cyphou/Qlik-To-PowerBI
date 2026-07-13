@@ -981,3 +981,38 @@ class TestMasterItemFieldRefFiltering:
         ]
         calcs = _adapt_calculations([], [], master_items)
         assert any(c["name"] == "Year" and "Year(" in c["formula"] for c in calcs)
+
+
+# == Expression-variable promotion (fidelity) ========================
+
+class TestExpressionVariablePromotion:
+    def _run(self, variables):
+        data = {
+            'datasources': [], 'dimensions': [], 'measures': [],
+            'visualizations': [], 'sheets': [], 'variables': variables,
+            'loadscript': {}, 'associations': [], 'bookmarks': [],
+            'master_items': [], 'app_metadata': {},
+        }
+        return adapt_qlik_for_generation(data)
+
+    def test_eq_expression_var_promoted_to_measure(self):
+        """A '=expr' variable becomes a measure with the '=' stripped."""
+        result = self._run([{'name': 'vToday', 'definition': '=date(today())'}])
+        calcs = {c['name']: c for c in result['calculations']}
+        assert 'vToday' in calcs
+        assert calcs['vToday']['role'] == 'measure'
+        assert calcs['vToday']['formula'] == 'date(today())'  # '=' stripped
+
+    def test_constant_var_stays_parameter(self):
+        """A plain constant variable is NOT promoted to a measure."""
+        result = self._run([{'name': 'vFlag', 'definition': '0'}])
+        calc_names = {c['name'] for c in result['calculations']}
+        assert 'vFlag' not in calc_names
+        param_names = {p['name'] for p in result['parameters']}
+        assert 'vFlag' in param_names
+
+    def test_agg_var_still_promoted(self):
+        """Aggregation variables remain promoted (existing behavior)."""
+        result = self._run([{'name': 'vSales', 'definition': 'Sum(Sales)'}])
+        calc_names = {c['name'] for c in result['calculations']}
+        assert 'vSales' in calc_names

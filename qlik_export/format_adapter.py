@@ -214,22 +214,27 @@ def adapt_qlik_for_generation(qlik_data: Dict[str, Any]) -> Dict[str, Any]:
     if theme_colors and dashboards:
         dashboards[0].setdefault('theme', {})['colors'] = theme_colors
 
-    # 3.2 — Promote variables that contain aggregation expressions to measures
+    # 3.2 — Promote variables that hold expressions to measures.
+    # Two signals mark an expression variable (vs a constant parameter):
+    #   * a leading '=' (Qlik dynamic-expression syntax), or
+    #   * an aggregation function call.
     _AGG_PATTERN = re.compile(
-        r'\b(Sum|Avg|Count|Min|Max|Median|Stdev|Only|CountDistinct)\s*\(',
+        r'\b(Sum|Avg|Count|Min|Max|Median|Stdev|Only|CountDistinct|'
+        r'Date|Now|Today|Year|Month|Day|If|Only|Concat|Aggr)\s*\(',
         re.IGNORECASE,
     )
     promoted: list[Dict] = []
     remaining_params: list[Dict] = []
     for p in parameters:
         val = p.get('value', '')
-        if val and _AGG_PATTERN.search(val):
+        is_expr_var = isinstance(val, str) and val.strip().startswith('=')
+        if val and (is_expr_var or _AGG_PATTERN.search(val)):
             calc_name = _first_non_empty(p.get('name'), p.get('caption'))
             calc_caption = _first_non_empty(p.get('caption'), p.get('displayName'), calc_name)
             promoted.append({
                 'name': calc_name,
                 'caption': calc_caption,
-                'formula': val,
+                'formula': _strip_leading_eq(val),
                 'role': 'measure',
                 'datatype': 'double',
                 'original_type': 'qlik_variable_measure',
