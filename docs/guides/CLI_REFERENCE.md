@@ -28,6 +28,7 @@ python migrate.py sales.qvf --skip-extraction
 ```bash
 python migrate.py --batch exports/
 python migrate.py --batch exports/ --workers 4 --resume
+python migrate.py --batch exports/ --batch-recursive --workers 4
 ```
 
 ### Batch migration from config file
@@ -115,6 +116,7 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 - `--quiet`, `-q`
 - `--log-file`
 - `--batch`
+- `--batch-recursive`
 - `--dry-run`
 - `--calendar-start`
 - `--calendar-end`
@@ -226,6 +228,8 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 - `--repair-strategies`
 - `--cutover-plan`
 - `--full-lineage`
+- `--data-prep-lineage`
+- `--no-data-prep-lineage`
 - `--pdf-report`
 - `--pptx-report`
 - `--package`
@@ -237,6 +241,7 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 ## Notes
 
 - Use `python migrate.py --help` for the live, authoritative help text.
+- `--batch` scans one folder by default; add `--batch-recursive` to collect `.json`, `.qvf`, and `.qvw` files from nested subfolders with stem-level de-duplication.
 - `--batch-config` and `--migration-manifest` are mutually exclusive execution paths and are evaluated before standard single-file processing.
 - `--server-test` runs diagnostics and exits without executing migration generation.
 - `scripts/build_wave_manifests.py` generates manifest files from portfolio templates; it is intended as a pre-step before `--migration-manifest` runs.

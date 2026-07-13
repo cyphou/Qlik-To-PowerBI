@@ -91,6 +91,7 @@ For the complete and up-to-date list of supported flags, see
 | `--dry-run` | Show what would be done without executing |
 | `--verbose` | Enable detailed logging |
 | `--batch-config FILE` | Run batch migration from JSON config entries |
+| `--batch-recursive` | Recursively scan subfolders when used with `--batch` |
 | `--migration-manifest FILE` | Run profile-based multi-app orchestration |
 | `--profile NAME` | Optional profile override (orchestrator use) |
 | `--server-test` | Run Qlik connectivity/TLS/auth diagnostics and exit |
@@ -153,6 +154,9 @@ The generation phase produces a complete PBIP project:
 - Data bindings linking visuals to model columns
 - Bookmarks with filter state
 - Background images on pages
+- Comparison reports can include a separate Data Preparation Lineage section that tracks Bronze/Silver/Gold/Mart flows, purpose, complexity, and multi-source operations
+- For JSON-export migrations, the comparison report falls back to the source app JSON when `loadscript.json` is not present in the extracted workspace
+- For nested sample corpora, use `--batch-recursive` so batch discovery includes QVF and JSON exports in subfolders
 
 ---
 

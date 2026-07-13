@@ -170,3 +170,48 @@ def test_build_wave_manifests_make_ready_filters_invalid_qvf(tmp_path: Path):
     assert len(ready_manifest["entries"]) == 1
     assert ready_report["ready_entries"] == 1
     assert any(i["reason"] == "invalid_qvf_not_zip" for i in ready_report["skipped"])
+
+
+def test_build_wave_manifests_normalizes_output_dir_separators(tmp_path: Path):
+    csv_path = tmp_path / "portfolio.csv"
+    out_dir = tmp_path / "manifests"
+
+    with csv_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "app_id",
+                "app_name",
+                "source_path",
+                "target_wave",
+                "profile",
+                "target_workspace",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "app_id": "APP-100",
+                "app_name": "Sales",
+                "source_path": "apps/sales.qvf",
+                "target_wave": "Wave-0",
+                "profile": "strict",
+                "target_workspace": "Wave0-Sales",
+            }
+        )
+
+    cmd = [
+        sys.executable,
+        str(_script_path()),
+        "--input",
+        str(csv_path),
+        "--output-dir",
+        str(out_dir),
+        "--output-root",
+        "output\\waves\\enterprise_wave0\\staging",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    assert result.returncode == 0, result.stderr
+    wave0_manifest = json.loads((out_dir / "wave_Wave-0_manifest.json").read_text(encoding="utf-8"))
+    assert wave0_manifest["entries"][0]["output_dir"] == "output/waves/enterprise_wave0/staging/Wave0-Sales"

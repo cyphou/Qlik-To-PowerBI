@@ -1,0 +1,42 @@
+{
+  "defaults": {
+    "skip_extraction": false,
+    "output_dir": "output/waves/enterprise/staging",
+    "mode": "import",
+    "output_format": "pbip",
+    "paginated": false,
+    "bridge_tables": "none"
+  },
+  "profiles": {
+    "tier_a_fast": {
+      "calendar_start": 2020,
+      "calendar_end": 2030,
+      "culture": "en-US"
+    },
+    "tier_b_standard": {
+      "calendar_start": 2018,
+      "calendar_end": 2032,
+      "culture": "en-US"
+    },
+    "tier_c_strict": {
+      "calendar_start": 2015,
+      "calendar_end": 2035,
+      "culture": "en-US",
+      "paginated": true
+    }
+  },
+  "entries": [
+    {
+      "file": "examples/qlik/sales_small.qvf",
+      "profile": "tier_a_fast"
+    },
+    {
+      "file": "examples/qlik/sales_discovery.qvf",
+      "profile": "tier_b_standard"
+    },
+    {
+      "file": "examples/qlik/sales_quick.qvf",
+      "profile": "tier_c_strict"
+    }
+  ]
+}

@@ -1,0 +1,332 @@
+// ============================================================
+// COMPLEX LINEAGE EXAMPLE: Multi-Layer Data Warehouse
+// Demonstrates: parallel flows, bronze/silver/gold stages,
+//               dimensional modeling, fact tables
+// ============================================================
+
+// ========== CONFIGURATION & VARIABLES ==========
+SET DateFormat='YYYY-MM-DD';
+SET TimestampFormat='YYYY-MM-DD hh:mm:ss';
+LET vStartDate = '2024-01-01';
+LET vEndDate = '2024-12-31';
+
+// ========== SECTION ACCESS (RLS) ==========
+Section Access;
+LOAD *
+INLINE [
+    ACCESS, USERID, REGION
+    ADMIN, ADMIN, *
+    USER, JOHN_SMITH, NORTH
+    USER, JANE_DOE, SOUTH
+];
+SECTION APPLICATION;
+
+// ============================================================
+// LAYER 1: BRONZE LAYER (Raw Data Ingestion)
+// ============================================================
+
+// ========== Raw Sales Transactions ==========
+RawSales:
+LOAD
+    OrderID,
+    OrderDate,
+    CustomerID,
+    ProductID,
+    Quantity,
+    UnitPrice,
+    SalesAmount,
+    RegionCode,
+    StoreID
+FROM [data/sources/sales_transactions.csv]
+(txt, codepage is 1252, embedded labels, delimiter is ',', msq);
+
+// ========== Raw Customer Master Data ==========
+RawCustomers:
+LOAD
+    CustomerID,
+    CustomerName,
+    Email,
+    Phone,
+    RegistrationDate,
+    CustomerSegment,
+    CreditLimit
+FROM [data/sources/customers.xlsx]
+(ooxml, embedded labels, table is Sheet1);
+
+// ========== Raw Products Catalog ==========
+RawProducts:
+SQL SELECT 
+    ProductID,
+    ProductName,
+    CategoryID,
+    CategoryName,
+    SubCategoryID,
+    SubCategoryName,
+    UnitCost,
+    ListPrice,
+    SupplierID
+FROM [ProductCatalog].[dbo].[Products] p
+LEFT JOIN [ProductCatalog].[dbo].[Categories] c ON p.CategoryID = c.CategoryID
+LEFT JOIN [ProductCatalog].[dbo].[SubCategories] sc ON p.SubCategoryID = sc.SubCategoryID;
+
+// ========== Raw Supplier Data ==========
+RawSuppliers:
+LOAD
+    SupplierID,
+    SupplierName,
+    Country,
+    PaymentTerms,
+    LeadTime
+FROM [data/sources/suppliers.xlsx]
+(ooxml, embedded labels, table is Suppliers);
+
+// ========== Raw Store Locations ==========
+StoreLocations:
+LOAD
+    StoreID,
+    StoreName,
+    RegionCode,
+    RegionName,
+    CountryCode,
+    CityName,
+    OpenDate,
+    ManagerID
+FROM [data/sources/store_locations.csv]
+(txt, codepage is 1252, embedded labels, delimiter is ',', msq);
+
+// ========== Calendar Dimension (Generated) ==========
+Calendar:
+AUTOGENERATE
+    (YEAREND(TODAY()) - YEARSTART(2020) + 1)
+RESIDENT RawSales UNTIL [OrderDate] >= TODAY();
+
+// ============================================================
+// LAYER 2: SILVER LAYER (Cleaned & Standardized)
+// ============================================================
+
+// ========== Cleaned Sales Facts ==========
+SalesFacts:
+LOAD
+    OrderID & '-' & CustomerID & '-' & ProductID as SalesKey,
+    OrderID,
+    DATE(OrderDate) as OrderDate,
+    CustomerID,
+    ProductID,
+    StoreID,
+    TRIM(RegionCode) as RegionCode,
+    Quantity,
+    UnitPrice,
+    SalesAmount,
+    SalesAmount * (1 + IF(Quantity > 100, 0.05, 0)) as AdjustedSalesAmount
+RESIDENT RawSales
+WHERE OrderDate >= '$(vStartDate)' AND OrderDate <= '$(vEndDate)';
+
+// ========== Deduplicated Customers ==========
+Customers:
+LOAD DISTINCT
+    CustomerID,
+    TRIM(CustomerName) as CustomerName,
+    LOWER(TRIM(Email)) as Email,
+    TRIM(Phone) as Phone,
+    DATE(RegistrationDate) as RegistrationDate,
+    TRIM(CustomerSegment) as CustomerSegment,
+    CreditLimit
+RESIDENT RawCustomers;
+
+// ========== Product Standardization ==========
+Products:
+LOAD
+    ProductID,
+    TRIM(ProductName) as ProductName,
+    TRIM(CategoryName) as Category,
+    TRIM(SubCategoryName) as SubCategory,
+    UnitCost,
+    ListPrice,
+    ListPrice - UnitCost as GrossMargin,
+    ROUND((ListPrice - UnitCost) / ListPrice * 100, 2) as MarginPercent,
+    SupplierID
+RESIDENT RawProducts;
+
+// ========== Supplier Enrichment ==========
+Suppliers:
+LOAD
+    SupplierID,
+    TRIM(SupplierName) as SupplierName,
+    TRIM(Country) as SupplierCountry,
+    TRIM(PaymentTerms) as PaymentTerms,
+    LeadTime
+RESIDENT RawSuppliers;
+
+// ========== Store Enrichment ==========
+Stores:
+LOAD
+    StoreID,
+    TRIM(StoreName) as StoreName,
+    TRIM(RegionCode) as RegionCode,
+    TRIM(RegionName) as RegionName,
+    TRIM(CountryCode) as CountryCode,
+    TRIM(CityName) as CityName,
+    DATE(OpenDate) as StoreOpenDate,
+    ManagerID
+RESIDENT StoreLocations;
+
+// ============================================================
+// LAYER 3: GOLD LAYER (Business Aggregations & KPIs)
+// ============================================================
+
+// ========== Monthly Sales Summary ==========
+MonthlySummary:
+LOAD
+    YEAR(OrderDate) & '-' & MONTH(OrderDate) as YearMonth,
+    YEAR(OrderDate) as Year,
+    MONTH(OrderDate) as Month,
+    RegionCode,
+    SUM(SalesAmount) as TotalSales,
+    SUM(Quantity) as TotalQuantity,
+    COUNT(DISTINCT OrderID) as OrderCount,
+    COUNT(DISTINCT CustomerID) as CustomerCount,
+    AVG(SalesAmount) as AvgOrderValue
+RESIDENT SalesFacts
+GROUP BY 
+    YEAR(OrderDate),
+    MONTH(OrderDate),
+    RegionCode;
+
+// ========== Customer Cohort Analysis ==========
+CustomerMetrics:
+LOAD
+    CustomerID,
+    CustomerSegment,
+    MIN(OrderDate) as FirstOrderDate,
+    MAX(OrderDate) as LastOrderDate,
+    COUNT(DISTINCT OrderID) as TotalOrders,
+    SUM(SalesAmount) as LifetimeSalesValue,
+    AVG(SalesAmount) as AvgOrderValue,
+    COUNT(DISTINCT MONTH(OrderDate)) as MonthsActive,
+    IF(MONTH(TODAY()) - MONTH(MAX(OrderDate)) > 3, 'Churned', 'Active') as CustomerStatus
+RESIDENT SalesFacts
+GROUP BY CustomerID, CustomerSegment;
+
+// ========== Product Performance ==========
+ProductMetrics:
+LOAD
+    ProductID,
+    ProductName,
+    Category,
+    SubCategory,
+    SUM(SalesAmount) as TotalRevenue,
+    SUM(Quantity) as TotalQtySold,
+    COUNT(DISTINCT OrderID) as OrdersContaining,
+    COUNT(DISTINCT CustomerID) as UniqueBuyers,
+    ListPrice,
+    ListPrice * SUM(Quantity) as PotentialRevenue,
+    ROUND((SUM(SalesAmount) / (ListPrice * SUM(Quantity)) * 100), 2) as AvgDiscountPercent
+RESIDENT SalesFacts
+LEFT JOIN (Products) LOAD ProductID, ProductName, Category, SubCategory, ListPrice
+GROUP BY ProductID, ProductName, Category, SubCategory, ListPrice;
+
+// ========== Regional Performance Analysis ==========
+RegionalAnalysis:
+LOAD
+    RegionCode,
+    RegionName,
+    SUM(SalesAmount) as RegionalSales,
+    SUM(Quantity) as RegionalVolume,
+    COUNT(DISTINCT CustomerID) as RegionalCustomers,
+    COUNT(DISTINCT StoreID) as StoreCount,
+    ROUND(SUM(SalesAmount) / COUNT(DISTINCT StoreID), 2) as SalesPerStore
+RESIDENT SalesFacts
+LEFT JOIN (Stores) LOAD RegionCode, RegionName, StoreID
+GROUP BY RegionCode, RegionName;
+
+// ============================================================
+// LAYER 4: MART LAYER (Dimensional Star Schema)
+// ============================================================
+
+// ========== Fact Table: Sales ==========
+FactSales:
+CONCATENATE (SalesFacts)
+LOAD
+    SalesKey,
+    OrderID,
+    OrderDate,
+    CustomerID,
+    ProductID,
+    StoreID,
+    RegionCode,
+    Quantity,
+    UnitPrice,
+    SalesAmount,
+    AdjustedSalesAmount,
+    'ACTUAL' as RecordType
+RESIDENT SalesFacts;
+
+// ========== Fact Table: Budget (Static Load) ==========
+BudgetFacts:
+LOAD
+    YEAR(BudgetDate) * 10000 + MONTH(BudgetDate) as MonthKey,
+    RegionCode,
+    SUM(BudgetAmount) as BudgetSales,
+    'BUDGET' as RecordType
+FROM [data/sources/budget.csv]
+(txt, codepage is 1252, embedded labels, delimiter is ',', msq)
+GROUP BY YEAR(BudgetDate), MONTH(BudgetDate), RegionCode;
+
+// ========== Fact Table: Targets ==========
+TargetFacts:
+LOAD
+    CustomerID,
+    YEAR(TargetDate) as TargetYear,
+    SUM(TargetAmount) as TargetRevenue,
+    'TARGET' as RecordType
+FROM [data/sources/targets.xlsx]
+(ooxml, embedded labels, table is Targets)
+GROUP BY CustomerID, YEAR(TargetDate);
+
+// ========== Consolidated Fact Table ==========
+ConsolidatedFacts:
+LOAD
+    SalesKey,
+    OrderID,
+    OrderDate,
+    CustomerID,
+    ProductID,
+    StoreID,
+    RegionCode,
+    Quantity,
+    UnitPrice,
+    SalesAmount,
+    AdjustedSalesAmount,
+    RecordType
+RESIDENT FactSales
+UNION
+SELECT
+    NULL as SalesKey,
+    NULL as OrderID,
+    NULL as OrderDate,
+    NULL as CustomerID,
+    NULL as ProductID,
+    NULL as StoreID,
+    RegionCode,
+    NULL as Quantity,
+    NULL as UnitPrice,
+    BudgetSales as SalesAmount,
+    BudgetSales as AdjustedSalesAmount,
+    RecordType
+RESIDENT BudgetFacts;
+
+// ============================================================
+// EXPORT & STORAGE
+// ============================================================
+
+// Store processed data for incremental loads
+STORE FactSales INTO [data/warehouse/fact_sales.qvd];
+STORE ConsolidatedFacts INTO [data/warehouse/consolidated_facts.qvd];
+STORE MonthlySummary INTO [data/warehouse/monthly_summary.qvd];
+STORE CustomerMetrics INTO [data/warehouse/customer_metrics.qvd];
+STORE ProductMetrics INTO [data/warehouse/product_metrics.qvd];
+
+// Drop intermediate tables to save memory
+DROP TABLE RawSales, RawCustomers, RawProducts, RawSuppliers, StoreLocations;
+DROP TABLE FactSales;
+

@@ -269,6 +269,7 @@ extraction_report.json          # QVF parse summary
   - tables (count, columns)
   - measures, dimensions, sheets
   - variables, bookmarks, master items
+  - loadscript.json for Qlik script analysis and data prep lineage
   - extraction duration (seconds)
 
 11_json_files/ (intermediate)
@@ -284,6 +285,9 @@ extraction_report.json          # QVF parse summary
   ├─ bookmarks.json
   └─ master_items.json
 ```
+
+`loadscript.json` is the source used by the comparison report to generate the Data Preparation Lineage section. If it is missing, JSON-export migrations can still recover lineage from the source app JSON `script` field.
+For large nested sample corpora, run `migrate.py --batch <root> --batch-recursive` so the collector finds every supported export below the root directory.
 
 ### 6.2 Generation Artifacts
 

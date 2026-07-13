@@ -1,20 +1,24 @@
 [
   {
-    "id": "dim-001",
-    "name": "Client",
-    "field": "CustomerName",
-    "label": "Nom du Client",
+    "id": "VTO_DT_JOUR",
+    "name": "VTO_DT_JOUR",
+    "field": "VTO_DT_JOUR",
+    "label": "VTO_DT_JOUR",
     "description": "",
     "grouping": "single",
-    "fields": []
+    "fields": [
+      "VTO_DT_JOUR"
+    ]
   },
   {
-    "id": "dim-002",
-    "name": "Produit",
-    "field": "ProductName",
-    "label": "Nom du Produit",
+    "id": "Numero",
+    "name": "Numero",
+    "field": "Numero",
+    "label": "Numero",
     "description": "",
     "grouping": "single",
-    "fields": []
+    "fields": [
+      "Numero"
+    ]
   }
 ]

@@ -9,7 +9,7 @@ import unittest
 # Ensure project root is on sys.path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from migrate import _build_lineage_calc_map
+from migrate import _build_calc_map_from_tmdl, _build_lineage_calc_map
 
 
 class TestBuildCalcMapFromTmdl(unittest.TestCase):
@@ -77,6 +77,24 @@ class TestBuildCalcMapFromTmdl(unittest.TestCase):
 
             result = _build_lineage_calc_map(app, td)
             self.assertEqual(result, {})
+
+    def test_measure_rename_aliases_original_name(self):
+        with tempfile.TemporaryDirectory() as td:
+            app = "TestApp"
+            tables_dir = os.path.join(td, app, f"{app}.SemanticModel",
+                                      "definition", "tables")
+            os.makedirs(tables_dir)
+            with open(os.path.join(tables_dir, "Sales.tmdl"), "w", encoding="utf-8") as f:
+                f.write("table Sales\n")
+                f.write("\tmeasure 'Total Revenue' = SUM('Sales'[Revenue])\n")
+
+            result = _build_calc_map_from_tmdl(
+                app,
+                td,
+                {"Revenue": "Total Revenue"},
+            )
+            self.assertEqual(result["Total Revenue"], "SUM('Sales'[Revenue])")
+            self.assertEqual(result["Revenue"], "SUM('Sales'[Revenue])")
 
 
 class TestNewCLIFlags(unittest.TestCase):

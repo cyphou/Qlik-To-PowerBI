@@ -1,10 +1,10 @@
 {
-  "name": "Application Ventes Exemple",
-  "description": "Application de démonstration pour la migration",
-  "author": "Migration Tool",
+  "name": "1_QUALITE_FEI_EIG_EXTR",
+  "description": "FEI",
+  "author": "",
   "created_date": "",
-  "modified_date": "",
-  "source_file": "C:\\GitHub Project\\QlikToPowerBI\\artifacts\\manifests\\repo_ready\\..\\..\\..\\output\\test_results\\test_files\\sample_sales.qvf",
-  "extracted_at": "2026-06-26T15:52:52.922092",
+  "modified_date": "2026-07-08T06:32:43.836Z",
+  "source_file": "c:\\QlikToPowerBI\\1_QUALITE_FEI_EIG_EXTR.qvf",
+  "extracted_at": "2026-07-13T15:53:41.520526",
   "qlik_app_id": ""
 }

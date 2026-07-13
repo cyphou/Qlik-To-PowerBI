@@ -1,0 +1,4 @@
+app_id,app_name,source_path,business_owner,criticality,data_volume_tier,complexity_tier,set_analysis_depth,inter_record_functions,custom_extensions,section_access_complexity,target_workspace,target_wave,profile,planned_start,planned_end,status,fidelity_target,notes
+W2-001,Sales Discovery Scale,examples/qlik/test_samples/small/small_sales.json,analytics@company.com,medium,S,B,low,false,false,low,Wave2-Sales,Wave-2,fast,2026-07-13,2026-07-14,planned,90,Wave 2 fast-lane throughput app
+W2-002,HR Analytics Scale,examples/qlik/test_samples/medium/medium_hr_analytics.json,hr-bi@company.com,high,M,B,medium,true,false,medium,Wave2-HR,Wave-2,strict,2026-07-14,2026-07-16,planned,92,Wave 2 strict profile quality gate benchmark
+W2-003,Enterprise Sales Scale,examples/qlik/test_samples/large/large_enterprise_sales.json,sales-ops@company.com,high,L,C,high,true,true,high,Wave2-Enterprise,Wave-2,regulated,2026-07-15,2026-07-17,planned,95,Wave 2 regulated cutover readiness app

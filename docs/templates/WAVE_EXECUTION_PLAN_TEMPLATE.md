@@ -22,6 +22,7 @@
 - [ ] Manifest and profiles reviewed
 - [ ] Server diagnostics completed (`--server-test`)
 - [ ] Dependencies and connectors validated
+- [ ] RLS audit scope identified for `strict` and `regulated` apps
 
 ## Execution Commands
 
@@ -40,8 +41,14 @@ python migrate.py --migration-manifest path/to/wave_manifest.json
 - [ ] Cross-validation (`--cross-validate`)
 - [ ] QA pipeline (`--qa`)
 - [ ] Security extract reviewed
+- [ ] RLS audit sign-off completed for required apps
 - [ ] Fidelity threshold met
 - [ ] Business owner sign-off
+
+RLS workflow references:
+
+- [RLS Audit Workflow](../guides/RLS_AUDIT_WORKFLOW.md)
+- [RLS Audit Sign-Off Template](RLS_AUDIT_SIGNOFF_TEMPLATE.md)
 
 ## Exit Criteria
 
@@ -49,6 +56,7 @@ python migrate.py --migration-manifest path/to/wave_manifest.json
 - [ ] Deployment logs archived
 - [ ] Wave summary report published
 - [ ] Rollback validation completed
+- [ ] RLS sign-off records archived for strict and regulated apps
 
 ## Risks and Mitigations
 

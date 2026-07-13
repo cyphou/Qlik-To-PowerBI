@@ -149,7 +149,7 @@ class TestCLIParsing:
         cmd = [sys.executable, str(_project_root / "migrate.py")] + list(args)
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=timeout,
-            cwd=str(_project_root),
+            cwd=str(_project_root), encoding='utf-8', errors='replace',
         )
         return result.returncode, result.stdout, result.stderr
 
@@ -196,6 +196,10 @@ class TestCLIParsing:
     def test_assess_flag_accepted(self):
         rc, stdout, stderr = self._run_cli("--help")
         assert "--assess" in stdout
+
+    def test_gate_flag_accepted(self):
+        rc, stdout, stderr = self._run_cli("--help")
+        assert "--gate" in stdout
 
 
 # ── Argument handling via main() with mocks ──────────────────────────
@@ -258,6 +262,54 @@ class TestMainWithMocks:
             # Check output_dir was passed to run_generation
             call_kwargs = mock_gen.call_args
             assert call_kwargs[1].get('output_dir') == out or call_kwargs.kwargs.get('output_dir') == out
+
+    def test_prod_gate_blocks_without_force(self, fake_qvf):
+        """A failing prod gate should block completion by default."""
+        with patch('migrate.run_extraction', return_value=True), \
+             patch('migrate.run_generation', return_value=True), \
+             patch('migrate.run_migration_report', return_value={'fidelity_score': 70}), \
+             patch('migrate._evaluate_quality_gate', return_value={
+                 'passed': False,
+                 'blocked_reasons': ['Fidelity too low'],
+                 'warnings': [],
+                 'report_json': None,
+             }):
+            test_args = ['migrate.py', fake_qvf, '--gate', 'prod']
+            with patch('sys.argv', test_args):
+                result = main()
+            assert result == ExitCode.GENERAL_ERROR
+
+    def test_prod_gate_can_be_overridden(self, fake_qvf):
+        """--force-deployment allows continuation when gate fails."""
+        with patch('migrate.run_extraction', return_value=True), \
+             patch('migrate.run_generation', return_value=True), \
+             patch('migrate.run_migration_report', return_value={'fidelity_score': 70}), \
+             patch('migrate._evaluate_quality_gate', return_value={
+                 'passed': False,
+                 'blocked_reasons': ['Fidelity too low'],
+                 'warnings': [],
+                 'report_json': None,
+             }):
+            test_args = ['migrate.py', fake_qvf, '--gate', 'prod', '--force-deployment']
+            with patch('sys.argv', test_args):
+                result = main()
+            assert result == ExitCode.SUCCESS
+
+    def test_test_gate_blocks_without_force(self, fake_qvf):
+        """A failing test gate should now block completion by default."""
+        with patch('migrate.run_extraction', return_value=True), \
+             patch('migrate.run_generation', return_value=True), \
+             patch('migrate.run_migration_report', return_value={'fidelity_score': 70}), \
+             patch('migrate._evaluate_quality_gate', return_value={
+                 'passed': False,
+                 'blocked_reasons': ['Fidelity too low'],
+                 'warnings': [],
+                 'report_json': None,
+             }):
+            test_args = ['migrate.py', fake_qvf, '--gate', 'test']
+            with patch('sys.argv', test_args):
+                result = main()
+            assert result == ExitCode.GENERAL_ERROR
 
 
 class TestQvwResolution:
@@ -529,3 +581,23 @@ class TestBatchParallel:
             capture_output=True, text=True, timeout=30,
         )
         assert '--workers' in result.stdout
+
+    def test_parallel_batch_gate_uses_artifact_metrics(self, tmp_dir):
+        qvf = tmp_dir / "app1.qvf"
+        qvf.write_bytes(b"PK\x03\x04fake_qvf_content")
+
+        with patch('migrate.run_extraction', return_value=True), \
+             patch('migrate.run_generation', return_value=True), \
+             patch('migrate.run_migration_report', return_value={'fidelity_score': 95}), \
+             patch('migrate.export_security_csv', return_value={'path': 'security.csv'}), \
+             patch('migrate._inventory_images_if_extracted', return_value={'row_count': 3}), \
+             patch('migrate._inventory_power_queries_if_extracted', return_value={'query_files': 4}), \
+             patch('migrate._evaluate_quality_gate', return_value={'passed': True}) as gate_mock:
+            result = migrate.run_batch_migration(str(tmp_dir), workers=2, gate='test')
+
+        assert result == ExitCode.SUCCESS
+        assert gate_mock.called
+        kwargs = gate_mock.call_args.kwargs
+        assert kwargs['extra_metrics']['rls_audit_passed'] is True
+        assert kwargs['extra_metrics']['image_count'] == 3
+        assert kwargs['extra_metrics']['m_query_count'] == 4

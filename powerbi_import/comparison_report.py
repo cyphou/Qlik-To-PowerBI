@@ -20,6 +20,7 @@ import os
 import html as html_mod
 import argparse
 import glob
+import logging
 
 
 # ────────────────────────────────────────────────────────
@@ -264,7 +265,13 @@ def _esc(text):
     return html_mod.escape(str(text)) if text else ''
 
 
-def generate_comparison_report(extract_dir, pbip_dir, output_path=None):
+def generate_comparison_report(
+    extract_dir,
+    pbip_dir,
+    output_path=None,
+    include_lineage=True,
+    source_app_path=None,
+):
     """Generate an HTML comparison report.
 
     Args:
@@ -272,6 +279,9 @@ def generate_comparison_report(extract_dir, pbip_dir, output_path=None):
         pbip_dir: Path to the generated .pbip project directory.
         output_path: Output HTML file path (default: comparison_report.html
                      in the pbip directory's parent).
+        include_lineage: Whether to include lineage visualization (default: True).
+        source_app_path: Optional path to the source app file (.json/.qvf/.qlik)
+            to recover script lineage when extract_dir does not contain loadscript.json.
 
     Returns:
         str: Path to the generated HTML file.
@@ -300,18 +310,31 @@ def generate_comparison_report(extract_dir, pbip_dir, output_path=None):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Migration Comparison Report</title>
 <style>{_CSS}</style>
-</head>
+"""]
+
+    # Add lineage CSS if enabled
+    if include_lineage:
+        try:
+            from powerbi_import.lineage_html_embed import get_lineage_css, get_lineage_javascript
+        except ImportError:
+            from lineage_html_embed import get_lineage_css, get_lineage_javascript
+        parts.append(f'<style>\n{get_lineage_css()}\n</style>')
+        parts.append('</head>')
+    else:
+        parts.append('</head>')
+
+    parts.append("""
 <body>
 <header>
 <h1>Qlik → Power BI — Side-by-Side Comparison</h1>
-<p>Extract: {_esc(extract_dir)} | Project: {_esc(pbip_dir)}</p>
+<p>Extract: """ + _esc(extract_dir) + """ | Project: """ + _esc(pbip_dir) + """</p>
 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
     <span class="theme-icon">&#9790;</span>
     <span class="theme-label">Dark</span>
 </button>
 </header>
 <div class="container">
-"""]
+""")
 
     # Summary cards
     fidelity = migration_report.get('overall_fidelity', 'N/A')
@@ -324,6 +347,158 @@ def generate_comparison_report(extract_dir, pbip_dir, output_path=None):
   <div class="card"><h3>Fidelity</h3><div class="val">{_esc(str(fidelity))}</div></div>
 </div>
 """)
+
+    # Add lineage visualization if enabled
+    if include_lineage:
+        try:
+            from powerbi_import.lineage_html_embed import generate_lineage_embed_html, FullLineageMap
+        except ImportError:
+            from lineage_html_embed import generate_lineage_embed_html, FullLineageMap
+        
+        try:
+            # Try to load existing lineage_map.json from the project output
+            lineage_path = None
+            lineage_data = None
+            
+            # Search for lineage_map.json in various locations
+            import glob as glob_module
+            
+            # Priority 1: Direct sibling in pbip_dir
+            candidate = os.path.join(pbip_dir, 'lineage_map.json')
+            if os.path.exists(candidate):
+                lineage_path = candidate
+            
+            # Priority 2: In pbip_dir parent
+            if not lineage_path:
+                for f in glob_module.glob(os.path.join(os.path.dirname(pbip_dir), '*.json')):
+                    if 'lineage' in os.path.basename(f):
+                        lineage_path = f
+                        break
+            
+            # Priority 3: Recursive search in output directory
+            if not lineage_path:
+                for root, dirs, files in os.walk(os.path.dirname(os.path.dirname(pbip_dir))):
+                    if 'lineage_map.json' in files:
+                        lineage_path = os.path.join(root, 'lineage_map.json')
+                        break
+            
+            if lineage_path and os.path.exists(lineage_path):
+                try:
+                    lineage_data = _load_json(lineage_path)
+                except Exception as e:
+                    lineage_data = None
+            
+            if lineage_data:
+                # Build a FullLineageMap from the saved data
+                lineage = FullLineageMap(app_name=lineage_data.get('app_name', 'Unknown'))
+                
+                # Handle both formats: full_lineage format (nodes/edges) and lineage_map format (entries)
+                if 'nodes' in lineage_data and 'edges' in lineage_data:
+                    # Full lineage format
+                    for node in lineage_data.get('nodes', []):
+                        lineage.add_node(
+                            node.get('id', ''),
+                            node.get('kind', ''),
+                            node.get('label', ''),
+                        )
+                    
+                    for edge in lineage_data.get('edges', []):
+                        lineage.add_edge(
+                            edge.get('source', ''),
+                            edge.get('target', ''),
+                            edge.get('relation', 'transforms_to')
+                        )
+                elif 'entries' in lineage_data:
+                    # lineage_map format - convert entries to nodes/edges
+                    seen_sources = set()
+                    seen_targets = set()
+                    
+                    for entry in lineage_data.get('entries', []):
+                        source_type = entry.get('source_type', '')
+                        source_name = entry.get('source_name', '')
+                        target_type = entry.get('target_type', '')
+                        target_name = entry.get('target_name', '')
+                        
+                        # Create source node if not seen
+                        source_id = f"{source_type}_{source_name}"
+                        if source_id not in seen_sources and source_name:
+                            lineage.add_node(source_id, f'qlik_{source_type}', source_name)
+                            seen_sources.add(source_id)
+                        
+                        # Create target node if not seen
+                        target_id = f"{target_type}_{target_name}"
+                        if target_id not in seen_targets and target_name:
+                            lineage.add_node(target_id, f'pbi_{target_type}', target_name)
+                            seen_targets.add(target_id)
+                        
+                        # Create edge
+                        if source_name and target_name:
+                            lineage.add_edge(source_id, target_id, 'migrated_to')
+                
+                # Generate and add lineage section
+                if lineage.node_count > 0:
+                    lineage_html = generate_lineage_embed_html(lineage, "End-to-End Data Lineage")
+                    parts.append(lineage_html)
+        except Exception as e:
+            # Silently skip lineage on error
+            import traceback
+            pass        
+        # Add data prep lineage if enabled
+        try:
+            from powerbi_import.data_prep_lineage import (
+                build_data_prep_lineage, generate_data_prep_lineage_html,
+                parse_qlik_script_lineage, parse_m_query_lineage
+            )
+        except ImportError:
+            from data_prep_lineage import (
+                build_data_prep_lineage, generate_data_prep_lineage_html,
+                parse_qlik_script_lineage, parse_m_query_lineage
+            )
+        
+        try:
+            data_prep_lineage = None
+            
+            # Try to build data prep lineage from extracted Qlik script
+            loadscript_path = os.path.join(extract_dir, 'loadscript.json')
+            if os.path.exists(loadscript_path):
+                try:
+                    loadscript_data = _load_json(loadscript_path)
+                    script_content = loadscript_data.get('script', '')
+                    if script_content:
+                        data_prep_lineage = parse_qlik_script_lineage(script_content)
+                except Exception as e:
+                    logger.warning(f'Could not parse Qlik script lineage: {e}')
+
+            # Fallback for JSON-input migrations where qlik_export/ does not
+            # contain the current app's loadscript.json.
+            if (not data_prep_lineage or data_prep_lineage.node_count == 0) and source_app_path:
+                try:
+                    src_ext = os.path.splitext(source_app_path)[1].lower()
+                    if src_ext == '.json' and os.path.exists(source_app_path):
+                        source_data = _load_json(source_app_path)
+                        script_content = source_data.get('script', '')
+                        if script_content:
+                            data_prep_lineage = parse_qlik_script_lineage(script_content)
+                except Exception as e:
+                    logger.warning(f'Could not parse source app script lineage: {e}')
+            
+            # If no script lineage, try to build from M queries in PBIP
+            if not data_prep_lineage or data_prep_lineage.node_count == 0:
+                try:
+                    data_prep_lineage = build_data_prep_lineage(extract_dir, pbip_dir)
+                except Exception as e:
+                    logger.warning(f'Could not build data prep lineage: {e}')
+            
+            # Add data prep lineage section if we have data
+            if data_prep_lineage and data_prep_lineage.node_count > 0:
+                data_prep_html = generate_data_prep_lineage_html(
+                    data_prep_lineage,
+                    title='Data Preparation Lineage'
+                )
+                parts.append(data_prep_html)
+        except Exception as e:
+            # Silently skip data prep lineage on error
+            pass
 
     # ── Worksheet comparison ──
     parts.append('<h2>Worksheet → Visual Mapping</h2>')
@@ -390,6 +565,15 @@ def generate_comparison_report(extract_dir, pbip_dir, output_path=None):
         parts.append('</table>')
 
     parts.append(_THEME_JS)
+    
+    # Add lineage JavaScript if enabled
+    if include_lineage:
+        try:
+            from powerbi_import.lineage_html_embed import get_lineage_javascript
+        except ImportError:
+            from lineage_html_embed import get_lineage_javascript
+        parts.append(get_lineage_javascript())
+    
     parts.append('</div></body></html>')
 
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
@@ -413,8 +597,16 @@ def main():
         '--output', '-o', default=None,
         help='Output HTML file path (default: comparison_report.html in pbip parent)'
     )
+    parser.add_argument(
+        '--include-lineage', action='store_true', default=True,
+        help='Include lineage visualization (default: True)'
+    )
+    parser.add_argument(
+        '--no-lineage', action='store_false', dest='include_lineage',
+        help='Exclude lineage visualization'
+    )
     args = parser.parse_args()
-    generate_comparison_report(args.extract_dir, args.pbip_dir, args.output)
+    generate_comparison_report(args.extract_dir, args.pbip_dir, args.output, args.include_lineage)
 
 
 if __name__ == '__main__':

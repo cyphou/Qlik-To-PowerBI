@@ -63,7 +63,84 @@ th { background: #fafafa; }
 [data-theme="dark"] h2 { color: #f3f2f1; }
 @media print { .theme-toggle { display: none; } }
 </style>
+
+<style>
+
+    .lineage-section {
+        background: #fff; border-radius: 8px; padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12); margin-bottom: 24px;
+    }
+    .lineage-section h3 {
+        margin-top: 0; color: #0078d4; font-size: 1.1em; margin-bottom: 12px;
+    }
+    .lineage-container {
+        border: 1px solid #e0e0e0; border-radius: 6px;
+        overflow: hidden; background: #f9f9f9; min-height: 500px;
+    }
+    .lineage-controls {
+        padding: 12px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0;
+        display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    .lineage-controls button {
+        background: #0078d4; color: #fff; border: none;
+        padding: 6px 12px; border-radius: 4px; cursor: pointer;
+        font-size: 0.85em; font-weight: 500;
+    }
+    .lineage-controls button:hover { background: #004578; }
+    .lineage-controls button.secondary {
+        background: #e0e0e0; color: #333;
+    }
+    .lineage-controls button.secondary:hover { background: #d0d0d0; }
+    .lineage-canvas {
+        width: 100%; height: 600px; position: relative;
+    }
+    .lineage-legend {
+        padding: 12px; background: #fafafa; border-top: 1px solid #e0e0e0;
+        font-size: 0.85em; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;
+    }
+    .legend-item {
+        display: flex; align-items: center; gap: 6px;
+    }
+    .legend-icon {
+        width: 16px; height: 16px; border-radius: 50%; border: 2px solid #999;
+    }
+    .legend-icon.qlik { background: #ff9800; border-color: #f57c00; }
+    .legend-icon.dax { background: #2196f3; border-color: #1565c0; }
+    .legend-icon.tmdl { background: #4caf50; border-color: #388e3c; }
+    .legend-icon.pbi { background: #9c27b0; border-color: #6a1b9a; }
+    .lineage-stats {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px; padding: 12px; background: #fafafa;
+        border-top: 1px solid #e0e0e0;
+    }
+    .lineage-stat {
+        text-align: center;
+    }
+    .lineage-stat .value {
+        font-size: 1.8em; font-weight: 700; color: #0078d4;
+    }
+    .lineage-stat .label {
+        font-size: 0.85em; color: #666; margin-top: 4px;
+    }
+    .lineage-tooltip {
+        background: #333; color: #fff; padding: 8px 12px;
+        border-radius: 4px; font-size: 0.85em;
+        position: absolute; pointer-events: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 1000;
+    }
+    .lineage-edge-table {
+        width: 100%; border-collapse: collapse; font-size: 0.85em;
+    }
+    .lineage-edge-table th, .lineage-edge-table td {
+        border: 1px solid #e0e0e0; padding: 8px;
+        text-align: left;
+    }
+    .lineage-edge-table th { background: #f5f5f5; font-weight: 600; }
+    .lineage-edge-table tr:hover { background: #f9f9f9; }
+    
+</style>
 </head>
+
 <body>
 <header>
 <h1>Qlik → Power BI — Side-by-Side Comparison</h1>
@@ -80,18 +157,427 @@ th { background: #fafafa; }
   <div class="card"><h3>Worksheets</h3><div class="val">0</div></div>
   <div class="card"><h3>Matched Visuals</h3><div class="val">0/0</div></div>
   <div class="card"><h3>Calculations</h3><div class="val">0</div></div>
-  <div class="card"><h3>Datasources</h3><div class="val">5</div></div>
+  <div class="card"><h3>Datasources</h3><div class="val">44</div></div>
   <div class="card"><h3>Fidelity</h3><div class="val">N/A</div></div>
 </div>
+
+<div class="lineage-section">
+    <h3>📊 End-to-End Data Lineage</h3>
+    
+    <div class="lineage-stats">
+        <div class="lineage-stat">
+            <div class="value">200</div>
+            <div class="label">Nodes</div>
+        </div>
+        <div class="lineage-stat">
+            <div class="value">100</div>
+            <div class="label">Connections</div>
+        </div>
+        <div class="lineage-stat">
+            <div class="value">6</div>
+            <div class="label">Types</div>
+        </div>
+    </div>
+
+    <div class="lineage-container">
+        <div class="lineage-controls">
+            <button onclick="document.getElementById('lineage-canvas').style.display = 
+                             document.getElementById('lineage-canvas').style.display === 'none' ? 'block' : 'none'">
+                🔄 Toggle Graph
+            </button>
+            <button class="secondary" onclick="downloadLineageJSON()">📥 Export JSON</button>
+        </div>
+        <div id="lineage-canvas" class="lineage-canvas"></div>
+        <div class="lineage-legend">
+            <div style="grid-column: 1 / -1; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #ccc;">
+                Node Types:
+            </div>
+<div class="legend-item">
+                    <div class="legend-icon qlik"></div>
+                    <span>Qlik Dimension (2)</span>
+                </div>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var lineageNodes = [{"id": "datasource_Table1", "label": "Table1", "kind": "qlik_datasource", "title": "Table1"}, {"id": "table_Table1", "label": "Table1", "kind": "pbi_table", "title": "Table1"}, {"id": "datasource_PQUAL_DIM_MOMENT_INSTIT_SPEC", "label": "PQUAL_DIM_MOMENT_INSTIT_SPEC", "kind": "qlik_datasource", "title": "PQUAL_DIM_MOMENT_INSTIT_SPEC"}, {"id": "table_PQUAL_DIM_MOMENT_INSTIT_SPEC", "label": "PQUAL_DIM_MOMENT_INSTIT_SPEC", "kind": "pbi_table", "title": "PQUAL_DIM_MOMENT_INSTIT_SPEC"}, {"id": "datasource_PQUAL_DIM_MOMENT_TEMPS_HOSPIT", "label": "PQUAL_DIM_MOMENT_TEMPS_HOSPIT", "kind": "qlik_datasource", "title": "PQUAL_DIM_MOMENT_TEMPS_HOSPIT"}, {"id": "table_PQUAL_DIM_MOMENT_TEMPS_HOSPIT", "label": "PQUAL_DIM_MOMENT_TEMPS_HOSPIT", "kind": "pbi_table", "title": "PQUAL_DIM_MOMENT_TEMPS_HOSPIT"}, {"id": "datasource_PQUAL_DIM_NAT_GEST_MOD_OP", "label": "PQUAL_DIM_NAT_GEST_MOD_OP", "kind": "qlik_datasource", "title": "PQUAL_DIM_NAT_GEST_MOD_OP"}, {"id": "table_PQUAL_DIM_NAT_GEST_MOD_OP", "label": "PQUAL_DIM_NAT_GEST_MOD_OP", "kind": "pbi_table", "title": "PQUAL_DIM_NAT_GEST_MOD_OP"}, {"id": "datasource_PQUAL_DIM_NAT_GEST_MOYEN", "label": "PQUAL_DIM_NAT_GEST_MOYEN", "kind": "qlik_datasource", "title": "PQUAL_DIM_NAT_GEST_MOYEN"}, {"id": "table_PQUAL_DIM_NAT_GEST_MOYEN", "label": "PQUAL_DIM_NAT_GEST_MOYEN", "kind": "pbi_table", "title": "PQUAL_DIM_NAT_GEST_MOYEN"}, {"id": "datasource_PQUAL_DIM_PROV_PATIENT", "label": "PQUAL_DIM_PROV_PATIENT", "kind": "qlik_datasource", "title": "PQUAL_DIM_PROV_PATIENT"}, {"id": "table_PQUAL_DIM_PROV_PATIENT", "label": "PQUAL_DIM_PROV_PATIENT", "kind": "pbi_table", "title": "PQUAL_DIM_PROV_PATIENT"}, {"id": "datasource_PQUAL_DIM_DIAG_ENTR_PSY", "label": "PQUAL_DIM_DIAG_ENTR_PSY", "kind": "qlik_datasource", "title": "PQUAL_DIM_DIAG_ENTR_PSY"}, {"id": "table_PQUAL_DIM_DIAG_ENTR_PSY", "label": "PQUAL_DIM_DIAG_ENTR_PSY", "kind": "pbi_table", "title": "PQUAL_DIM_DIAG_ENTR_PSY"}, {"id": "datasource_PQUAL_DIM_DIAG_ENTR_SSR", "label": "PQUAL_DIM_DIAG_ENTR_SSR", "kind": "qlik_datasource", "title": "PQUAL_DIM_DIAG_ENTR_SSR"}, {"id": "table_PQUAL_DIM_DIAG_ENTR_SSR", "label": "PQUAL_DIM_DIAG_ENTR_SSR", "kind": "pbi_table", "title": "PQUAL_DIM_DIAG_ENTR_SSR"}, {"id": "datasource_PQUAL_DIM_ETAT_PASS_ACTE", "label": "PQUAL_DIM_ETAT_PASS_ACTE", "kind": "qlik_datasource", "title": "PQUAL_DIM_ETAT_PASS_ACTE"}, {"id": "table_PQUAL_DIM_ETAT_PASS_ACTE", "label": "PQUAL_DIM_ETAT_PASS_ACTE", "kind": "pbi_table", "title": "PQUAL_DIM_ETAT_PASS_ACTE"}, {"id": "datasource_PQUAL_DIM_SEXE", "label": "PQUAL_DIM_SEXE", "kind": "qlik_datasource", "title": "PQUAL_DIM_SEXE"}, {"id": "table_PQUAL_DIM_SEXE", "label": "PQUAL_DIM_SEXE", "kind": "pbi_table", "title": "PQUAL_DIM_SEXE"}, {"id": "datasource_PQUAL_DIM_SITU_MARITALE", "label": "PQUAL_DIM_SITU_MARITALE", "kind": "qlik_datasource", "title": "PQUAL_DIM_SITU_MARITALE"}, {"id": "table_PQUAL_DIM_SITU_MARITALE", "label": "PQUAL_DIM_SITU_MARITALE", "kind": "pbi_table", "title": "PQUAL_DIM_SITU_MARITALE"}, {"id": "datasource_PQUAL_DIM_TR_AGE", "label": "PQUAL_DIM_TR_AGE", "kind": "qlik_datasource", "title": "PQUAL_DIM_TR_AGE"}, {"id": "table_PQUAL_DIM_TR_AGE", "label": "PQUAL_DIM_TR_AGE", "kind": "pbi_table", "title": "PQUAL_DIM_TR_AGE"}, {"id": "datasource_PQUAL_DIM_NIV_RSQ_SUIC", "label": "PQUAL_DIM_NIV_RSQ_SUIC", "kind": "qlik_datasource", "title": "PQUAL_DIM_NIV_RSQ_SUIC"}, {"id": "table_PQUAL_DIM_NIV_RSQ_SUIC", "label": "PQUAL_DIM_NIV_RSQ_SUIC", "kind": "pbi_table", "title": "PQUAL_DIM_NIV_RSQ_SUIC"}, {"id": "datasource_PQUAL_DIM_NIV_RSQ_EHPAD", "label": "PQUAL_DIM_NIV_RSQ_EHPAD", "kind": "qlik_datasource", "title": "PQUAL_DIM_NIV_RSQ_EHPAD"}, {"id": "table_PQUAL_DIM_NIV_RSQ_EHPAD", "label": "PQUAL_DIM_NIV_RSQ_EHPAD", "kind": "pbi_table", "title": "PQUAL_DIM_NIV_RSQ_EHPAD"}, {"id": "datasource_PQUAL_DIM_FEI_SERVICE", "label": "PQUAL_DIM_FEI_SERVICE", "kind": "qlik_datasource", "title": "PQUAL_DIM_FEI_SERVICE"}, {"id": "table_PQUAL_DIM_FEI_SERVICE", "label": "PQUAL_DIM_FEI_SERVICE", "kind": "pbi_table", "title": "PQUAL_DIM_FEI_SERVICE"}, {"id": "datasource_PQUAL_DIM_EVT_SENTINELLE", "label": "PQUAL_DIM_EVT_SENTINELLE", "kind": "qlik_datasource", "title": "PQUAL_DIM_EVT_SENTINELLE"}, {"id": "table_PQUAL_DIM_EVT_SENTINELLE", "label": "PQUAL_DIM_EVT_SENTINELLE", "kind": "pbi_table", "title": "PQUAL_DIM_EVT_SENTINELLE"}, {"id": "datasource_PQUAL_DIM_FEI_GRAVITE", "label": "PQUAL_DIM_FEI_GRAVITE", "kind": "qlik_datasource", "title": "PQUAL_DIM_FEI_GRAVITE"}, {"id": "table_PQUAL_DIM_FEI_GRAVITE", "label": "PQUAL_DIM_FEI_GRAVITE", "kind": "pbi_table", "title": "PQUAL_DIM_FEI_GRAVITE"}, {"id": "datasource_PQUAL_DIM_FEI_THEME", "label": "PQUAL_DIM_FEI_THEME", "kind": "qlik_datasource", "title": "PQUAL_DIM_FEI_THEME"}, {"id": "table_PQUAL_DIM_FEI_THEME", "label": "PQUAL_DIM_FEI_THEME", "kind": "pbi_table", "title": "PQUAL_DIM_FEI_THEME"}, {"id": "datasource_PQUAL_HIST_FEI_AAI", "label": "PQUAL_HIST_FEI_AAI", "kind": "qlik_datasource", "title": "PQUAL_HIST_FEI_AAI"}, {"id": "table_PQUAL_HIST_FEI_AAI", "label": "PQUAL_HIST_FEI_AAI", "kind": "pbi_table", "title": "PQUAL_HIST_FEI_AAI"}, {"id": "datasource_QUAL_QUEST_PAT_REP_ADO", "label": "QUAL_QUEST_PAT_REP_ADO", "kind": "qlik_datasource", "title": "QUAL_QUEST_PAT_REP_ADO"}, {"id": "table_QUAL_QUEST_PAT_REP_ADO", "label": "QUAL_QUEST_PAT_REP_ADO", "kind": "pbi_table", "title": "QUAL_QUEST_PAT_REP_ADO"}, {"id": "datasource_QUAL_QUEST_PAT_REP_HC", "label": "QUAL_QUEST_PAT_REP_HC", "kind": "qlik_datasource", "title": "QUAL_QUEST_PAT_REP_HC"}, {"id": "table_QUAL_QUEST_PAT_REP_HC", "label": "QUAL_QUEST_PAT_REP_HC", "kind": "pbi_table", "title": "QUAL_QUEST_PAT_REP_HC"}, {"id": "datasource_Table22", "label": "Table22", "kind": "qlik_datasource", "title": "Table22"}, {"id": "table_Table22", "label": "Table22", "kind": "pbi_table", "title": "Table22"}, {"id": "datasource_Table23", "label": "Table23", "kind": "qlik_datasource", "title": "Table23"}, {"id": "table_Table23", "label": "Table23", "kind": "pbi_table", "title": "Table23"}, {"id": "datasource_Table24", "label": "Table24", "kind": "qlik_datasource", "title": "Table24"}, {"id": "table_Table24", "label": "Table24", "kind": "pbi_table", "title": "Table24"}, {"id": "datasource_Table25", "label": "Table25", "kind": "qlik_datasource", "title": "Table25"}, {"id": "table_Table25", "label": "Table25", "kind": "pbi_table", "title": "Table25"}, {"id": "datasource_Table26", "label": "Table26", "kind": "qlik_datasource", "title": "Table26"}, {"id": "table_Table26", "label": "Table26", "kind": "pbi_table", "title": "Table26"}, {"id": "datasource_Table27", "label": "Table27", "kind": "qlik_datasource", "title": "Table27"}, {"id": "table_Table27", "label": "Table27", "kind": "pbi_table", "title": "Table27"}, {"id": "datasource_Table28", "label": "Table28", "kind": "qlik_datasource", "title": "Table28"}, {"id": "table_Table28", "label": "Table28", "kind": "pbi_table", "title": "Table28"}, {"id": "datasource_Table29", "label": "Table29", "kind": "qlik_datasource", "title": "Table29"}, {"id": "table_Table29", "label": "Table29", "kind": "pbi_table", "title": "Table29"}, {"id": "datasource_Table30", "label": "Table30", "kind": "qlik_datasource", "title": "Table30"}, {"id": "table_Table30", "label": "Table30", "kind": "pbi_table", "title": "Table30"}, {"id": "datasource_Table31", "label": "Table31", "kind": "qlik_datasource", "title": "Table31"}, {"id": "table_Table31", "label": "Table31", "kind": "pbi_table", "title": "Table31"}, {"id": "datasource_Table32", "label": "Table32", "kind": "qlik_datasource", "title": "Table32"}, {"id": "table_Table32", "label": "Table32", "kind": "pbi_table", "title": "Table32"}, {"id": "datasource_QUAL_QUESTPAT_CLOT_GENERIQUE", "label": "QUAL_QUESTPAT_CLOT_GENERIQUE", "kind": "qlik_datasource", "title": "QUAL_QUESTPAT_CLOT_GENERIQUE"}, {"id": "table_QUAL_QUESTPAT_CLOT_GENERIQUE", "label": "QUAL_QUESTPAT_CLOT_GENERIQUE", "kind": "pbi_table", "title": "QUAL_QUESTPAT_CLOT_GENERIQUE"}, {"id": "datasource_Table34", "label": "Table34", "kind": "qlik_datasource", "title": "Table34"}, {"id": "table_Table34", "label": "Table34", "kind": "pbi_table", "title": "Table34"}, {"id": "datasource_Table35", "label": "Table35", "kind": "qlik_datasource", "title": "Table35"}, {"id": "table_Table35", "label": "Table35", "kind": "pbi_table", "title": "Table35"}, {"id": "datasource_Table36", "label": "Table36", "kind": "qlik_datasource", "title": "Table36"}, {"id": "table_Table36", "label": "Table36", "kind": "pbi_table", "title": "Table36"}, {"id": "datasource_QUAL_FEI_EIGS_CAUSE", "label": "QUAL_FEI_EIGS_CAUSE", "kind": "qlik_datasource", "title": "QUAL_FEI_EIGS_CAUSE"}, {"id": "table_QUAL_FEI_EIGS_CAUSE", "label": "QUAL_FEI_EIGS_CAUSE", "kind": "pbi_table", "title": "QUAL_FEI_EIGS_CAUSE"}, {"id": "datasource_Table38", "label": "Table38", "kind": "qlik_datasource", "title": "Table38"}, {"id": "table_Table38", "label": "Table38", "kind": "pbi_table", "title": "Table38"}, {"id": "datasource_QUAL_FEI_FICFEI", "label": "QUAL_FEI_FICFEI", "kind": "qlik_datasource", "title": "QUAL_FEI_FICFEI"}, {"id": "table_QUAL_FEI_FICFEI", "label": "QUAL_FEI_FICFEI", "kind": "pbi_table", "title": "QUAL_FEI_FICFEI"}, {"id": "datasource_QUAL_FEI_ORP_SERVICE", "label": "QUAL_FEI_ORP_SERVICE", "kind": "qlik_datasource", "title": "QUAL_FEI_ORP_SERVICE"}, {"id": "table_QUAL_FEI_ORP_SERVICE", "label": "QUAL_FEI_ORP_SERVICE", "kind": "pbi_table", "title": "QUAL_FEI_ORP_SERVICE"}, {"id": "datasource_QUAL_FEI_EIGS_ACTION", "label": "QUAL_FEI_EIGS_ACTION", "kind": "qlik_datasource", "title": "QUAL_FEI_EIGS_ACTION"}, {"id": "table_QUAL_FEI_EIGS_ACTION", "label": "QUAL_FEI_EIGS_ACTION", "kind": "pbi_table", "title": "QUAL_FEI_EIGS_ACTION"}, {"id": "datasource_QUAL_PLAN_ACTION", "label": "QUAL_PLAN_ACTION", "kind": "qlik_datasource", "title": "QUAL_PLAN_ACTION"}, {"id": "table_QUAL_PLAN_ACTION", "label": "QUAL_PLAN_ACTION", "kind": "pbi_table", "title": "QUAL_PLAN_ACTION"}, {"id": "datasource_Table43", "label": "Table43", "kind": "qlik_datasource", "title": "Table43"}, {"id": "table_Table43", "label": "Table43", "kind": "pbi_table", "title": "Table43"}, {"id": "datasource_Table44", "label": "Table44", "kind": "qlik_datasource", "title": "Table44"}, {"id": "table_Table44", "label": "Table44", "kind": "pbi_table", "title": "Table44"}, {"id": "dimension_VTO_DT_JOUR", "label": "VTO_DT_JOUR", "kind": "qlik_dimension", "title": "VTO_DT_JOUR"}, {"id": "column_VTO_DT_JOUR", "label": "VTO_DT_JOUR", "kind": "pbi_column", "title": "VTO_DT_JOUR"}, {"id": "dimension_Numero", "label": "Numero", "kind": "qlik_dimension", "title": "Numero"}, {"id": "column_Numero", "label": "Numero", "kind": "pbi_column", "title": "Numero"}, {"id": "variable_TO_Reel_P", "label": "TO_Reel_P", "kind": "qlik_variable", "title": "TO_Reel_P"}, {"id": "parameter_TO_Reel_P", "label": "TO_Reel_P", "kind": "pbi_parameter", "title": "TO_Reel_P"}, {"id": "variable_S_T_DIM_ARTICLE", "label": "S_T_DIM_ARTICLE", "kind": "qlik_variable", "title": "S_T_DIM_ARTICLE"}, {"id": "parameter_S_T_DIM_ARTICLE", "label": "S_T_DIM_ARTICLE", "kind": "pbi_parameter", "title": "S_T_DIM_ARTICLE"}, {"id": "variable_S_T_REF_SIRH_PAIE", "label": "S_T_REF_SIRH_PAIE", "kind": "qlik_variable", "title": "S_T_REF_SIRH_PAIE"}, {"id": "parameter_S_T_REF_SIRH_PAIE", "label": "S_T_REF_SIRH_PAIE", "kind": "pbi_parameter", "title": "S_T_REF_SIRH_PAIE"}, {"id": "variable_R_Store_And_Drop_All_Tables_Directory", "label": "R_Store_And_Drop_All_Tables_Directory", "kind": "qlik_variable", "title": "R_Store_And_Drop_All_Tables_Directory"}, {"id": "parameter_R_Store_And_Drop_All_Tables_Directory", "label": "R_Store_And_Drop_All_Tables_Directory", "kind": "pbi_parameter", "title": "R_Store_And_Drop_All_Tables_Directory"}, {"id": "variable_S_T_RESIDENT_SORTIE", "label": "S_T_RESIDENT_SORTIE", "kind": "qlik_variable", "title": "S_T_RESIDENT_SORTIE"}, {"id": "parameter_S_T_RESIDENT_SORTIE", "label": "S_T_RESIDENT_SORTIE", "kind": "pbi_parameter", "title": "S_T_RESIDENT_SORTIE"}, {"id": "variable_S_T_FACT_NOP_BUDGET", "label": "S_T_FACT_NOP_BUDGET", "kind": "qlik_variable", "title": "S_T_FACT_NOP_BUDGET"}, {"id": "parameter_S_T_FACT_NOP_BUDGET", "label": "S_T_FACT_NOP_BUDGET", "kind": "pbi_parameter", "title": "S_T_FACT_NOP_BUDGET"}, {"id": "variable_S_T_FACT_NOP_REEL", "label": "S_T_FACT_NOP_REEL", "kind": "qlik_variable", "title": "S_T_FACT_NOP_REEL"}, {"id": "parameter_S_T_FACT_NOP_REEL", "label": "S_T_FACT_NOP_REEL", "kind": "pbi_parameter", "title": "S_T_FACT_NOP_REEL"}, {"id": "variable_S_T_REF_STRUCTURE_ETABLISSEMENT", "label": "S_T_REF_STRUCTURE_ETABLISSEMENT", "kind": "qlik_variable", "title": "S_T_REF_STRUCTURE_ETABLISSEMENT"}, {"id": "parameter_S_T_REF_STRUCTURE_ETABLISSEMENT", "label": "S_T_REF_STRUCTURE_ETABLISSEMENT", "kind": "pbi_parameter", "title": "S_T_REF_STRUCTURE_ETABLISSEMENT"}, {"id": "variable_S_T_FACT_CONV_TRI_SOIN", "label": "S_T_FACT_CONV_TRI_SOIN", "kind": "qlik_variable", "title": "S_T_FACT_CONV_TRI_SOIN"}, {"id": "parameter_S_T_FACT_CONV_TRI_SOIN", "label": "S_T_FACT_CONV_TRI_SOIN", "kind": "pbi_parameter", "title": "S_T_FACT_CONV_TRI_SOIN"}, {"id": "variable_S_R_Store_And_Drop_All_Tables_Directory", "label": "S_R_Store_And_Drop_All_Tables_Directory", "kind": "qlik_variable", "title": "S_R_Store_And_Drop_All_Tables_Directory"}, {"id": "parameter_S_R_Store_And_Drop_All_Tables_Directory", "label": "S_R_Store_And_Drop_All_Tables_Directory", "kind": "pbi_parameter", "title": "S_R_Store_And_Drop_All_Tables_Directory"}, {"id": "variable_S_T_REF_NOP_REGROUPEMENT_CC", "label": "S_T_REF_NOP_REGROUPEMENT_CC", "kind": "qlik_variable", "title": "S_T_REF_NOP_REGROUPEMENT_CC"}, {"id": "parameter_S_T_REF_NOP_REGROUPEMENT_CC", "label": "S_T_REF_NOP_REGROUPEMENT_CC", "kind": "pbi_parameter", "title": "S_T_REF_NOP_REGROUPEMENT_CC"}, {"id": "variable_S_T_SRH_ADT", "label": "S_T_SRH_ADT", "kind": "qlik_variable", "title": "S_T_SRH_ADT"}, {"id": "parameter_S_T_SRH_ADT", "label": "S_T_SRH_ADT", "kind": "pbi_parameter", "title": "S_T_SRH_ADT"}, {"id": "variable_SRH_ADT_PERIODE", "label": "SRH_ADT_PERIODE", "kind": "qlik_variable", "title": "SRH_ADT_PERIODE"}, {"id": "parameter_SRH_ADT_PERIODE", "label": "SRH_ADT_PERIODE", "kind": "pbi_parameter", "title": "SRH_ADT_PERIODE"}, {"id": "variable_S_T_SRH_CPTPLANNING_ORPEA", "label": "S_T_SRH_CPTPLANNING_ORPEA", "kind": "qlik_variable", "title": "S_T_SRH_CPTPLANNING_ORPEA"}, {"id": "parameter_S_T_SRH_CPTPLANNING_ORPEA", "label": "S_T_SRH_CPTPLANNING_ORPEA", "kind": "pbi_parameter", "title": "S_T_SRH_CPTPLANNING_ORPEA"}, {"id": "variable_S_T_FACT_SRH_ETB_EMPLOI", "label": "S_T_FACT_SRH_ETB_EMPLOI", "kind": "qlik_variable", "title": "S_T_FACT_SRH_ETB_EMPLOI"}, {"id": "parameter_S_T_FACT_SRH_ETB_EMPLOI", "label": "S_T_FACT_SRH_ETB_EMPLOI", "kind": "pbi_parameter", "title": "S_T_FACT_SRH_ETB_EMPLOI"}, {"id": "variable_S_T_REF_NOP_REGROUPEMENT", "label": "S_T_REF_NOP_REGROUPEMENT", "kind": "qlik_variable", "title": "S_T_REF_NOP_REGROUPEMENT"}, {"id": "parameter_S_T_REF_NOP_REGROUPEMENT", "label": "S_T_REF_NOP_REGROUPEMENT", "kind": "pbi_parameter", "title": "S_T_REF_NOP_REGROUPEMENT"}, {"id": "variable_S_T_DIM_COMPTE_COMPTABLE", "label": "S_T_DIM_COMPTE_COMPTABLE", "kind": "qlik_variable", "title": "S_T_DIM_COMPTE_COMPTABLE"}, {"id": "parameter_S_T_DIM_COMPTE_COMPTABLE", "label": "S_T_DIM_COMPTE_COMPTABLE", "kind": "pbi_parameter", "title": "S_T_DIM_COMPTE_COMPTABLE"}, {"id": "variable_S_T_REF_COMPTE_COMPTABLE", "label": "S_T_REF_COMPTE_COMPTABLE", "kind": "qlik_variable", "title": "S_T_REF_COMPTE_COMPTABLE"}, {"id": "parameter_S_T_REF_COMPTE_COMPTABLE", "label": "S_T_REF_COMPTE_COMPTABLE", "kind": "pbi_parameter", "title": "S_T_REF_COMPTE_COMPTABLE"}, {"id": "variable_S_T_SRH_EMPLOI", "label": "S_T_SRH_EMPLOI", "kind": "qlik_variable", "title": "S_T_SRH_EMPLOI"}, {"id": "parameter_S_T_SRH_EMPLOI", "label": "S_T_SRH_EMPLOI", "kind": "pbi_parameter", "title": "S_T_SRH_EMPLOI"}, {"id": "variable_S_T_SRH_REALISE", "label": "S_T_SRH_REALISE", "kind": "qlik_variable", "title": "S_T_SRH_REALISE"}, {"id": "parameter_S_T_SRH_REALISE", "label": "S_T_SRH_REALISE", "kind": "pbi_parameter", "title": "S_T_SRH_REALISE"}, {"id": "variable_D_E_TO_Reel_P", "label": "D_E_TO_Reel_P", "kind": "qlik_variable", "title": "D_E_TO_Reel_P"}, {"id": "parameter_D_E_TO_Reel_P", "label": "D_E_TO_Reel_P", "kind": "pbi_parameter", "title": "D_E_TO_Reel_P"}, {"id": "variable_S_T_DETAIL_COMPTABLE", "label": "S_T_DETAIL_COMPTABLE", "kind": "qlik_variable", "title": "S_T_DETAIL_COMPTABLE"}, {"id": "parameter_S_T_DETAIL_COMPTABLE", "label": "S_T_DETAIL_COMPTABLE", "kind": "pbi_parameter", "title": "S_T_DETAIL_COMPTABLE"}, {"id": "variable_S_T_Date_", "label": "S_T_Date_", "kind": "qlik_variable", "title": "S_T_Date_"}, {"id": "parameter_S_T_Date_", "label": "S_T_Date_", "kind": "pbi_parameter", "title": "S_T_Date_"}, {"id": "variable_FACT_NOP_BUDGET", "label": "FACT_NOP_BUDGET", "kind": "qlik_variable", "title": "FACT_NOP_BUDGET"}, {"id": "parameter_FACT_NOP_BUDGET", "label": "FACT_NOP_BUDGET", "kind": "pbi_parameter", "title": "FACT_NOP_BUDGET"}, {"id": "variable_S_T_LEO_VIEW_TO_BI", "label": "S_T_LEO_VIEW_TO_BI", "kind": "qlik_variable", "title": "S_T_LEO_VIEW_TO_BI"}, {"id": "parameter_S_T_LEO_VIEW_TO_BI", "label": "S_T_LEO_VIEW_TO_BI", "kind": "pbi_parameter", "title": "S_T_LEO_VIEW_TO_BI"}, {"id": "variable_S_T_SRH_HMENS", "label": "S_T_SRH_HMENS", "kind": "qlik_variable", "title": "S_T_SRH_HMENS"}, {"id": "parameter_S_T_SRH_HMENS", "label": "S_T_SRH_HMENS", "kind": "pbi_parameter", "title": "S_T_SRH_HMENS"}, {"id": "variable_VExtractQvd", "label": "VExtractQvd", "kind": "qlik_variable", "title": "VExtractQvd"}, {"id": "parameter_VExtractQvd", "label": "VExtractQvd", "kind": "pbi_parameter", "title": "VExtractQvd"}, {"id": "variable_S_T_DIM_NOP_REGROUPEMENT", "label": "S_T_DIM_NOP_REGROUPEMENT", "kind": "qlik_variable", "title": "S_T_DIM_NOP_REGROUPEMENT"}, {"id": "parameter_S_T_DIM_NOP_REGROUPEMENT", "label": "S_T_DIM_NOP_REGROUPEMENT", "kind": "pbi_parameter", "title": "S_T_DIM_NOP_REGROUPEMENT"}, {"id": "variable_S_R_Data_Share_Dir_Op_In", "label": "S_R_Data_Share_Dir_Op_In", "kind": "qlik_variable", "title": "S_R_Data_Share_Dir_Op_In"}, {"id": "parameter_S_R_Data_Share_Dir_Op_In", "label": "S_R_Data_Share_Dir_Op_In", "kind": "pbi_parameter", "title": "S_R_Data_Share_Dir_Op_In"}, {"id": "variable_S_T_CONTACT_PAYEUR_EHPAD", "label": "S_T_CONTACT_PAYEUR_EHPAD", "kind": "qlik_variable", "title": "S_T_CONTACT_PAYEUR_EHPAD"}, {"id": "parameter_S_T_CONTACT_PAYEUR_EHPAD", "label": "S_T_CONTACT_PAYEUR_EHPAD", "kind": "pbi_parameter", "title": "S_T_CONTACT_PAYEUR_EHPAD"}, {"id": "variable_S_T_DIM_CALENDRIER", "label": "S_T_DIM_CALENDRIER", "kind": "qlik_variable", "title": "S_T_DIM_CALENDRIER"}, {"id": "parameter_S_T_DIM_CALENDRIER", "label": "S_T_DIM_CALENDRIER", "kind": "pbi_parameter", "title": "S_T_DIM_CALENDRIER"}, {"id": "variable_S_T_FACT_SIRH_PAIE", "label": "S_T_FACT_SIRH_PAIE", "kind": "qlik_variable", "title": "S_T_FACT_SIRH_PAIE"}, {"id": "parameter_S_T_FACT_SIRH_PAIE", "label": "S_T_FACT_SIRH_PAIE", "kind": "pbi_parameter", "title": "S_T_FACT_SIRH_PAIE"}, {"id": "variable_S_T_REF_SIRH_EMPLOI", "label": "S_T_REF_SIRH_EMPLOI", "kind": "qlik_variable", "title": "S_T_REF_SIRH_EMPLOI"}, {"id": "parameter_S_T_REF_SIRH_EMPLOI", "label": "S_T_REF_SIRH_EMPLOI", "kind": "pbi_parameter", "title": "S_T_REF_SIRH_EMPLOI"}, {"id": "variable_S_T_DEPARTEMENT_PROVENANCE", "label": "S_T_DEPARTEMENT_PROVENANCE", "kind": "qlik_variable", "title": "S_T_DEPARTEMENT_PROVENANCE"}, {"id": "parameter_S_T_DEPARTEMENT_PROVENANCE", "label": "S_T_DEPARTEMENT_PROVENANCE", "kind": "pbi_parameter", "title": "S_T_DEPARTEMENT_PROVENANCE"}, {"id": "variable_S_T_SRH_INDIVIDU", "label": "S_T_SRH_INDIVIDU", "kind": "qlik_variable", "title": "S_T_SRH_INDIVIDU"}, {"id": "parameter_S_T_SRH_INDIVIDU", "label": "S_T_SRH_INDIVIDU", "kind": "pbi_parameter", "title": "S_T_SRH_INDIVIDU"}, {"id": "variable_S_T_FACTURE_HEBERGEMENT_EHPAD", "label": "S_T_FACTURE_HEBERGEMENT_EHPAD", "kind": "qlik_variable", "title": "S_T_FACTURE_HEBERGEMENT_EHPAD"}, {"id": "parameter_S_T_FACTURE_HEBERGEMENT_EHPAD", "label": "S_T_FACTURE_HEBERGEMENT_EHPAD", "kind": "pbi_parameter", "title": "S_T_FACTURE_HEBERGEMENT_EHPAD"}, {"id": "variable_S_R_Data_Share", "label": "S_R_Data_Share", "kind": "qlik_variable", "title": "S_R_Data_Share"}, {"id": "parameter_S_R_Data_Share", "label": "S_R_Data_Share", "kind": "pbi_parameter", "title": "S_R_Data_Share"}, {"id": "variable_S_T_RESIDENT_PAYEUR_EHPAD", "label": "S_T_RESIDENT_PAYEUR_EHPAD", "kind": "qlik_variable", "title": "S_T_RESIDENT_PAYEUR_EHPAD"}, {"id": "parameter_S_T_RESIDENT_PAYEUR_EHPAD", "label": "S_T_RESIDENT_PAYEUR_EHPAD", "kind": "pbi_parameter", "title": "S_T_RESIDENT_PAYEUR_EHPAD"}, {"id": "variable_S_T_SRH_CONTRAT", "label": "S_T_SRH_CONTRAT", "kind": "qlik_variable", "title": "S_T_SRH_CONTRAT"}, {"id": "parameter_S_T_SRH_CONTRAT", "label": "S_T_SRH_CONTRAT", "kind": "pbi_parameter", "title": "S_T_SRH_CONTRAT"}, {"id": "variable_S_T_FACTURE_HEBERGEMENT", "label": "S_T_FACTURE_HEBERGEMENT", "kind": "qlik_variable", "title": "S_T_FACTURE_HEBERGEMENT"}, {"id": "parameter_S_T_FACTURE_HEBERGEMENT", "label": "S_T_FACTURE_HEBERGEMENT", "kind": "pbi_parameter", "title": "S_T_FACTURE_HEBERGEMENT"}, {"id": "variable_S_T_DIM_GEOGRAPHIE", "label": "S_T_DIM_GEOGRAPHIE", "kind": "qlik_variable", "title": "S_T_DIM_GEOGRAPHIE"}, {"id": "parameter_S_T_DIM_GEOGRAPHIE", "label": "S_T_DIM_GEOGRAPHIE", "kind": "pbi_parameter", "title": "S_T_DIM_GEOGRAPHIE"}, {"id": "variable_S_T_REF_NOP_REGROUPEMENT_CC_EHPAD", "label": "S_T_REF_NOP_REGROUPEMENT_CC_EHPAD", "kind": "qlik_variable", "title": "S_T_REF_NOP_REGROUPEMENT_CC_EHPAD"}, {"id": "parameter_S_T_REF_NOP_REGROUPEMENT_CC_EHPAD", "label": "S_T_REF_NOP_REGROUPEMENT_CC_EHPAD", "kind": "pbi_parameter", "title": "S_T_REF_NOP_REGROUPEMENT_CC_EHPAD"}, {"id": "variable_S_T_SRH_ADT_2_EHPAD", "label": "S_T_SRH_ADT_2_EHPAD", "kind": "qlik_variable", "title": "S_T_SRH_ADT_2_EHPAD"}, {"id": "parameter_S_T_SRH_ADT_2_EHPAD", "label": "S_T_SRH_ADT_2_EHPAD", "kind": "pbi_parameter", "title": "S_T_SRH_ADT_2_EHPAD"}, {"id": "variable_S_T_SRH_ADT_EHPAD", "label": "S_T_SRH_ADT_EHPAD", "kind": "qlik_variable", "title": "S_T_SRH_ADT_EHPAD"}, {"id": "parameter_S_T_SRH_ADT_EHPAD", "label": "S_T_SRH_ADT_EHPAD", "kind": "pbi_parameter", "title": "S_T_SRH_ADT_EHPAD"}, {"id": "variable_S_T_DETAIL_COMPTABLE_EHPAD", "label": "S_T_DETAIL_COMPTABLE_EHPAD", "kind": "qlik_variable", "title": "S_T_DETAIL_COMPTABLE_EHPAD"}, {"id": "parameter_S_T_DETAIL_COMPTABLE_EHPAD", "label": "S_T_DETAIL_COMPTABLE_EHPAD", "kind": "pbi_parameter", "title": "S_T_DETAIL_COMPTABLE_EHPAD"}, {"id": "variable_S_T_FACT_SIRH_PAIE_EHPAD", "label": "S_T_FACT_SIRH_PAIE_EHPAD", "kind": "qlik_variable", "title": "S_T_FACT_SIRH_PAIE_EHPAD"}, {"id": "parameter_S_T_FACT_SIRH_PAIE_EHPAD", "label": "S_T_FACT_SIRH_PAIE_EHPAD", "kind": "pbi_parameter", "title": "S_T_FACT_SIRH_PAIE_EHPAD"}, {"id": "variable_S_T_LEO_VIEW_TO_BI_EHPAD", "label": "S_T_LEO_VIEW_TO_BI_EHPAD", "kind": "qlik_variable", "title": "S_T_LEO_VIEW_TO_BI_EHPAD"}, {"id": "parameter_S_T_LEO_VIEW_TO_BI_EHPAD", "label": "S_T_LEO_VIEW_TO_BI_EHPAD", "kind": "pbi_parameter", "title": "S_T_LEO_VIEW_TO_BI_EHPAD"}, {"id": "variable_S_T_DIM_ENSEMBLE_ORPEA_EHPAD", "label": "S_T_DIM_ENSEMBLE_ORPEA_EHPAD", "kind": "qlik_variable", "title": "S_T_DIM_ENSEMBLE_ORPEA_EHPAD"}, {"id": "parameter_S_T_DIM_ENSEMBLE_ORPEA_EHPAD", "label": "S_T_DIM_ENSEMBLE_ORPEA_EHPAD", "kind": "pbi_parameter", "title": "S_T_DIM_ENSEMBLE_ORPEA_EHPAD"}, {"id": "variable_S_T_DIM_ETAB_ORPEA_EHPAD", "label": "S_T_DIM_ETAB_ORPEA_EHPAD", "kind": "qlik_variable", "title": "S_T_DIM_ETAB_ORPEA_EHPAD"}, {"id": "parameter_S_T_DIM_ETAB_ORPEA_EHPAD", "label": "S_T_DIM_ETAB_ORPEA_EHPAD", "kind": "pbi_parameter", "title": "S_T_DIM_ETAB_ORPEA_EHPAD"}, {"id": "variable_S_T_FACT_NOP_REEL_EHPAD", "label": "S_T_FACT_NOP_REEL_EHPAD", "kind": "qlik_variable", "title": "S_T_FACT_NOP_REEL_EHPAD"}, {"id": "parameter_S_T_FACT_NOP_REEL_EHPAD", "label": "S_T_FACT_NOP_REEL_EHPAD", "kind": "pbi_parameter", "title": "S_T_FACT_NOP_REEL_EHPAD"}, {"id": "variable_S_T_FACT_NOP_BUDGET_EHPAD", "label": "S_T_FACT_NOP_BUDGET_EHPAD", "kind": "qlik_variable", "title": "S_T_FACT_NOP_BUDGET_EHPAD"}, {"id": "parameter_S_T_FACT_NOP_BUDGET_EHPAD", "label": "S_T_FACT_NOP_BUDGET_EHPAD", "kind": "pbi_parameter", "title": "S_T_FACT_NOP_BUDGET_EHPAD"}, {"id": "variable_S_T_REF_STRUCTURE_ETABLISSEMENT_EHPAD", "label": "S_T_REF_STRUCTURE_ETABLISSEMENT_EHPAD", "kind": "qlik_variable", "title": "S_T_REF_STRUCTURE_ETABLISSEMENT_EHPAD"}, {"id": "parameter_S_T_REF_STRUCTURE_ETABLISSEMENT_EHPAD", "label": "S_T_REF_STRUCTURE_ETABLISSEMENT_EHPAD", "kind": "pbi_parameter", "title": "S_T_REF_STRUCTURE_ETABLISSEMENT_EHPAD"}, {"id": "variable_S_T_DIM_NOP_REGROUPEMENT_EHPAD", "label": "S_T_DIM_NOP_REGROUPEMENT_EHPAD", "kind": "qlik_variable", "title": "S_T_DIM_NOP_REGROUPEMENT_EHPAD"}, {"id": "parameter_S_T_DIM_NOP_REGROUPEMENT_EHPAD", "label": "S_T_DIM_NOP_REGROUPEMENT_EHPAD", "kind": "pbi_parameter", "title": "S_T_DIM_NOP_REGROUPEMENT_EHPAD"}, {"id": "variable_S_T_FACTURE_EHPAD", "label": "S_T_FACTURE_EHPAD", "kind": "qlik_variable", "title": "S_T_FACTURE_EHPAD"}, {"id": "parameter_S_T_FACTURE_EHPAD", "label": "S_T_FACTURE_EHPAD", "kind": "pbi_parameter", "title": "S_T_FACTURE_EHPAD"}];
+        var lineageEdges = [{"source": "datasource_Table1", "target": "table_Table1", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_MOMENT_INSTIT_SPEC", "target": "table_PQUAL_DIM_MOMENT_INSTIT_SPEC", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_MOMENT_TEMPS_HOSPIT", "target": "table_PQUAL_DIM_MOMENT_TEMPS_HOSPIT", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_NAT_GEST_MOD_OP", "target": "table_PQUAL_DIM_NAT_GEST_MOD_OP", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_NAT_GEST_MOYEN", "target": "table_PQUAL_DIM_NAT_GEST_MOYEN", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_PROV_PATIENT", "target": "table_PQUAL_DIM_PROV_PATIENT", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_DIAG_ENTR_PSY", "target": "table_PQUAL_DIM_DIAG_ENTR_PSY", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_DIAG_ENTR_SSR", "target": "table_PQUAL_DIM_DIAG_ENTR_SSR", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_ETAT_PASS_ACTE", "target": "table_PQUAL_DIM_ETAT_PASS_ACTE", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_SEXE", "target": "table_PQUAL_DIM_SEXE", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_SITU_MARITALE", "target": "table_PQUAL_DIM_SITU_MARITALE", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_TR_AGE", "target": "table_PQUAL_DIM_TR_AGE", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_NIV_RSQ_SUIC", "target": "table_PQUAL_DIM_NIV_RSQ_SUIC", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_NIV_RSQ_EHPAD", "target": "table_PQUAL_DIM_NIV_RSQ_EHPAD", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_FEI_SERVICE", "target": "table_PQUAL_DIM_FEI_SERVICE", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_EVT_SENTINELLE", "target": "table_PQUAL_DIM_EVT_SENTINELLE", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_FEI_GRAVITE", "target": "table_PQUAL_DIM_FEI_GRAVITE", "relation": "migrated_to"}, {"source": "datasource_PQUAL_DIM_FEI_THEME", "target": "table_PQUAL_DIM_FEI_THEME", "relation": "migrated_to"}, {"source": "datasource_PQUAL_HIST_FEI_AAI", "target": "table_PQUAL_HIST_FEI_AAI", "relation": "migrated_to"}, {"source": "datasource_QUAL_QUEST_PAT_REP_ADO", "target": "table_QUAL_QUEST_PAT_REP_ADO", "relation": "migrated_to"}, {"source": "datasource_QUAL_QUEST_PAT_REP_HC", "target": "table_QUAL_QUEST_PAT_REP_HC", "relation": "migrated_to"}, {"source": "datasource_Table22", "target": "table_Table22", "relation": "migrated_to"}, {"source": "datasource_Table23", "target": "table_Table23", "relation": "migrated_to"}, {"source": "datasource_Table24", "target": "table_Table24", "relation": "migrated_to"}, {"source": "datasource_Table25", "target": "table_Table25", "relation": "migrated_to"}, {"source": "datasource_Table26", "target": "table_Table26", "relation": "migrated_to"}, {"source": "datasource_Table27", "target": "table_Table27", "relation": "migrated_to"}, {"source": "datasource_Table28", "target": "table_Table28", "relation": "migrated_to"}, {"source": "datasource_Table29", "target": "table_Table29", "relation": "migrated_to"}, {"source": "datasource_Table30", "target": "table_Table30", "relation": "migrated_to"}, {"source": "datasource_Table31", "target": "table_Table31", "relation": "migrated_to"}, {"source": "datasource_Table32", "target": "table_Table32", "relation": "migrated_to"}, {"source": "datasource_QUAL_QUESTPAT_CLOT_GENERIQUE", "target": "table_QUAL_QUESTPAT_CLOT_GENERIQUE", "relation": "migrated_to"}, {"source": "datasource_Table34", "target": "table_Table34", "relation": "migrated_to"}, {"source": "datasource_Table35", "target": "table_Table35", "relation": "migrated_to"}, {"source": "datasource_Table36", "target": "table_Table36", "relation": "migrated_to"}, {"source": "datasource_QUAL_FEI_EIGS_CAUSE", "target": "table_QUAL_FEI_EIGS_CAUSE", "relation": "migrated_to"}, {"source": "datasource_Table38", "target": "table_Table38", "relation": "migrated_to"}, {"source": "datasource_QUAL_FEI_FICFEI", "target": "table_QUAL_FEI_FICFEI", "relation": "migrated_to"}, {"source": "datasource_QUAL_FEI_ORP_SERVICE", "target": "table_QUAL_FEI_ORP_SERVICE", "relation": "migrated_to"}, {"source": "datasource_QUAL_FEI_EIGS_ACTION", "target": "table_QUAL_FEI_EIGS_ACTION", "relation": "migrated_to"}, {"source": "datasource_QUAL_PLAN_ACTION", "target": "table_QUAL_PLAN_ACTION", "relation": "migrated_to"}, {"source": "datasource_Table43", "target": "table_Table43", "relation": "migrated_to"}, {"source": "datasource_Table44", "target": "table_Table44", "relation": "migrated_to"}, {"source": "dimension_VTO_DT_JOUR", "target": "column_VTO_DT_JOUR", "relation": "migrated_to"}, {"source": "dimension_Numero", "target": "column_Numero", "relation": "migrated_to"}, {"source": "variable_TO_Reel_P", "target": "parameter_TO_Reel_P", "relation": "migrated_to"}, {"source": "variable_S_T_DIM_ARTICLE", "target": "parameter_S_T_DIM_ARTICLE", "relation": "migrated_to"}, {"source": "variable_S_T_REF_SIRH_PAIE", "target": "parameter_S_T_REF_SIRH_PAIE", "relation": "migrated_to"}, {"source": "variable_R_Store_And_Drop_All_Tables_Directory", "target": "parameter_R_Store_And_Drop_All_Tables_Directory", "relation": "migrated_to"}, {"source": "variable_S_T_RESIDENT_SORTIE", "target": "parameter_S_T_RESIDENT_SORTIE", "relation": "migrated_to"}, {"source": "variable_S_T_FACT_NOP_BUDGET", "target": "parameter_S_T_FACT_NOP_BUDGET", "relation": "migrated_to"}, {"source": "variable_S_T_FACT_NOP_REEL", "target": "parameter_S_T_FACT_NOP_REEL", "relation": "migrated_to"}, {"source": "variable_S_T_REF_STRUCTURE_ETABLISSEMENT", "target": "parameter_S_T_REF_STRUCTURE_ETABLISSEMENT", "relation": "migrated_to"}, {"source": "variable_S_T_FACT_CONV_TRI_SOIN", "target": "parameter_S_T_FACT_CONV_TRI_SOIN", "relation": "migrated_to"}, {"source": "variable_S_R_Store_And_Drop_All_Tables_Directory", "target": "parameter_S_R_Store_And_Drop_All_Tables_Directory", "relation": "migrated_to"}, {"source": "variable_S_T_REF_NOP_REGROUPEMENT_CC", "target": "parameter_S_T_REF_NOP_REGROUPEMENT_CC", "relation": "migrated_to"}, {"source": "variable_S_T_SRH_ADT", "target": "parameter_S_T_SRH_ADT", "relation": "migrated_to"}, {"source": "variable_SRH_ADT_PERIODE", "target": "parameter_SRH_ADT_PERIODE", "relation": "migrated_to"}, {"source": "variable_S_T_SRH_CPTPLANNING_ORPEA", "target": "parameter_S_T_SRH_CPTPLANNING_ORPEA", "relation": "migrated_to"}, {"source": "variable_S_T_FACT_SRH_ETB_EMPLOI", "target": "parameter_S_T_FACT_SRH_ETB_EMPLOI", "relation": "migrated_to"}, {"source": "variable_S_T_REF_NOP_REGROUPEMENT", "target": "parameter_S_T_REF_NOP_REGROUPEMENT", "relation": "migrated_to"}, {"source": "variable_S_T_DIM_COMPTE_COMPTABLE", "target": "parameter_S_T_DIM_COMPTE_COMPTABLE", "relation": "migrated_to"}, {"source": "variable_S_T_REF_COMPTE_COMPTABLE", "target": "parameter_S_T_REF_COMPTE_COMPTABLE", "relation": "migrated_to"}, {"source": "variable_S_T_SRH_EMPLOI", "target": "parameter_S_T_SRH_EMPLOI", "relation": "migrated_to"}, {"source": "variable_S_T_SRH_REALISE", "target": "parameter_S_T_SRH_REALISE", "relation": "migrated_to"}, {"source": "variable_D_E_TO_Reel_P", "target": "parameter_D_E_TO_Reel_P", "relation": "migrated_to"}, {"source": "variable_S_T_DETAIL_COMPTABLE", "target": "parameter_S_T_DETAIL_COMPTABLE", "relation": "migrated_to"}, {"source": "variable_S_T_Date_", "target": "parameter_S_T_Date_", "relation": "migrated_to"}, {"source": "variable_FACT_NOP_BUDGET", "target": "parameter_FACT_NOP_BUDGET", "relation": "migrated_to"}, {"source": "variable_S_T_LEO_VIEW_TO_BI", "target": "parameter_S_T_LEO_VIEW_TO_BI", "relation": "migrated_to"}, {"source": "variable_S_T_SRH_HMENS", "target": "parameter_S_T_SRH_HMENS", "relation": "migrated_to"}, {"source": "variable_VExtractQvd", "target": "parameter_VExtractQvd", "relation": "migrated_to"}, {"source": "variable_S_T_DIM_NOP_REGROUPEMENT", "target": "parameter_S_T_DIM_NOP_REGROUPEMENT", "relation": "migrated_to"}, {"source": "variable_S_R_Data_Share_Dir_Op_In", "target": "parameter_S_R_Data_Share_Dir_Op_In", "relation": "migrated_to"}, {"source": "variable_S_T_CONTACT_PAYEUR_EHPAD", "target": "parameter_S_T_CONTACT_PAYEUR_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_DIM_CALENDRIER", "target": "parameter_S_T_DIM_CALENDRIER", "relation": "migrated_to"}, {"source": "variable_S_T_FACT_SIRH_PAIE", "target": "parameter_S_T_FACT_SIRH_PAIE", "relation": "migrated_to"}, {"source": "variable_S_T_REF_SIRH_EMPLOI", "target": "parameter_S_T_REF_SIRH_EMPLOI", "relation": "migrated_to"}, {"source": "variable_S_T_DEPARTEMENT_PROVENANCE", "target": "parameter_S_T_DEPARTEMENT_PROVENANCE", "relation": "migrated_to"}, {"source": "variable_S_T_SRH_INDIVIDU", "target": "parameter_S_T_SRH_INDIVIDU", "relation": "migrated_to"}, {"source": "variable_S_T_FACTURE_HEBERGEMENT_EHPAD", "target": "parameter_S_T_FACTURE_HEBERGEMENT_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_R_Data_Share", "target": "parameter_S_R_Data_Share", "relation": "migrated_to"}, {"source": "variable_S_T_RESIDENT_PAYEUR_EHPAD", "target": "parameter_S_T_RESIDENT_PAYEUR_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_SRH_CONTRAT", "target": "parameter_S_T_SRH_CONTRAT", "relation": "migrated_to"}, {"source": "variable_S_T_FACTURE_HEBERGEMENT", "target": "parameter_S_T_FACTURE_HEBERGEMENT", "relation": "migrated_to"}, {"source": "variable_S_T_DIM_GEOGRAPHIE", "target": "parameter_S_T_DIM_GEOGRAPHIE", "relation": "migrated_to"}, {"source": "variable_S_T_REF_NOP_REGROUPEMENT_CC_EHPAD", "target": "parameter_S_T_REF_NOP_REGROUPEMENT_CC_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_SRH_ADT_2_EHPAD", "target": "parameter_S_T_SRH_ADT_2_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_SRH_ADT_EHPAD", "target": "parameter_S_T_SRH_ADT_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_DETAIL_COMPTABLE_EHPAD", "target": "parameter_S_T_DETAIL_COMPTABLE_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_FACT_SIRH_PAIE_EHPAD", "target": "parameter_S_T_FACT_SIRH_PAIE_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_LEO_VIEW_TO_BI_EHPAD", "target": "parameter_S_T_LEO_VIEW_TO_BI_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_DIM_ENSEMBLE_ORPEA_EHPAD", "target": "parameter_S_T_DIM_ENSEMBLE_ORPEA_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_DIM_ETAB_ORPEA_EHPAD", "target": "parameter_S_T_DIM_ETAB_ORPEA_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_FACT_NOP_REEL_EHPAD", "target": "parameter_S_T_FACT_NOP_REEL_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_FACT_NOP_BUDGET_EHPAD", "target": "parameter_S_T_FACT_NOP_BUDGET_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_REF_STRUCTURE_ETABLISSEMENT_EHPAD", "target": "parameter_S_T_REF_STRUCTURE_ETABLISSEMENT_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_DIM_NOP_REGROUPEMENT_EHPAD", "target": "parameter_S_T_DIM_NOP_REGROUPEMENT_EHPAD", "relation": "migrated_to"}, {"source": "variable_S_T_FACTURE_EHPAD", "target": "parameter_S_T_FACTURE_EHPAD", "relation": "migrated_to"}];
+        if (typeof initLineageGraph === 'function') {
+            initLineageGraph(lineageNodes, lineageEdges, "lineage-canvas");
+        } else {
+            console.error("initLineageGraph function not found");
+        }
+    });
+    
+    function downloadLineageJSON() {
+        var data = {
+            nodes: lineageNodes,
+            edges: lineageEdges
+        };
+        var dataStr = JSON.stringify(data, null, 2);
+        var blob = new Blob([dataStr], {type: 'application/json'});
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        link.href = url;
+        link.download = 'lineage.json';
+        link.click();
+    }
+    </script>
+</div>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Preparation Lineage</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            padding: 20px 30px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .stat-card {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+        }
+        
+        .graph-caption {
+            padding: 20px 30px 5px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .graph-panel {
+            padding: 20px 30px;
+            overflow-x: auto;
+            background: #fafafa;
+        }
+        
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            min-height: 400px;
+        }
+        
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Data Preparation Lineage</h1>
+            <p>End-to-end data preparation transformation tracking</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">86</div>
+                <div class="stat-label">Transformation Steps</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">85</div>
+                <div class="stat-label">Data Flows</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">3</div>
+                <div class="stat-label">Stages</div>
+            </div>
+        </div>
+        
+        <div class="graph-caption">Graph view: left-to-right data flow through transformation stages</div>
+        <div class="graph-panel">
+            <div id="mermaidDiagram" class="mermaid">
+graph LR
+    N_0["sql  SELECT"]
+    N_1["FROM \"DWH\".\"PQUAL_HIST_FEI_FIC\" where FLG_VAL_TECH=1;"]
+    N_2["FROM \"DWH\".\"PQUAL_DIM_MOMENT_INSTIT_SPEC\" where FLG_VAL_TECH=1;"]
+    N_3["FROM \"DWH\".\"PQUAL_DIM_MOMENT_TEMPS_HOSPIT\" where FLG_VAL_TECH=1;"]
+    N_4["FROM \"DWH\".\"PQUAL_DIM_NAT_GEST_MOD_OP\" where FLG_VAL_TECH=1;"]
+    N_5["FROM \"DWH\".\"PQUAL_DIM_NAT_GEST_MOYEN\" where FLG_VAL_TECH=1;"]
+    N_6["FROM \"DWH\".\"PQUAL_DIM_PROV_PATIENT\" where FLG_VAL_TECH=1;"]
+    N_7["FROM \"DWH\".\"PQUAL_DIM_DIAG_ENTR_PSY\" where FLG_VAL_TECH=1;"]
+    N_8["FROM \"DWH\".\"PQUAL_DIM_DIAG_ENTR_SSR\" where FLG_VAL_TECH=1;"]
+    N_9["FROM \"DWH\".\"PQUAL_DIM_ETAT_PASS_ACTE\" where FLG_VAL_TECH=1;"]
+    N_10["FROM \"DWH\".\"PQUAL_DIM_SEXE\" where FLG_VAL_TECH=1;"]
+    N_11["FROM \"DWH\".\"PQUAL_DIM_SITU_MARITALE\" where FLG_VAL_TECH=1;"]
+    N_12["FROM \"DWH\".\"PQUAL_DIM_TR_AGE\" where FLG_VAL_TECH=1;"]
+    N_13["FROM \"DWH\".\"PQUAL_DIM_NIV_RSQ_SUIC\" where FLG_VAL_TECH=1;"]
+    N_14["FROM \"DWH\".\"PQUAL_DIM_NIV_RSQ_EHPAD\" where FLG_VAL_TECH=1;"]
+    N_15["FROM \"DWH\".\"PQUAL_DIM_FEI_SERVICE\" where FLG_VAL_TECH=1;"]
+    N_16["FROM \"DWH\".\"PQUAL_DIM_EVT_SENTINELLE\" where FLG_VAL_TECH=1;"]
+    N_17["FROM \"DWH\".\"PQUAL_DIM_FEI_GRAVITE\" where FLG_VAL_TECH=1;"]
+    N_18["FROM \"DWH\".\"PQUAL_DIM_FEI_THEME\" where FLG_VAL_TECH=1;"]
+    N_19["FROM \"DWH\".\"PQUAL_HIST_FEI_AAI\" WHERE FLG_VAL_TECH=1;"]
+    N_20["LOAD * ;"]
+    N_21["from  dwh.PQUAL_HIST_FEI_EIGS eig"]
+    N_22["LOAD *;"]
+    N_23["from  dwh.PQUAL_HIST_FEI_EIGS eig"]
+    N_24["FROM \"DWH\".\"PQUAL_HIST_FEI_EIGS\" where FLG_VAL_TECH=1;"]
+    N_25["FROM \"DWH\".\"PQUAL_DIM_GRAVITE\" where FLG_VAL_TECH=1;"]
+    N_26["FROM \"DWH\".\"PQUAL_DIM_THEMATIQUE\" where FLG_VAL_TECH=1;"]
+    N_27["LOAD ID_TECH,"]
+    N_28["FROM \"DWH\".\"PQUAL_DIM_DIAG_ENTR_PSY\""]
+    N_29["LOAD ID_TECH,"]
+    N_30["FROM \"DWH\".\"PQUAL_DIM_DIAG_ENTR_SSR\""]
+    N_31["LOAD ID_TECH,"]
+    N_32["FROM \"DWH\".\"PQUAL_DIM_ETAT_PASS_ACTE\""]
+    N_33["LOAD ID_TECH,"]
+    N_34["FROM \"DWH\".\"PQUAL_DIM_LIEU_EVT_IND\""]
+    N_35["LOAD ID_TECH,"]
+    N_36["FROM \"DWH\".\"PQUAL_DIM_MOMENT_INSTIT_SPEC\""]
+    N_37["LOAD ID_TECH,"]
+    N_38["FROM \"DWH\".\"PQUAL_DIM_MOMENT_TEMPS_HOSPIT\""]
+    N_39["LOAD ID_TECH,"]
+    N_40["FROM \"DWH\".\"PQUAL_DIM_NAT_GEST_MOD_OP\""]
+    N_41["LOAD ID_TECH,"]
+    N_42["FROM \"DWH\".\"PQUAL_DIM_NAT_GEST_MOYEN\""]
+    N_43["LOAD ID_TECH,"]
+    N_44["FROM \"DWH\".\"PQUAL_DIM_NIV_RSQ_EHPAD\""]
+    N_45["LOAD ID_TECH,"]
+    N_46["FROM \"DWH\".\"PQUAL_DIM_NIV_RSQ_SUIC\""]
+    N_47["LOAD ID_TECH,"]
+    N_48["FROM \"DWH\".\"PQUAL_DIM_PROV_PATIENT\""]
+    N_49["LOAD ID_TECH,"]
+    N_50["FROM \"DWH\".\"PQUAL_DIM_REF_GENE\""]
+    N_51["LOAD ID_TECH,"]
+    N_52["FROM \"DWH\".\"PQUAL_DIM_SITU_MARITALE\""]
+    N_53["LOAD ID_TECH,"]
+    N_54["FROM \"DWH\".\"PQUAL_DIM_TR_AGE\""]
+    N_55["FROM \"ODS\".\"QUAL_QUEST_PAT_REP_ADO\";"]
+    N_56["FROM \"ODS\".\"QUAL_QUEST_PAT_REP_HC\";"]
+    N_57["FROM \"ODS\".\"QUAL_QUEST_PAT_REP_HDJ\";"]
+    N_58["FROM \"ODS\".\"QUAL_QUEST_PAT_REP_HDJ_ADO\";"]
+    N_59["FROM \"ODS\".\"QUAL_QUEST_PAT_REP_HDN\";"]
+    N_60["FROM \"ODS\".\"QUAL_QUESTPATIENT\";"]
+    N_61["FROM \"ODS\".\"QUAL_QUESTPATIENT_ADO\";"]
+    N_62["FROM \"ODS\".\"QUAL_QUESTPATIENT_HDJ\";"]
+    N_63["FROM \"ODS\".\"QUAL_QUESTPATIENT_HDJ_ADO\";"]
+    N_64["FROM \"ODS\".\"QUAL_QUESTPATIENT_HDN\";"]
+    N_65["FROM \"ODS\".\"QUAL_FEI_FICFEI\";"]
+    N_66["FROM \"ODS\".\"QUAL_DATA\";"]
+    N_67["FROM \"ODS\".\"QUAL_DOC_THEMATIQUE\";"]
+    N_68["LOAD QCLG_CODE_ENTITE,"]
+    N_69["FROM \"ODS\".\"QUAL_QUESTPAT_CLOT_GENERIQUE\";"]
+    N_70["LOAD QLGE_FAMILLE_QUESTIONNAIRE,"]
+    N_71["FROM \"ODS\".\"QUAL_QUESTION_LIBRE_GENERIQUE\";"]
+    N_72["LOAD QUGE_FAMILLE_QUESTIONNAIRE,"]
+    N_73["FROM \"ODS\".\"QUAL_QUESTION_GENERIQUE\";"]
+    N_74["LOAD ID_EIGS,"]
+    N_75["FROM \"QUALITE\".\"QUAL_FEI_EIGS\";"]
+    N_76["FROM \"QUALITE\".\"QUAL_FEI_EIGS_CAUSE\";"]
+    N_77["FROM \"QUALITE\".\"QUAL_FEI_DOCUMENT\";"]
+    N_78["FROM \"QUALITE\".\"QUAL_FEI_FICFEI\";"]
+    N_79["FROM \"QUALITE\".\"QUAL_FEI_ORP_SERVICE\";"]
+    N_80["FROM \"QUALITE\".\"QUAL_FEI_EIGS_ACTION\";"]
+    N_81["FROM \"QUALITE\".\"QUAL_PLAN_ACTION\";"]
+    N_82["LOAD ID_ACTION,"]
+    N_83["FROM \"QUALITE\".\"QUAL_FEI_ACTION\";"]
+    N_84["LOAD ID_FEI,"]
+    N_85["FROM \"QUALITE\".\"QUAL_FEI_NATUREFEI\";"]
+    N_0 --> N_1
+    N_1 --> N_2
+    N_2 --> N_3
+    N_3 --> N_4
+    N_4 --> N_5
+    N_5 --> N_6
+    N_6 --> N_7
+    N_7 --> N_8
+    N_8 --> N_9
+    N_9 --> N_10
+    N_10 --> N_11
+    N_11 --> N_12
+    N_12 --> N_13
+    N_13 --> N_14
+    N_14 --> N_15
+    N_15 --> N_16
+    N_16 --> N_17
+    N_17 --> N_18
+    N_18 --> N_19
+    N_19 --> N_20
+    N_20 --> N_21
+    N_21 --> N_22
+    N_22 --> N_23
+    N_23 --> N_24
+    N_24 --> N_25
+    N_25 --> N_26
+    N_26 --> N_27
+    N_27 --> N_28
+    N_28 --> N_29
+    N_29 --> N_30
+    N_30 --> N_31
+    N_31 --> N_32
+    N_32 --> N_33
+    N_33 --> N_34
+    N_34 --> N_35
+    N_35 --> N_36
+    N_36 --> N_37
+    N_37 --> N_38
+    N_38 --> N_39
+    N_39 --> N_40
+    N_40 --> N_41
+    N_41 --> N_42
+    N_42 --> N_43
+    N_43 --> N_44
+    N_44 --> N_45
+    N_45 --> N_46
+    N_46 --> N_47
+    N_47 --> N_48
+    N_48 --> N_49
+    N_49 --> N_50
+    N_50 --> N_51
+    N_51 --> N_52
+    N_52 --> N_53
+    N_53 --> N_54
+    N_54 --> N_55
+    N_55 --> N_56
+    N_56 --> N_57
+    N_57 --> N_58
+    N_58 --> N_59
+    N_59 --> N_60
+    N_60 --> N_61
+    N_61 --> N_62
+    N_62 --> N_63
+    N_63 --> N_64
+    N_64 --> N_65
+    N_65 --> N_66
+    N_66 --> N_67
+    N_67 --> N_68
+    N_68 --> N_69
+    N_69 --> N_70
+    N_70 --> N_71
+    N_71 --> N_72
+    N_72 --> N_73
+    N_73 --> N_74
+    N_74 --> N_75
+    N_75 --> N_76
+    N_76 --> N_77
+    N_77 --> N_78
+    N_78 --> N_79
+    N_79 --> N_80
+    N_80 --> N_81
+    N_81 --> N_82
+    N_82 --> N_83
+    N_83 --> N_84
+    N_84 --> N_85
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            logLevel: 'error',
+            flowchart: {
+                htmlLabels: true,
+                useMaxWidth: false,
+                rankSpacing: 200,
+                nodeSpacing: 120,
+                padding: 40,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>
 
 <h2>Worksheet → Visual Mapping</h2>
 <h2>Datasource Summary</h2>
 <table><tr><th>Name</th><th>Type</th><th>Tables</th><th>Columns</th></tr>
-<tr><td></td><td>unknown</td><td>0</td><td>0</td></tr>
-<tr><td></td><td>unknown</td><td>0</td><td>0</td></tr>
-<tr><td></td><td>unknown</td><td>0</td><td>0</td></tr>
-<tr><td></td><td>unknown</td><td>0</td><td>0</td></tr>
-<tr><td></td><td>unknown</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
+<tr><td></td><td>loadscript</td><td>0</td><td>0</td></tr>
 </table>
 
 <script>
@@ -123,4 +609,73 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" />
+    <script>
+    function initLineageGraph(nodeData, edgeData, containerId) {
+        // Convert data to vis.js format
+        var nodes = new vis.DataSet(nodeData.map(function(n) {
+            var colorMap = {
+                'qlik_field': '#ff9800',
+                'qlik_measure': '#ff9800',
+                'qlik_dimension': '#ff9800',
+                'qlik_sheet': '#ffb74d',
+                'qlik_visual': '#ffb74d',
+                'dax_measure': '#2196f3',
+                'dax_column': '#64b5f6',
+                'm_query': '#1976d2',
+                'tmdl_table': '#4caf50',
+                'tmdl_column': '#81c784',
+                'tmdl_measure': '#66bb6a',
+                'pbi_page': '#9c27b0',
+                'pbi_visual': '#ba68c8',
+            };
+            var color = colorMap[n.kind] || '#999';
+            return {
+                id: n.id,
+                label: n.label,
+                title: n.id + ' (' + n.kind + ')',
+                color: { background: color, border: color },
+                shape: 'box',
+                font: { size: 12 }
+            };
+        }));
+        
+        var edges = new vis.DataSet(edgeData.map(function(e) {
+            return {
+                from: e.source,
+                to: e.target,
+                label: e.relation,
+                arrows: 'to',
+                smooth: { type: 'continuous' }
+            };
+        }));
+        
+        var options = {
+            physics: {
+                enabled: true,
+                stabilization: { iterations: 200 },
+                barnesHut: { gravitationalConstant: -15000 }
+            },
+            interaction: { navigationButtons: true, keyboard: true },
+            layout: { randomSeed: 42 }
+        };
+        
+        var data = { nodes: nodes, edges: edges };
+        var network = new vis.Network(document.getElementById(containerId), data, options);
+        
+        // Click handler for node details
+        network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+                var nodeId = params.nodes[0];
+                var node = nodes.get(nodeId);
+                alert('Node: ' + node.label + '\nType: ' + node.title);
+            }
+        });
+        
+        return network;
+    }
+    </script>
+    
 </div></body></html>

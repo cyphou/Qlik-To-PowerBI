@@ -87,6 +87,7 @@ class QualityGate:
         GateEnvironment.DEV: {
             "min_fidelity": 70,
             "require_rls_audit": False,
+            "require_rls_audit_profiles": [],
             "require_image_audit": False,
             "require_m_query_review": False,
             "allow_warnings": True
@@ -94,6 +95,7 @@ class QualityGate:
         GateEnvironment.TEST: {
             "min_fidelity": 85,
             "require_rls_audit": True,
+            "require_rls_audit_profiles": ["strict", "regulated"],
             "require_image_audit": False,
             "require_m_query_review": False,
             "allow_warnings": False
@@ -101,6 +103,7 @@ class QualityGate:
         GateEnvironment.PROD: {
             "min_fidelity": 90,
             "require_rls_audit": True,
+            "require_rls_audit_profiles": ["strict", "regulated"],
             "require_image_audit": True,
             "require_m_query_review": True,
             "allow_warnings": False
@@ -143,24 +146,24 @@ class QualityGate:
         self._check_security(gate_pass, metrics, config)
         self._check_artifacts(gate_pass, metrics, config)
         self._check_performance(gate_pass, metrics, environment)
-        
-        # Determine pass/fail
-        gate_pass.overall_passed = not any(
-            c.severity == GateSeverity.CRITICAL and not c.passed
-            for c in gate_pass.check_results
-        )
-        
-        # Determine if prod blocks or requires approval
-        if environment == GateEnvironment.PROD:
-            high_failures = [
-                c for c in gate_pass.check_results
-                if not c.passed and c.severity in (GateSeverity.CRITICAL, GateSeverity.HIGH)
-            ]
-            
-            if high_failures:
-                gate_pass.overall_passed = False
-                gate_pass.blocked_reasons = [c.message for c in high_failures]
-                gate_pass.approval_required = True
+
+        # Determine blocking severity by environment.
+        if environment == GateEnvironment.DEV:
+            blocking_severities = {GateSeverity.CRITICAL}
+        else:
+            blocking_severities = {GateSeverity.CRITICAL, GateSeverity.HIGH}
+
+        blocking_failures = [
+            c for c in gate_pass.check_results
+            if not c.passed and c.severity in blocking_severities
+        ]
+
+        gate_pass.overall_passed = len(blocking_failures) == 0
+        gate_pass.blocked_reasons = [c.message for c in blocking_failures]
+
+        # Prod failures require explicit approval workflow.
+        if environment == GateEnvironment.PROD and blocking_failures:
+            gate_pass.approval_required = True
         
         self.logger.info(
             f"Gate evaluation for {app_id} ({environment.value}): "
@@ -232,8 +235,19 @@ class QualityGate:
         config: Dict
     ) -> None:
         """Check security controls."""
+        profile = str(metrics.get("migration_profile", "") or "").strip().lower()
+        rls_profiles = {
+            str(p).strip().lower()
+            for p in config.get("require_rls_audit_profiles", [])
+            if str(p).strip()
+        }
+        should_require_rls_audit = (
+            config.get("require_rls_audit")
+            and (not rls_profiles or not profile or profile in rls_profiles)
+        )
+
         # RLS/OLS audit
-        if config.get("require_rls_audit"):
+        if should_require_rls_audit:
             rls_audited = metrics.get("rls_audit_passed", False)
             
             result = GateCheckResult(
@@ -372,7 +386,7 @@ class GateReportGenerator:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(gate_pass.to_dict(), f, indent=2)
         
         self.logger.info(f"Saved gate report to {output_path}")
@@ -385,6 +399,7 @@ class GateReportGenerator:
         <!DOCTYPE html>
         <html>
         <head>
+            <meta charset=\"utf-8\" />
             <title>Quality Gate Report - {gate_pass.app_id}</title>
             <style>
                 body {{ font-family: Arial; margin: 20px; background: #f5f5f5; }}
@@ -432,7 +447,7 @@ class GateReportGenerator:
         html += "</body></html>"
         
         output_path = Path(output_path)
-        with open(output_path, 'w') as f:
+        with open(output_path, 'w', encoding='utf-8') as f:
             f.write(html)
         
         self.logger.info(f"Saved HTML gate report to {output_path}")

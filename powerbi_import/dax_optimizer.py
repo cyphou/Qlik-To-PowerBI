@@ -125,16 +125,34 @@ def _rule_nested_if_to_switch(formula):
 
 
 def _rule_redundant_calculate(formula):
-    """Remove CALCULATE wrapping when there are no filters.
+    """Remove CALCULATE wrapping only when there are no filter arguments.
 
-    CALCULATE(SUM(x)) → SUM(x)
+    Uses bracket-aware parsing to avoid truncating nested expressions such as:
+    CALCULATE(SUM(SUM('Sales'[Amount])), ALLSELECTED('Sales'))
     """
-    pattern = r'CALCULATE\s*\(\s*([A-Z]+\s*\([^)]*\))\s*\)'
-    m = re.match(pattern, formula.strip())
-    if m:
-        inner = m.group(1).strip()
-        # Only simplify if there's no filter argument (single arg CALCULATE)
-        return inner
+    text = formula.strip()
+    m = re.match(r'CALCULATE\s*\(', text, re.IGNORECASE)
+    if not m:
+        return formula
+
+    # Find the matching closing paren for CALCULATE(
+    depth = 1
+    i = m.end()
+    while i < len(text) and depth > 0:
+        if text[i] == '(':
+            depth += 1
+        elif text[i] == ')':
+            depth -= 1
+        i += 1
+
+    # Not a well-formed single outer CALCULATE call.
+    if depth != 0 or i != len(text):
+        return formula
+
+    inner = text[m.end():i - 1]
+    args = _split_top_level_args(inner)
+    if len(args) == 1:
+        return args[0].strip()
     return formula
 
 
@@ -180,6 +198,43 @@ def _rule_trim_whitespace(formula):
     """Normalize excessive whitespace in formulas."""
     result = re.sub(r'  +', ' ', formula)
     return result.strip()
+
+
+def _split_top_level_args(text):
+    """Split comma-separated args, ignoring commas in nested groups/strings."""
+    args = []
+    depth = 0
+    in_str = False
+    str_char = ''
+    buf = []
+
+    for ch in text:
+        if in_str:
+            buf.append(ch)
+            if ch == str_char:
+                in_str = False
+            continue
+
+        if ch in ('"', "'"):
+            in_str = True
+            str_char = ch
+            buf.append(ch)
+        elif ch == '(':
+            depth += 1
+            buf.append(ch)
+        elif ch == ')':
+            depth -= 1
+            buf.append(ch)
+        elif ch == ',' and depth == 0:
+            args.append(''.join(buf).strip())
+            buf = []
+        else:
+            buf.append(ch)
+
+    if buf:
+        args.append(''.join(buf).strip())
+
+    return args
 
 
 # ════════════════════════════════════════════════════════════════════

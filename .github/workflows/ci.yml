@@ -96,3 +96,59 @@ jobs:
 
       - name: Lint with ruff
         run: ruff check qlik_export/ powerbi_import/ --select=E,F --ignore=E501,E402
+
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: CLI gate flag smoke check
+        run: |
+          python migrate.py --help | grep -- "--gate"
+          python migrate.py --help | grep -- "--force-deployment"
+
+      - name: Gate engine smoke check
+        run: |
+          python - <<'PY'
+          from powerbi_import.quality_gates import QualityGate, GateEnvironment
+
+          gate = QualityGate()
+
+          dev_metrics = {
+              "fidelity_score": 80,
+              "error_count": 0,
+              "pii_fields_detected": 0,
+              "pii_fields_masked": 0,
+              "measure_count": 15,
+          }
+          dev_result = gate.evaluate("ci-dev", GateEnvironment.DEV, dev_metrics)
+          assert dev_result.overall_passed
+
+          prod_metrics = {
+              "fidelity_score": 70,
+              "error_count": 0,
+              "rls_audit_passed": False,
+              "pii_fields_detected": 0,
+              "pii_fields_masked": 0,
+              "measure_count": 15,
+          }
+          prod_result = gate.evaluate("ci-prod", GateEnvironment.PROD, prod_metrics)
+          assert not prod_result.overall_passed
+
+          print("quality gate smoke checks passed")
+          PY
+
+      - name: Run gate-focused CLI tests
+        run: |
+          python -m pytest tests/test_migrate_cli.py -q -k "gate or force_deployment"

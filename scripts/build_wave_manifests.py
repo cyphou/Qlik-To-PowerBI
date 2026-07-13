@@ -116,9 +116,9 @@ def _build_entry(app: dict[str, Any], args: argparse.Namespace) -> dict[str, Any
 
     target_workspace = _norm_text(app.get("target_workspace"))
     if args.output_root and target_workspace:
-        entry["output_dir"] = os.path.join(args.output_root, target_workspace)
+        entry["output_dir"] = os.path.join(args.output_root, target_workspace).replace("\\", "/")
     elif args.output_root:
-        entry["output_dir"] = args.output_root
+        entry["output_dir"] = args.output_root.replace("\\", "/")
 
     # Optional artifact packs if portfolio includes them.
     transform_files = app.get("transform_files", [])

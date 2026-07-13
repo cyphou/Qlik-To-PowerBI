@@ -54,6 +54,16 @@ python migrate.py MyApp.qvf --skip-extraction --output-dir output/existing_json
 | `bookmarks.json` | Bookmarks and selections |
 | `master_items.json` | Master items (combined dim/measure refs) |
 
+### Q: What does the Data Preparation Lineage section show?
+It shows the preparation flow in the comparison report: Qlik load-script steps, Power Query M steps, layer classification (Bronze/Silver/Gold/Mart), purpose tags, complexity scoring, and multi-source steps such as JOIN/CONCATENATE.
+For JSON-based runs, the comparison report falls back to the source app JSON `script` field when `loadscript.json` is unavailable, so lineage still renders in both single-file and batch runs.
+
+### Q: Why might the lineage section still appear smaller than expected?
+The report is data-dependent. Smaller apps will only show the steps present in that app. For JSON-based exports, the report now falls back to the `script` field in the source JSON when `loadscript.json` is unavailable.
+
+### Q: How do I run batch migrations across nested folders?
+Use `--batch-recursive` with `--batch` when your QVF or JSON exports are spread across subdirectories. The batch runner deduplicates by stem and processes `.json`, `.qvf`, and `.qvw` inputs.
+
 ---
 
 ## DAX Conversion

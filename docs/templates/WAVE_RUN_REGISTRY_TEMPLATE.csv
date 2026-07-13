@@ -1,0 +1,7 @@
+run_id,wave_name,app_id,app_name,profile,environment,status,start_time_utc,end_time_utc,duration_minutes,fidelity_score,gate_overall_passed,blocked_reasons,approval_required,approved_by,security_artifacts_complete,rls_signoff_id,incident_reference,owner,notes
+RUN-0001,Wave-1,W1-001,Sales Discovery Wave,fast,test,planned,,,,,false,,false,,false,,,analytics@company.com,
+RUN-0002,Wave-1,W1-002,HR Analytics Wave,strict,test,planned,,,,,false,,false,,false,RLS-W1-002,,hr-bi@company.com,
+RUN-0003,Wave-1,W1-003,Enterprise Sales Wave,regulated,test,planned,,,,,false,,false,,false,RLS-W1-003,,sales-ops@company.com,
+RUN-0004,Wave-2,W2-001,Sales Discovery Scale,fast,test,planned,,,,,false,,false,,false,,,analytics@company.com,
+RUN-0005,Wave-2,W2-002,HR Analytics Scale,strict,test,planned,,,,,false,,false,,false,RLS-W2-002,,hr-bi@company.com,
+RUN-0006,Wave-2,W2-003,Enterprise Sales Scale,regulated,test,planned,,,,,false,,false,,false,RLS-W2-003,,sales-ops@company.com,

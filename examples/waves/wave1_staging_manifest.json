@@ -1,0 +1,30 @@
+{
+  "defaults": {
+    "skip_extraction": false,
+    "output_dir": "output/waves/wave1/staging",
+    "mode": "import",
+    "output_format": "pbip",
+    "paginated": false
+  },
+  "profiles": {
+    "pilot": {
+      "calendar_start": 2020,
+      "calendar_end": 2030,
+      "culture": "en-US"
+    }
+  },
+  "entries": [
+    {
+      "file": "examples/qlik/sales_discovery.qvf",
+      "profile": "pilot"
+    },
+    {
+      "file": "examples/qlik/sales_quick.qvf",
+      "profile": "pilot"
+    },
+    {
+      "file": "examples/qlik/sales_small.qvf",
+      "profile": "pilot"
+    }
+  ]
+}

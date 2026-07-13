@@ -63,6 +63,12 @@ class TestOptimizeDaxRules(unittest.TestCase):
         # Should not simplify because there's a filter argument
         self.assertIn("CALCULATE", result)
 
+    def test_calculate_with_nested_expr_and_filter_kept(self):
+        formula = "CALCULATE(SUM(SUM('Sales'[Amount])), ALLSELECTED('Sales'))"
+        result, rules = optimize_dax(formula)
+        self.assertIn("CALCULATE", result)
+        self.assertNotIn("redundant_calculate", rules)
+
     # ── constant_fold ──
 
     def test_constant_fold_addition(self):

@@ -1,123 +1,3874 @@
 [
   {
-    "tableName": "Sales",
-    "connectionType": "unknown",
-    "connection": {},
+    "tableName": "Table1",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
     "columns": [
       {
-        "name": "SaleID",
-        "dataType": "text",
-        "label": ""
+        "name": "ID_TECH",
+        "dataType": "string"
       },
       {
-        "name": "CustomerID",
-        "dataType": "text",
-        "label": ""
+        "name": "HFEIF_ID_FEI",
+        "dataType": "string"
       },
       {
-        "name": "ProductID",
-        "dataType": "text",
-        "label": ""
+        "name": "HFEIF_NUM_FEI",
+        "dataType": "string"
       },
       {
-        "name": "OrderDate",
-        "dataType": "text",
-        "label": ""
+        "name": "HFEIF_LIB_PERS_CONCERNEE",
+        "dataType": "string"
       },
       {
-        "name": "Amount",
-        "dataType": "text",
-        "label": ""
+        "name": "HFEIF_LIB_FONCTION_SAISI",
+        "dataType": "string"
       },
       {
-        "name": "Quantity",
-        "dataType": "text",
-        "label": ""
+        "name": "HFEIF_CD_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_DT_EVT",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_LIB_LIEU",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_FLAG_CLOT",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_DT_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_DT_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_MOIS_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_MOIS_CLOT_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_FLG_CLOT_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_DT_CLOT",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_FLG_SENTINELLE",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_DT_ENVOI_SENTINELLE",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_ID_EVENEMENT_SENTINELLE",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_NUM_CHAMBRE",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_ID_RISQUE",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_ID_GRAVITE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_FEI_SUPP",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_ID_SERVICE",
+        "dataType": "string"
+      },
+      {
+        "name": ",",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_LIB_FAIT_CSQ",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_NB_VICTIME_EXPOSEE",
+        "dataType": "string"
+      },
+      {
+        "name": "HFEIF_DT_DECL_EVT",
+        "dataType": "string"
       }
     ],
-    "m_query": "let\n    Source = Csv.Document(File.Contents(DataFolder & \"\\\\Sales.csv\"),[Delimiter=\",\", Encoding=65001, QuoteStyle=QuoteStyle.None]),\n    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])\n,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"SaleID\", \"CustomerID\", \"ProductID\", \"OrderDate\", \"Amount\", \"Quantity\"})\n\nin\n    SelectedColumns"
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"HFEIF_ID_FEI\", \"HFEIF_NUM_FEI\", \"HFEIF_LIB_PERS_CONCERNEE\", \"HFEIF_LIB_FONCTION_SAISI\", \"HFEIF_CD_ANNEE\", \"HFEIF_DT_EVT\", \"HFEIF_LIB_LIEU\", \"HFEIF_FLAG_CLOT\", \"HFEIF_DT_CRE\", \"HFEIF_DT_MAJ\", \"HFEIF_MOIS_FEI\", \"HFEIF_MOIS_CLOT_FEI\", \"HFEIF_FLG_CLOT_FEI\", \"HFEIF_DT_CLOT\", \"HFEIF_FLG_SENTINELLE\", \"HFEIF_DT_ENVOI_SENTINELLE\", \"HFEIF_ID_EVENEMENT_SENTINELLE\", \"HFEIF_NUM_CHAMBRE\", \"HFEIF_ID_RISQUE\", \"HFEIF_CD_ENTITE\", \"HFEIF_ID_GRAVITE\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\", \"HFEIF_FEI_SUPP\", \"\"\"HFEIF_ID_SERVICE\"\"\", \"\"\"HFEIF_LIB_FAIT_CSQ\"\"\", \"\"\"HFEIF_NB_VICTIME_EXPOSEE\"\"\", \"\"\"HFEIF_DT_DECL_EVT\"\"\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered\n// Note: Stacked LOAD transforms applied sequentially in M steps"
   },
   {
-    "tableName": "Customers",
-    "connectionType": "unknown",
-    "connection": {},
+    "tableName": "PQUAL_DIM_MOMENT_INSTIT_SPEC",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
     "columns": [
       {
-        "name": "CustomerID",
-        "dataType": "text",
-        "label": ""
+        "name": "ID_TECH",
+        "dataType": "string"
       },
       {
-        "name": "CustomerName",
-        "dataType": "text",
-        "label": ""
+        "name": "DMIS_ID_MOMENT_INSTIT_SPEC",
+        "dataType": "string"
       },
       {
-        "name": "Country",
-        "dataType": "text",
-        "label": ""
+        "name": "DMIS_CD_MOMENT_INSTIT_SPEC",
+        "dataType": "string"
       },
       {
-        "name": "City",
-        "dataType": "text",
-        "label": ""
+        "name": "DMIS_LIB_MOMENT_INSTIT_SPEC",
+        "dataType": "string"
       },
       {
-        "name": "Region",
-        "dataType": "text",
-        "label": ""
+        "name": "DMIS_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DMIS_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DMIS_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DMIS_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
       }
     ],
-    "m_query": "let\n    Source = Excel.Workbook(File.Contents(DataFolder & \"\\\\Customers.xlsx\"), null, true),\n    Sheet1 = Source{{[Item=\"Sheet1\",Kind=\"Sheet\"]}}[Data],\n    PromotedHeaders = Table.PromoteHeaders(Sheet1, [PromoteAllScalars=true])\n,\n    SelectedColumns = Table.SelectColumns(PromotedHeaders, {\"CustomerID\", \"CustomerName\", \"Country\", \"City\", \"Region\"})\n\nin\n    SelectedColumns"
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DMIS_ID_MOMENT_INSTIT_SPEC\", \"DMIS_CD_MOMENT_INSTIT_SPEC\", \"DMIS_LIB_MOMENT_INSTIT_SPEC\", \"DMIS_ID_DATA_SRC\", \"DMIS_CD_ENTITE\", \"DMIS_FLG_SUPPR\", \"DMIS_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
   },
   {
-    "tableName": "Products",
-    "connectionType": "unknown",
-    "connection": {},
+    "tableName": "PQUAL_DIM_MOMENT_TEMPS_HOSPIT",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
     "columns": [
       {
-        "name": "ProductID",
-        "dataType": "text",
-        "label": ""
+        "name": "ID_TECH",
+        "dataType": "string"
       },
       {
-        "name": "ProductName",
-        "dataType": "text",
-        "label": ""
+        "name": "DMTH_ID_MOMENT_TEMPS_HOSPIT",
+        "dataType": "string"
       },
       {
-        "name": "CategoryID",
-        "dataType": "text",
-        "label": ""
+        "name": "DMTH_CD_MOMENT_TEMPS_HOSPIT",
+        "dataType": "string"
       },
       {
-        "name": "UnitPrice",
-        "dataType": "text",
-        "label": ""
+        "name": "DMTH_LIB_MOMENT_TEMPS_HOSPIT",
+        "dataType": "string"
+      },
+      {
+        "name": "DMTH_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DMTH_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DMTH_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DMTH_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
       }
     ],
-    "m_query": "let\n    Source = Qvd.Document(File.Contents(DataFolder & \"\\\\Products.qvd\"))\n,\n    SelectedColumns = Table.SelectColumns(Source, {\"ProductID\", \"ProductName\", \"CategoryID\", \"UnitPrice\"})\n\nin\n    SelectedColumns"
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DMTH_ID_MOMENT_TEMPS_HOSPIT\", \"DMTH_CD_MOMENT_TEMPS_HOSPIT\", \"DMTH_LIB_MOMENT_TEMPS_HOSPIT\", \"DMTH_ID_DATA_SRC\", \"DMTH_CD_ENTITE\", \"DMTH_FLG_SUPPR\", \"DMTH_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
   },
   {
-    "tableName": "Categories",
-    "connectionType": "unknown",
-    "connection": {},
+    "tableName": "PQUAL_DIM_NAT_GEST_MOD_OP",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
     "columns": [
       {
-        "name": "CategoryID",
-        "dataType": "text",
-        "label": ""
+        "name": "ID_TECH",
+        "dataType": "string"
       },
       {
-        "name": "CategoryName",
-        "dataType": "text",
-        "label": ""
+        "name": "DNGO_ID_NAT_GEST_MOD_OP",
+        "dataType": "string"
       },
       {
-        "name": "Description",
-        "dataType": "text",
-        "label": ""
+        "name": "DNGO_CD_NAT_GEST_MOD_OP",
+        "dataType": "string"
+      },
+      {
+        "name": "DNGO_LIB_NAT_GEST_MOD_OP",
+        "dataType": "string"
+      },
+      {
+        "name": "DNGO_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DNGO_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DNGO_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DNGO_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
       }
-    ]
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DNGO_ID_NAT_GEST_MOD_OP\", \"DNGO_CD_NAT_GEST_MOD_OP\", \"DNGO_LIB_NAT_GEST_MOD_OP\", \"DNGO_ID_DATA_SRC\", \"DNGO_CD_ENTITE\", \"DNGO_FLG_SUPPR\", \"DNGO_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_NAT_GEST_MOYEN",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DNGM_ID_NAT_GEST_MOYEN",
+        "dataType": "string"
+      },
+      {
+        "name": "DNGM_CD_NAT_GEST_MOYEN",
+        "dataType": "string"
+      },
+      {
+        "name": "DNGM_LIB_NAT_GEST_MOYEN",
+        "dataType": "string"
+      },
+      {
+        "name": "DNGM_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DNGM_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DNGM_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DNGM_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DNGM_ID_NAT_GEST_MOYEN\", \"DNGM_CD_NAT_GEST_MOYEN\", \"DNGM_LIB_NAT_GEST_MOYEN\", \"DNGM_ID_DATA_SRC\", \"DNGM_CD_ENTITE\", \"DNGM_FLG_SUPPR\", \"DNGM_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_PROV_PATIENT",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DPRPA_ID_PROV_PATIENT",
+        "dataType": "string"
+      },
+      {
+        "name": "DPRPA_CD_PROV_PATIENT",
+        "dataType": "string"
+      },
+      {
+        "name": "DPRPA_LIB_PROV_PATIENT",
+        "dataType": "string"
+      },
+      {
+        "name": "DPRPA_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DPRPA_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DPRPA_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DPRPA_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DPRPA_ID_PROV_PATIENT\", \"DPRPA_CD_PROV_PATIENT\", \"DPRPA_LIB_PROV_PATIENT\", \"DPRPA_ID_DATA_SRC\", \"DPRPA_CD_ENTITE\", \"DPRPA_FLG_SUPPR\", \"DPRPA_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_DIAG_ENTR_PSY",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DDEP_ID_DIAG_ENTR_PSY",
+        "dataType": "string"
+      },
+      {
+        "name": "DDEP_CD_DIAG_ENTR_PSY",
+        "dataType": "string"
+      },
+      {
+        "name": "DDEP_LIB_DIAG_ENTR_PSY",
+        "dataType": "string"
+      },
+      {
+        "name": "DDEP_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DDEP_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DDEP_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DDEP_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DDEP_ID_DIAG_ENTR_PSY\", \"DDEP_CD_DIAG_ENTR_PSY\", \"DDEP_LIB_DIAG_ENTR_PSY\", \"DDEP_ID_DATA_SRC\", \"DDEP_CD_ENTITE\", \"DDEP_FLG_SUPPR\", \"DDEP_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_DIAG_ENTR_SSR",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DDES_ID_DIAG_ENTR_SSR",
+        "dataType": "string"
+      },
+      {
+        "name": "DDES_CD_DIAG_ENTR_SSR",
+        "dataType": "string"
+      },
+      {
+        "name": "DDES_LIB_DIAG_ENTR_SSR",
+        "dataType": "string"
+      },
+      {
+        "name": "DDES_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DDES_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DDES_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DDES_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DDES_ID_DIAG_ENTR_SSR\", \"DDES_CD_DIAG_ENTR_SSR\", \"DDES_LIB_DIAG_ENTR_SSR\", \"DDES_ID_DATA_SRC\", \"DDES_CD_ENTITE\", \"DDES_FLG_SUPPR\", \"DDES_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_ETAT_PASS_ACTE",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DEPA_ID_ETAT_PASS_ACTE",
+        "dataType": "string"
+      },
+      {
+        "name": "DEPA_CD_ETAT_PASS_ACTE",
+        "dataType": "string"
+      },
+      {
+        "name": "DEPA_LIB_ETAT_PASS_ACTE",
+        "dataType": "string"
+      },
+      {
+        "name": "DEPA_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DEPA_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DEPA_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DEPA_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DEPA_ID_ETAT_PASS_ACTE\", \"DEPA_CD_ETAT_PASS_ACTE\", \"DEPA_LIB_ETAT_PASS_ACTE\", \"DEPA_ID_DATA_SRC\", \"DEPA_CD_ENTITE\", \"DEPA_FLG_SUPPR\", \"DEPA_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_SEXE",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DSEX_ID_SEXE",
+        "dataType": "string"
+      },
+      {
+        "name": "DSEX_CD_SEXE",
+        "dataType": "string"
+      },
+      {
+        "name": "DSEX_LIB_SEXE",
+        "dataType": "string"
+      },
+      {
+        "name": "DSEX_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DSEX_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DSEX_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DSEX_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DSEX_ID_SEXE\", \"DSEX_CD_SEXE\", \"DSEX_LIB_SEXE\", \"DSEX_ID_DATA_SRC\", \"DSEX_CD_ENTITE\", \"DSEX_FLG_SUPPR\", \"DSEX_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_SITU_MARITALE",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DSIMA_ID_SITU_MARITALE",
+        "dataType": "string"
+      },
+      {
+        "name": "DSIMA_CD_SITU_MARITALE",
+        "dataType": "string"
+      },
+      {
+        "name": "DSIMA_LIB_SITU_MARITALE",
+        "dataType": "string"
+      },
+      {
+        "name": "DSIMA_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DSIMA_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DSIMA_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DSIMA_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DSIMA_ID_SITU_MARITALE\", \"DSIMA_CD_SITU_MARITALE\", \"DSIMA_LIB_SITU_MARITALE\", \"DSIMA_ID_DATA_SRC\", \"DSIMA_CD_ENTITE\", \"DSIMA_FLG_SUPPR\", \"DSIMA_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_TR_AGE",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DTRA_ID_TR_AGE",
+        "dataType": "string"
+      },
+      {
+        "name": "DTRA_CD_TR_AGE",
+        "dataType": "string"
+      },
+      {
+        "name": "DTRA_LIB_TR_AGE",
+        "dataType": "string"
+      },
+      {
+        "name": "DTRA_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DTRA_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DTRA_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DTRA_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DTRA_ID_TR_AGE\", \"DTRA_CD_TR_AGE\", \"DTRA_LIB_TR_AGE\", \"DTRA_ID_DATA_SRC\", \"DTRA_CD_ENTITE\", \"DTRA_FLG_SUPPR\", \"DTRA_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_NIV_RSQ_SUIC",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRS_ID_NIV_RSQ_SUIC",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRS_CD_NIV_RSQ_SUIC",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRS_LIB_NIV_RSQ_SUIC",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRS_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRS_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRS_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRS_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DNRS_ID_NIV_RSQ_SUIC\", \"DNRS_CD_NIV_RSQ_SUIC\", \"DNRS_LIB_NIV_RSQ_SUIC\", \"DNRS_ID_DATA_SRC\", \"DNRS_CD_ENTITE\", \"DNRS_FLG_SUPPR\", \"DNRS_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_NIV_RSQ_EHPAD",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRE_ID_NIV_RSQ_EHPAD",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRE_CD_NIV_RSQ_EHPAD",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRE_LIB_NIV_RSQ_EHPAD",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRE_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRE_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRE_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DNRE_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DNRE_ID_NIV_RSQ_EHPAD\", \"DNRE_CD_NIV_RSQ_EHPAD\", \"DNRE_LIB_NIV_RSQ_EHPAD\", \"DNRE_ID_DATA_SRC\", \"DNRE_CD_ENTITE\", \"DNRE_FLG_SUPPR\", \"DNRE_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_FEI_SERVICE",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DFES_ID_SERVICE",
+        "dataType": "string"
+      },
+      {
+        "name": "DFES_LIB_SERVICE",
+        "dataType": "string"
+      },
+      {
+        "name": "DFES_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DFES_CD_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DFES_ID_SERVICE\", \"DFES_LIB_SERVICE\", \"DFES_CD_ENTITE\", \"DFES_CD_ANNEE\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_EVT_SENTINELLE",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DEVS_ID_EVENEMENT",
+        "dataType": "string"
+      },
+      {
+        "name": "DEVS_ID_NATEVT",
+        "dataType": "string"
+      },
+      {
+        "name": "DEVS_ID_SOUS_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "DEVS_LIB_EVT_SENTINELLE",
+        "dataType": "string"
+      },
+      {
+        "name": "DEVS_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DEVS_DT_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DEVS_DT_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "DEVS_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DEVS_ID_RISQUE",
+        "dataType": "string"
+      },
+      {
+        "name": "DEVS_TYPE_CLINEA_ORPEA",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DEVS_ID_EVENEMENT\", \"DEVS_ID_NATEVT\", \"DEVS_ID_SOUS_THEME\", \"DEVS_LIB_EVT_SENTINELLE\", \"DEVS_CD_ENTITE\", \"DEVS_DT_CRE\", \"DEVS_DT_MAJ\", \"DEVS_FLG_SUPPR\", \"DEVS_ID_RISQUE\", \"DEVS_TYPE_CLINEA_ORPEA\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_FEI_GRAVITE",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DFGRV_ID_FEI_GRAVITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DFGRV_CD_FEI_GRAVITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DFGRV_LIB_FEI_GRAVITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DFGRV_ID_DATA_SRC",
+        "dataType": "string"
+      },
+      {
+        "name": "DFGRV_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "DFGRV_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DFGRV_DT_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DFGRV_ID_FEI_GRAVITE\", \"DFGRV_CD_FEI_GRAVITE\", \"DFGRV_LIB_FEI_GRAVITE\", \"DFGRV_ID_DATA_SRC\", \"DFGRV_CD_ENTITE\", \"DFGRV_FLG_SUPPR\", \"DFGRV_DT_SUPPR\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered"
+  },
+  {
+    "tableName": "PQUAL_DIM_FEI_THEME",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DFTH_ID_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "DFTH_ID_PERE",
+        "dataType": "string"
+      },
+      {
+        "name": "DFTH_CD_FAMILLE",
+        "dataType": "string"
+      },
+      {
+        "name": "DFTH_LIB_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "DFTH_ID_NIVEAU",
+        "dataType": "string"
+      },
+      {
+        "name": "DFTH_LIB_THEME_PERE",
+        "dataType": "string"
+      },
+      {
+        "name": "DFTH_DT_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DFTH_FLG_SUPPR",
+        "dataType": "string"
+      },
+      {
+        "name": "DFTH_DT_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"DFTH_ID_THEME\", \"DFTH_ID_PERE\", \"DFTH_CD_FAMILLE\", \"DFTH_LIB_THEME\", \"DFTH_ID_NIVEAU\", \"DFTH_LIB_THEME_PERE\", \"DFTH_DT_CRE\", \"DFTH_FLG_SUPPR\", \"DFTH_DT_MAJ\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered\n\n// Stacked/Preceding LOAD"
+  },
+  {
+    "tableName": "PQUAL_HIST_FEI_AAI",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "HFAAI_ID_AAI",
+        "dataType": "string"
+      },
+      {
+        "name": "HFAAI_ID_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "HFAAI_FLG_DMD_INTERV",
+        "dataType": "string"
+      },
+      {
+        "name": "HFAAI_DT_CREATION",
+        "dataType": "string"
+      },
+      {
+        "name": "HFAAI_DT_MODIF",
+        "dataType": "string"
+      },
+      {
+        "name": "HFAAI_DT_SUPPRESSION",
+        "dataType": "string"
+      },
+      {
+        "name": "HFAAI_FLG_AAI_ARS",
+        "dataType": "string"
+      },
+      {
+        "name": "HFAAI_FLG_AAI_PREFET",
+        "dataType": "string"
+      },
+      {
+        "name": "HFAAI_FLG_AAI_DDCS",
+        "dataType": "string"
+      },
+      {
+        "name": "HFAAI_FLG_AAI_PCD",
+        "dataType": "string"
+      },
+      {
+        "name": "HFAAI_DT_PRE_SIGNAL_AUTORITE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_DEB_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "DT_FIN_TECH",
+        "dataType": "string"
+      },
+      {
+        "name": "FLG_VAL_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_TECH\", \"HFAAI_ID_AAI\", \"HFAAI_ID_FEI\", \"HFAAI_FLG_DMD_INTERV\", \"HFAAI_DT_CREATION\", \"HFAAI_DT_MODIF\", \"HFAAI_DT_SUPPRESSION\", \"HFAAI_FLG_AAI_ARS\", \"HFAAI_FLG_AAI_PREFET\", \"HFAAI_FLG_AAI_DDCS\", \"HFAAI_FLG_AAI_PCD\", \"HFAAI_DT_PRE_SIGNAL_AUTORITE\", \"ID_CHGT_TECH\", \"DT_DEB_TECH\", \"DT_FIN_TECH\", \"FLG_VAL_TECH\"})\n,\n    Filtered = Table.SelectRows(SelectedColumns, each (FLG_VAL_TECH=1))\n\nin\n    Filtered\n// Note: Stacked LOAD transforms applied sequentially in M steps"
+  },
+  {
+    "tableName": "QUAL_QUEST_PAT_REP_ADO",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QQPRH_CODE_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ID_QUESTPAT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_NUM_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_TYPE_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_REP_QUESTION_NUM",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_REP_QUESTION_TEXTE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_SUPPRIME",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ID_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QQPRH_CODE_ENTITE\", \"QQPRH_ANNEE\", \"QQPRH_MOIS\", \"QQPRH_ID_QUESTPAT\", \"QQPRH_NUM_QUESTION\", \"QQPRH_TYPE_QUESTION\", \"QQPRH_REP_QUESTION_NUM\", \"QQPRH_REP_QUESTION_TEXTE\", \"QQPRH_DATE_CRE\", \"QQPRH_DATE_MAJ\", \"QQPRH_SUPPRIME\", \"QQPRH_ID_THEME\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "QUAL_QUEST_PAT_REP_HC",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QQPRH_CODE_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ID_QUESTPAT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_NUM_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_TYPE_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_REP_QUESTION_NUM",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_REP_QUESTION_TEXTE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_SUPPRIME",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ID_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QQPRH_CODE_ENTITE\", \"QQPRH_ANNEE\", \"QQPRH_MOIS\", \"QQPRH_ID_QUESTPAT\", \"QQPRH_NUM_QUESTION\", \"QQPRH_TYPE_QUESTION\", \"QQPRH_REP_QUESTION_NUM\", \"QQPRH_REP_QUESTION_TEXTE\", \"QQPRH_DATE_CRE\", \"QQPRH_DATE_MAJ\", \"QQPRH_SUPPRIME\", \"QQPRH_ID_THEME\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table22",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QQPRH_CODE_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ID_QUESTPAT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_NUM_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_TYPE_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_REP_QUESTION_NUM",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_REP_QUESTION_TEXTE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_SUPPRIME",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ID_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QQPRH_CODE_ENTITE\", \"QQPRH_ANNEE\", \"QQPRH_MOIS\", \"QQPRH_ID_QUESTPAT\", \"QQPRH_NUM_QUESTION\", \"QQPRH_TYPE_QUESTION\", \"QQPRH_REP_QUESTION_NUM\", \"QQPRH_REP_QUESTION_TEXTE\", \"QQPRH_DATE_CRE\", \"QQPRH_DATE_MAJ\", \"QQPRH_SUPPRIME\", \"QQPRH_ID_THEME\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table23",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QQPRH_CODE_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ID_QUESTPAT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_NUM_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_TYPE_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_REP_QUESTION_NUM",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_REP_QUESTION_TEXTE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_SUPPRIME",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ID_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QQPRH_CODE_ENTITE\", \"QQPRH_ANNEE\", \"QQPRH_MOIS\", \"QQPRH_ID_QUESTPAT\", \"QQPRH_NUM_QUESTION\", \"QQPRH_TYPE_QUESTION\", \"QQPRH_REP_QUESTION_NUM\", \"QQPRH_REP_QUESTION_TEXTE\", \"QQPRH_DATE_CRE\", \"QQPRH_DATE_MAJ\", \"QQPRH_SUPPRIME\", \"QQPRH_ID_THEME\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table24",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QQPRH_CODE_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ID_QUESTPAT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_NUM_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_TYPE_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_REP_QUESTION_NUM",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_REP_QUESTION_TEXTE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_SUPPRIME",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPRH_ID_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QQPRH_CODE_ENTITE\", \"QQPRH_ANNEE\", \"QQPRH_MOIS\", \"QQPRH_ID_QUESTPAT\", \"QQPRH_NUM_QUESTION\", \"QQPRH_TYPE_QUESTION\", \"QQPRH_REP_QUESTION_NUM\", \"QQPRH_REP_QUESTION_TEXTE\", \"QQPRH_DATE_CRE\", \"QQPRH_DATE_MAJ\", \"QQPRH_SUPPRIME\", \"QQPRH_ID_THEME\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table25",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QQPATI_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_ID_QUESTPAT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_NOCHAMBRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_NOQUESTIONNAIRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATEAU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATEDU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_1",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_2",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_3",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_4",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_5",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_6",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_7",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_ADMISSION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_AUTRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_HOTELCONF",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_PRESTACT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_RESTAU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_SOINSREL",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_SORTIE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_SUPPRIMER",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QQPATI_ENTITE\", \"QQPATI_ID_QUESTPAT\", \"QQPATI_NOCHAMBRE\", \"QQPATI_NOQUESTIONNAIRE\", \"QQPATI_DATEAU\", \"QQPATI_DATEDU\", \"QQPATI_ANNEE\", \"QQPATI_MOIS\", \"QQPATI_REMARQUE_1\", \"QQPATI_REMARQUE_2\", \"QQPATI_REMARQUE_3\", \"QQPATI_REMARQUE_4\", \"QQPATI_REMARQUE_5\", \"QQPATI_REMARQUE_6\", \"QQPATI_REMARQUE_7\", \"QQPATI_REM_ADMISSION\", \"QQPATI_REM_AUTRE\", \"QQPATI_REM_HOTELCONF\", \"QQPATI_REM_PRESTACT\", \"QQPATI_REM_RESTAU\", \"QQPATI_REM_SOINSREL\", \"QQPATI_REM_SORTIE\", \"QQPATI_SUPPRIMER\", \"QQPATI_DATE_CRE\", \"QQPATI_DATE_MAJ\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table26",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QQPATI_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_ID_QUESTPAT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_NOCHAMBRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_NOQUESTIONNAIRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATEAU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATEDU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_1",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_2",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_3",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_4",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_5",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_6",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_7",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_ADMISSION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_AUTRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_HOTELCONF",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_PRESTACT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_RESTAU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_SOINSREL",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_SORTIE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_SUPPRIMER",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QQPATI_ENTITE\", \"QQPATI_ID_QUESTPAT\", \"QQPATI_NOCHAMBRE\", \"QQPATI_NOQUESTIONNAIRE\", \"QQPATI_DATEAU\", \"QQPATI_DATEDU\", \"QQPATI_ANNEE\", \"QQPATI_MOIS\", \"QQPATI_REMARQUE_1\", \"QQPATI_REMARQUE_2\", \"QQPATI_REMARQUE_3\", \"QQPATI_REMARQUE_4\", \"QQPATI_REMARQUE_5\", \"QQPATI_REMARQUE_6\", \"QQPATI_REMARQUE_7\", \"QQPATI_REM_ADMISSION\", \"QQPATI_REM_AUTRE\", \"QQPATI_REM_HOTELCONF\", \"QQPATI_REM_PRESTACT\", \"QQPATI_REM_RESTAU\", \"QQPATI_REM_SOINSREL\", \"QQPATI_REM_SORTIE\", \"QQPATI_SUPPRIMER\", \"QQPATI_DATE_CRE\", \"QQPATI_DATE_MAJ\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table27",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QQPATI_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_ID_QUESTPAT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_NOCHAMBRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_NOQUESTIONNAIRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATEAU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATEDU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_1",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_2",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_3",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_4",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_5",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_6",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_7",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_ADMISSION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_AUTRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_HOTELCONF",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_PRESTACT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_RESTAU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_SOINSREL",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_SORTIE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_SUPPRIMER",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QQPATI_ENTITE\", \"QQPATI_ID_QUESTPAT\", \"QQPATI_NOCHAMBRE\", \"QQPATI_NOQUESTIONNAIRE\", \"QQPATI_DATEAU\", \"QQPATI_DATEDU\", \"QQPATI_ANNEE\", \"QQPATI_MOIS\", \"QQPATI_REMARQUE_1\", \"QQPATI_REMARQUE_2\", \"QQPATI_REMARQUE_3\", \"QQPATI_REMARQUE_4\", \"QQPATI_REMARQUE_5\", \"QQPATI_REMARQUE_6\", \"QQPATI_REMARQUE_7\", \"QQPATI_REM_ADMISSION\", \"QQPATI_REM_AUTRE\", \"QQPATI_REM_HOTELCONF\", \"QQPATI_REM_PRESTACT\", \"QQPATI_REM_RESTAU\", \"QQPATI_REM_SOINSREL\", \"QQPATI_REM_SORTIE\", \"QQPATI_SUPPRIMER\", \"QQPATI_DATE_CRE\", \"QQPATI_DATE_MAJ\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table28",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QQPATI_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_ID_QUESTPAT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_NOCHAMBRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_NOQUESTIONNAIRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATEAU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATEDU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_1",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_2",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_3",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_4",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_5",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_6",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_7",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_ADMISSION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_AUTRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_HOTELCONF",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_PRESTACT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_RESTAU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_SOINSREL",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_SORTIE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_SUPPRIMER",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QQPATI_ENTITE\", \"QQPATI_ID_QUESTPAT\", \"QQPATI_NOCHAMBRE\", \"QQPATI_NOQUESTIONNAIRE\", \"QQPATI_DATEAU\", \"QQPATI_DATEDU\", \"QQPATI_ANNEE\", \"QQPATI_MOIS\", \"QQPATI_REMARQUE_1\", \"QQPATI_REMARQUE_2\", \"QQPATI_REMARQUE_3\", \"QQPATI_REMARQUE_4\", \"QQPATI_REMARQUE_5\", \"QQPATI_REMARQUE_6\", \"QQPATI_REMARQUE_7\", \"QQPATI_REM_ADMISSION\", \"QQPATI_REM_AUTRE\", \"QQPATI_REM_HOTELCONF\", \"QQPATI_REM_PRESTACT\", \"QQPATI_REM_RESTAU\", \"QQPATI_REM_SOINSREL\", \"QQPATI_REM_SORTIE\", \"QQPATI_SUPPRIMER\", \"QQPATI_DATE_CRE\", \"QQPATI_DATE_MAJ\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table29",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QQPATI_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_ID_QUESTPAT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_NOCHAMBRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_NOQUESTIONNAIRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATEAU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATEDU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_1",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_2",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_3",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_4",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_5",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_6",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REMARQUE_7",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_ADMISSION",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_AUTRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_HOTELCONF",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_PRESTACT",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_RESTAU",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_SOINSREL",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_REM_SORTIE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_SUPPRIMER",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QQPATI_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QQPATI_ENTITE\", \"QQPATI_ID_QUESTPAT\", \"QQPATI_NOCHAMBRE\", \"QQPATI_NOQUESTIONNAIRE\", \"QQPATI_DATEAU\", \"QQPATI_DATEDU\", \"QQPATI_ANNEE\", \"QQPATI_MOIS\", \"QQPATI_REMARQUE_1\", \"QQPATI_REMARQUE_2\", \"QQPATI_REMARQUE_3\", \"QQPATI_REMARQUE_4\", \"QQPATI_REMARQUE_5\", \"QQPATI_REMARQUE_6\", \"QQPATI_REMARQUE_7\", \"QQPATI_REM_ADMISSION\", \"QQPATI_REM_AUTRE\", \"QQPATI_REM_HOTELCONF\", \"QQPATI_REM_PRESTACT\", \"QQPATI_REM_RESTAU\", \"QQPATI_REM_SOINSREL\", \"QQPATI_REM_SORTIE\", \"QQPATI_SUPPRIMER\", \"QQPATI_DATE_CRE\", \"QQPATI_DATE_MAJ\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table30",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QFEIF_ID_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_NUM_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_LIB_PERS_CONCERNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_LIB_FONCTION_SAISI",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_DATE_EVT",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_LIB_LIEU",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_FLAG_CLOT",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_MOIS_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_MOIS_CLOT_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_CLOT_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_DATE_CLOT",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_FLAG_SENTINELLE",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_DATE_ENVOI",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_ID_EVENEMENT_SENTINELLE",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_NUM_CHAMBRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_ID_RISQUE",
+        "dataType": "string"
+      },
+      {
+        "name": "QFEIF_ID_GRAVITE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QFEIF_ID_FEI\", \"QFEIF_NUM_FEI\", \"QFEIF_CD_ENTITE\", \"QFEIF_LIB_PERS_CONCERNEE\", \"QFEIF_LIB_FONCTION_SAISI\", \"QFEIF_ANNEE\", \"QFEIF_DATE_EVT\", \"QFEIF_LIB_LIEU\", \"QFEIF_FLAG_CLOT\", \"QFEIF_DATE_CRE\", \"QFEIF_DATE_MAJ\", \"QFEIF_MOIS_FEI\", \"QFEIF_MOIS_CLOT_FEI\", \"QFEIF_CLOT_FEI\", \"QFEIF_DATE_CLOT\", \"QFEIF_FLAG_SENTINELLE\", \"QFEIF_DATE_ENVOI\", \"QFEIF_ID_EVENEMENT_SENTINELLE\", \"QFEIF_NUM_CHAMBRE\", \"QFEIF_ID_RISQUE\", \"QFEIF_ID_GRAVITE\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table31",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QDATA_ID_DATA",
+        "dataType": "string"
+      },
+      {
+        "name": "QDATA_LIB_DATA",
+        "dataType": "string"
+      },
+      {
+        "name": "QDATA_TYPE_DATA",
+        "dataType": "string"
+      },
+      {
+        "name": "QDATA_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QDATA_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "QDATA_NEW_QUEST",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QDATA_ID_DATA\", \"QDATA_LIB_DATA\", \"QDATA_TYPE_DATA\", \"QDATA_DATE_CRE\", \"QDATA_DATE_MAJ\", \"QDATA_NEW_QUEST\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table32",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QDTHE_ID_THEMATIQUE",
+        "dataType": "string"
+      },
+      {
+        "name": "QDTHE_ID_PERE",
+        "dataType": "string"
+      },
+      {
+        "name": "QDTHE_LIBELLE",
+        "dataType": "string"
+      },
+      {
+        "name": "QDTHE_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QDTHE_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "QDTHE_SUPPRIME",
+        "dataType": "string"
+      },
+      {
+        "name": "QDTHE_NIVEAU_HIERARCHIQUE",
+        "dataType": "string"
+      },
+      {
+        "name": "QDTHE_CD_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QDTHE_ID_THEMATIQUE\", \"QDTHE_ID_PERE\", \"QDTHE_LIBELLE\", \"QDTHE_DATE_CRE\", \"QDTHE_DATE_MAJ\", \"QDTHE_SUPPRIME\", \"QDTHE_NIVEAU_HIERARCHIQUE\", \"QDTHE_CD_ENTITE\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "QUAL_QUESTPAT_CLOT_GENERIQUE",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QCLG_CODE_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QCLG_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QCLG_MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "QCLG_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QCLG_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "QCLG_NOMBRE_CAS_1",
+        "dataType": "string"
+      },
+      {
+        "name": "QCLG_NOMBRE_CAS_2",
+        "dataType": "string"
+      },
+      {
+        "name": "QCLG_NOMBRE_CAS_3",
+        "dataType": "string"
+      },
+      {
+        "name": "QCLG_NOMBRE_CAS_4",
+        "dataType": "string"
+      },
+      {
+        "name": "QCLG_DATE_CLOTURE_MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "QCLG_FAMILLE_QUESTIONNAIRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QCLG_NOMBRE_CAS_5",
+        "dataType": "string"
+      },
+      {
+        "name": "QCLG_NOMBRE_CAS_6",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QCLG_CODE_ENTITE\", \"QCLG_ANNEE\", \"QCLG_MOIS\", \"QCLG_DATE_CRE\", \"QCLG_DATE_MAJ\", \"QCLG_NOMBRE_CAS_1\", \"QCLG_NOMBRE_CAS_2\", \"QCLG_NOMBRE_CAS_3\", \"QCLG_NOMBRE_CAS_4\", \"QCLG_DATE_CLOTURE_MOIS\", \"QCLG_FAMILLE_QUESTIONNAIRE\", \"QCLG_NOMBRE_CAS_5\", \"QCLG_NOMBRE_CAS_6\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table34",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QLGE_FAMILLE_QUESTIONNAIRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QLGE_LIBELLE",
+        "dataType": "string"
+      },
+      {
+        "name": "QLGE_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "QLGE_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "QLGE_TYPE",
+        "dataType": "string"
+      },
+      {
+        "name": "QLGE_NUM_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QLGE_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QLGE_CODE_USER_NT_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QLGE_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "QLGE_CODE_USER_NT_MOD",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QLGE_FAMILLE_QUESTIONNAIRE\", \"QLGE_LIBELLE\", \"QLGE_ENTITE\", \"QLGE_ANNEE\", \"QLGE_TYPE\", \"QLGE_NUM_QUESTION\", \"QLGE_DATE_CRE\", \"QLGE_CODE_USER_NT_CRE\", \"QLGE_DATE_MAJ\", \"QLGE_CODE_USER_NT_MOD\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table35",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "QUGE_FAMILLE_QUESTIONNAIRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_NUM_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_LIB_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_ANNEE_DEBUT_DE_LA_GRILLE",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_CODE_TYPE_DE_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_TYPE_QUESTION_LIBRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_NIVEAU_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_TYPE_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_ORDRE_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_NBR_OPTION_QUESTION",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_TEXTE_OPT_1",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_TEXTE_OPT_2",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_TEXTE_OPT_3",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_TEXTE_OPT_4",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_TEXTE_OPT_5",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_TEXTE_OPT_6",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_TEXTE_OPT_7",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_CODE_USER_NT_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "QUGE_CODE_USER_NT_MOD",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_CHGT_TECH",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"QUGE_FAMILLE_QUESTIONNAIRE\", \"QUGE_NUM_QUESTION\", \"QUGE_LIB_QUESTION\", \"QUGE_ANNEE_DEBUT_DE_LA_GRILLE\", \"QUGE_CODE_TYPE_DE_QUESTION\", \"QUGE_TYPE_QUESTION_LIBRE\", \"QUGE_NIVEAU_QUESTION\", \"QUGE_TYPE_QUESTION\", \"QUGE_ORDRE_QUESTION\", \"QUGE_NBR_OPTION_QUESTION\", \"QUGE_TEXTE_OPT_1\", \"QUGE_TEXTE_OPT_2\", \"QUGE_TEXTE_OPT_3\", \"QUGE_TEXTE_OPT_4\", \"QUGE_TEXTE_OPT_5\", \"QUGE_TEXTE_OPT_6\", \"QUGE_TEXTE_OPT_7\", \"QUGE_DATE_CRE\", \"QUGE_CODE_USER_NT_CRE\", \"QUGE_DATE_MAJ\", \"QUGE_CODE_USER_NT_MOD\", \"ID_CHGT_TECH\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table36",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_EIGS",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_MOD",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_MOD",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_SUP",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_SUP",
+        "dataType": "string"
+      },
+      {
+        "name": "MEMO_NOM_FICHIER_CHRONO_FAIT",
+        "dataType": "string"
+      },
+      {
+        "name": "MEMO_NOM_FICHIER_AUTRE_METHODE",
+        "dataType": "string"
+      },
+      {
+        "name": "MEMO_NOM_FICHIER_DEC_EXTERNE_1",
+        "dataType": "string"
+      },
+      {
+        "name": "CPT_RENDU_DATE_REAL_EVENEMENT",
+        "dataType": "string"
+      },
+      {
+        "name": "CPT_RENDU_DATE_APP_CAUSES",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_DATE_RECUEIL_INFO",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_DATE_ENTREE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_PERIODE_ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_HEURE_EVENEMENT",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_MOMENT_INST_SPECIFIQUE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_LIEU_EI",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_NATURE_GEST_MODE_OPERAT",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_NATURE_GEST_MOYEN",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ANTECE_FAM",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ANTECE_FAM_LESQUELS",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ANTECE_FAM_COND_SUICID",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ANTECE_FAM_COND_AUTO_A",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ANTECE_FAM_RECUR_HOSP",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ANTECE_NBR_SEJOUR",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ANTECE_DATE_SORTIE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ANTECE_PROVENANCE_PATI",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_SUIVI_PSY_ANTERIEUR",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_SUIVI_PSY_PENDANT_HOSP",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ETAT_SANTE_DIAG_ENT_PSY",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ETAT_SANTE_DIAG_ENT_SSR",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ETAT_SANTE_PASSAGE_ACT",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_TRTMTENT_PSYCHOTROPE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_TRTMTENT_CHANGE_TRT_REC",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_PERO_FACT_SAUC_FAM_SEXE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_PERO_FACT_SAUC_FAM_AGE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_PERO_FACT_SAUC_FAM_SIT_MAR",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_PERO_FACT_SAUC_FAM_EMPLOI",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_RELATI_CONFL_DIFF_RETOUR",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_RELATI_CONFL_ALLI_THERA",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_RELATI_CONFL_RISQUE_SUICID",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_NIVEAU_RISQUE_SUICIDE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_NIVEAU_RISQUE_EHPAD",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_PROTOCOLE_PREV_RISQUE_SUIC",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_INVENTAIRE_REAL_ENTREE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_INVENTAIRE_RETOUR_PERM",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_PROTOCOLE_RETRAIT_SURVEIL",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_AIDE_DECIS_ECHELLE_EVAL",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_AIDE_DECIS_LETTRE_COURRIER",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_PROG_PLANN_DATE_EVAL",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_PROG_PLANN_SURVEIL_ADAPTEE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_PRESENCE_ENCA_PRESENT",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_DATE_FORMATION",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_TAUX_PERSON_FORM",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_PRESENCE_REFERENT_QUAL",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_EVAL_REGULIERE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_COM_PROF_FLUIDITE_ECHANGE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_MODAL_SURV_ABSENCE_PATIENT",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_MODAL_ALERTE_ABS_PATIENT",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_DEM_SOUT_PSY_APRES",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_DEM_SOUT_CELLULE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_DEM_SOUT_INTERNE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_DEM_SOUT_SOIGNANT",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_DEM_SOUT_PATIENT",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_NBR_ENTREE_JOUR_EVEN",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_NBR_SORTIE_JOUR_EVEN",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_NBR_PATIENT_JOUR_EVEN",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_PRISE_CHARGE_DIFFICILE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_CHARGE_TRAVAIL_AUTRE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_EQUIPE_STABLE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_EQUIPE_EXPERIMENTEE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_FACTEUR_STRESS_OUI",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_SUICIDE_RECENT_STRUCT",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_CONTEXTE_NATI_SPECI",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_CONTEXTE_NATI_SPECI_LEQUEL",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_LOCAUX_FACILITANT",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ACCES_MOYEN_LETAUX",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_DIFFICULTE_IMFORMATIQUE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_MAITRISE_LOGICIEL",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_ENVIRO_TRAV_AUTRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_DEC_EXT_VOLET_1",
+        "dataType": "string"
+      },
+      {
+        "name": "MEMO_NOM_FICHIER_DEC_EXTERNE_2",
+        "dataType": "string"
+      },
+      {
+        "name": "MEMO_NOM_FICHIER_FEUILLE_EMARG",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_FACTEUR_STRESS_PSY",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_REPARTITION_TACHE_CLAIRE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_DATE_ENVOI_MAIL_ECHEANCE",
+        "dataType": "string"
+      },
+      {
+        "name": "FRS_MOMENT_TEMPS_HOSPITAL",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_DEC_EXT_VOLET_2",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_PRISE_CONNAISSANCE",
+        "dataType": "string"
+      },
+      {
+        "name": "HEURE_PRISE_CONNAISSANCE",
+        "dataType": "string"
+      },
+      {
+        "name": "HEURE_DEC_EXT_VOLET_1",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_AVIS_DRESMS",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_AVIS_DIR_REGIONAL",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_AVIS_DIR_MEDICALE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_ACC_RECP_ARS_1",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_ACC_RECP_ARS_2",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_FORMULAIRE_SPECIFIQUE_1",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_FORMULAIRE_SPECIFIQUE_2",
+        "dataType": "string"
+      },
+      {
+        "name": "TEXTE_AVIS_DRESMS",
+        "dataType": "string"
+      },
+      {
+        "name": "TEXTE_AVIS_DIR_REGIONAL",
+        "dataType": "string"
+      },
+      {
+        "name": "TEXTE_AVIS_DIR_MEDICALE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_ACC_RECP_ARS_3",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_DECLARATION_AUTORITE",
+        "dataType": "string"
+      },
+      {
+        "name": "PROCUREUR_A_ETE_INFORME",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_RECEPTION_MAIL_1",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_RECEPTION_MAIL_2",
+        "dataType": "string"
+      },
+      {
+        "name": "EST_DECLARATION_EXTERNE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_DEC_EXT_VOLET_3",
+        "dataType": "string"
+      },
+      {
+        "name": "EVENEMENT_EIGS",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_EIGS\", \"ID_FEI\", \"CODE_USER_NT_CRE\", \"DATE_CRE\", \"CODE_USER_NT_MOD\", \"DATE_MOD\", \"CODE_USER_NT_SUP\", \"DATE_SUP\", \"MEMO_NOM_FICHIER_CHRONO_FAIT\", \"MEMO_NOM_FICHIER_AUTRE_METHODE\", \"MEMO_NOM_FICHIER_DEC_EXTERNE_1\", \"CPT_RENDU_DATE_REAL_EVENEMENT\", \"CPT_RENDU_DATE_APP_CAUSES\", \"FRS_DATE_RECUEIL_INFO\", \"FRS_DATE_ENTREE\", \"FRS_PERIODE_ANNEE\", \"FRS_HEURE_EVENEMENT\", \"FRS_MOMENT_INST_SPECIFIQUE\", \"FRS_LIEU_EI\", \"FRS_NATURE_GEST_MODE_OPERAT\", \"FRS_NATURE_GEST_MOYEN\", \"FRS_ANTECE_FAM\", \"FRS_ANTECE_FAM_LESQUELS\", \"FRS_ANTECE_FAM_COND_SUICID\", \"FRS_ANTECE_FAM_COND_AUTO_A\", \"FRS_ANTECE_FAM_RECUR_HOSP\", \"FRS_ANTECE_NBR_SEJOUR\", \"FRS_ANTECE_DATE_SORTIE\", \"FRS_ANTECE_PROVENANCE_PATI\", \"FRS_SUIVI_PSY_ANTERIEUR\", \"FRS_SUIVI_PSY_PENDANT_HOSP\", \"FRS_ETAT_SANTE_DIAG_ENT_PSY\", \"FRS_ETAT_SANTE_DIAG_ENT_SSR\", \"FRS_ETAT_SANTE_PASSAGE_ACT\", \"FRS_TRTMTENT_PSYCHOTROPE\", \"FRS_TRTMTENT_CHANGE_TRT_REC\", \"FRS_PERO_FACT_SAUC_FAM_SEXE\", \"FRS_PERO_FACT_SAUC_FAM_AGE\", \"FRS_PERO_FACT_SAUC_FAM_SIT_MAR\", \"FRS_PERO_FACT_SAUC_FAM_EMPLOI\", \"FRS_RELATI_CONFL_DIFF_RETOUR\", \"FRS_RELATI_CONFL_ALLI_THERA\", \"FRS_RELATI_CONFL_RISQUE_SUICID\", \"FRS_NIVEAU_RISQUE_SUICIDE\", \"FRS_NIVEAU_RISQUE_EHPAD\", \"FRS_PROTOCOLE_PREV_RISQUE_SUIC\", \"FRS_INVENTAIRE_REAL_ENTREE\", \"FRS_INVENTAIRE_RETOUR_PERM\", \"FRS_PROTOCOLE_RETRAIT_SURVEIL\", \"FRS_AIDE_DECIS_ECHELLE_EVAL\", \"FRS_AIDE_DECIS_LETTRE_COURRIER\", \"FRS_PROG_PLANN_DATE_EVAL\", \"FRS_PROG_PLANN_SURVEIL_ADAPTEE\", \"FRS_PRESENCE_ENCA_PRESENT\", \"FRS_DATE_FORMATION\", \"FRS_TAUX_PERSON_FORM\", \"FRS_PRESENCE_REFERENT_QUAL\", \"FRS_EVAL_REGULIERE\", \"FRS_COM_PROF_FLUIDITE_ECHANGE\", \"FRS_MODAL_SURV_ABSENCE_PATIENT\", \"FRS_MODAL_ALERTE_ABS_PATIENT\", \"FRS_DEM_SOUT_PSY_APRES\", \"FRS_DEM_SOUT_CELLULE\", \"FRS_DEM_SOUT_INTERNE\", \"FRS_DEM_SOUT_SOIGNANT\", \"FRS_DEM_SOUT_PATIENT\", \"FRS_NBR_ENTREE_JOUR_EVEN\", \"FRS_NBR_SORTIE_JOUR_EVEN\", \"FRS_NBR_PATIENT_JOUR_EVEN\", \"FRS_PRISE_CHARGE_DIFFICILE\", \"FRS_CHARGE_TRAVAIL_AUTRE\", \"FRS_EQUIPE_STABLE\", \"FRS_EQUIPE_EXPERIMENTEE\", \"FRS_FACTEUR_STRESS_OUI\", \"FRS_SUICIDE_RECENT_STRUCT\", \"FRS_CONTEXTE_NATI_SPECI\", \"FRS_CONTEXTE_NATI_SPECI_LEQUEL\", \"FRS_LOCAUX_FACILITANT\", \"FRS_ACCES_MOYEN_LETAUX\", \"FRS_DIFFICULTE_IMFORMATIQUE\", \"FRS_MAITRISE_LOGICIEL\", \"FRS_ENVIRO_TRAV_AUTRE\", \"DATE_DEC_EXT_VOLET_1\", \"MEMO_NOM_FICHIER_DEC_EXTERNE_2\", \"MEMO_NOM_FICHIER_FEUILLE_EMARG\", \"FRS_FACTEUR_STRESS_PSY\", \"FRS_REPARTITION_TACHE_CLAIRE\", \"FRS_DATE_ENVOI_MAIL_ECHEANCE\", \"FRS_MOMENT_TEMPS_HOSPITAL\", \"DATE_DEC_EXT_VOLET_2\", \"DATE_PRISE_CONNAISSANCE\", \"HEURE_PRISE_CONNAISSANCE\", \"HEURE_DEC_EXT_VOLET_1\", \"DATE_AVIS_DRESMS\", \"DATE_AVIS_DIR_REGIONAL\", \"DATE_AVIS_DIR_MEDICALE\", \"DATE_ACC_RECP_ARS_1\", \"DATE_ACC_RECP_ARS_2\", \"DATE_FORMULAIRE_SPECIFIQUE_1\", \"DATE_FORMULAIRE_SPECIFIQUE_2\", \"TEXTE_AVIS_DRESMS\", \"TEXTE_AVIS_DIR_REGIONAL\", \"TEXTE_AVIS_DIR_MEDICALE\", \"DATE_ACC_RECP_ARS_3\", \"DATE_DECLARATION_AUTORITE\", \"PROCUREUR_A_ETE_INFORME\", \"DATE_RECEPTION_MAIL_1\", \"DATE_RECEPTION_MAIL_2\", \"EST_DECLARATION_EXTERNE\", \"DATE_DEC_EXT_VOLET_3\", \"EVENEMENT_EIGS\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "QUAL_FEI_EIGS_CAUSE",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_EIGS",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_FEI_EIGS_CAUSE",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_TYPE_TEXTE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_FEI_EIGS_ACTION",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_TEXTE",
+        "dataType": "string"
+      },
+      {
+        "name": "HEURE_TEXTE",
+        "dataType": "string"
+      },
+      {
+        "name": "TEXTE",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_SUP",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_SUP",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_MOD",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_MOD",
+        "dataType": "string"
+      },
+      {
+        "name": "CASE_ACTION_COCHEE",
+        "dataType": "string"
+      },
+      {
+        "name": "FAMILLE_DE_CAUSE",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_EIGS\", \"ID_FEI_EIGS_CAUSE\", \"CODE_TYPE_TEXTE\", \"ID_FEI_EIGS_ACTION\", \"DATE_TEXTE\", \"HEURE_TEXTE\", \"TEXTE\", \"CODE_USER_NT_CRE\", \"DATE_CRE\", \"CODE_USER_NT_SUP\", \"DATE_SUP\", \"CODE_USER_NT_MOD\", \"DATE_MOD\", \"CASE_ACTION_COCHEE\", \"FAMILLE_DE_CAUSE\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table38",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_DOCUMENT_BASE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "FORMAT_FIC_PRINCIPAL",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_SUP",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "TYPE_DE_DOCUMENT",
+        "dataType": "string"
+      },
+      {
+        "name": "MEMO_NOM_DU_FICHIER",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_DOCUMENT_BASE\", \"ID_FEI\", \"FORMAT_FIC_PRINCIPAL\", \"DATE_CRE\", \"DATE_SUP\", \"CODE_USER_NT_CRE\", \"TYPE_DE_DOCUMENT\", \"MEMO_NOM_DU_FICHIER\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "QUAL_FEI_FICFEI",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_SERVICE",
+        "dataType": "string"
+      },
+      {
+        "name": "NUM_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "NOM_DEC",
+        "dataType": "string"
+      },
+      {
+        "name": "PRENOM_DEC",
+        "dataType": "string"
+      },
+      {
+        "name": "PERS_CONCERNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "AUT_PERS",
+        "dataType": "string"
+      },
+      {
+        "name": "DEC_ANONYM",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_REFQUAL",
+        "dataType": "string"
+      },
+      {
+        "name": "FONCTION",
+        "dataType": "string"
+      },
+      {
+        "name": "AUT_FCT",
+        "dataType": "string"
+      },
+      {
+        "name": "ANNEE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_EVT",
+        "dataType": "string"
+      },
+      {
+        "name": "HEUR_EVT",
+        "dataType": "string"
+      },
+      {
+        "name": "LIEU",
+        "dataType": "string"
+      },
+      {
+        "name": "AUT_LIEU",
+        "dataType": "string"
+      },
+      {
+        "name": "MOMENT",
+        "dataType": "string"
+      },
+      {
+        "name": "FAIT_CSQ",
+        "dataType": "string"
+      },
+      {
+        "name": "NUM_ORD",
+        "dataType": "string"
+      },
+      {
+        "name": "FLAG_CLOT",
+        "dataType": "string"
+      },
+      {
+        "name": "EXIST_ACT",
+        "dataType": "string"
+      },
+      {
+        "name": "DIFFUSE_ACT",
+        "dataType": "string"
+      },
+      {
+        "name": "AUT_DIFF",
+        "dataType": "string"
+      },
+      {
+        "name": "RET_INFO_ACT",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_RET_INFO_ACT",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_PFL_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_PFL_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "COMMENTAIRE",
+        "dataType": "string"
+      },
+      {
+        "name": "MOIS",
+        "dataType": "string"
+      },
+      {
+        "name": "MOIS_CLOT",
+        "dataType": "string"
+      },
+      {
+        "name": "CLOT_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_CLOT",
+        "dataType": "string"
+      },
+      {
+        "name": "DELAI_DECLARE",
+        "dataType": "string"
+      },
+      {
+        "name": "DELAI_RETOUR_DECLARANT",
+        "dataType": "string"
+      },
+      {
+        "name": "FLAG_SENTINELLE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_ENVOI",
+        "dataType": "string"
+      },
+      {
+        "name": "FEI_ENVOYER",
+        "dataType": "string"
+      },
+      {
+        "name": "LU_REF",
+        "dataType": "string"
+      },
+      {
+        "name": "CHEMIN_DOC",
+        "dataType": "string"
+      },
+      {
+        "name": "PROFIL_ENVOI",
+        "dataType": "string"
+      },
+      {
+        "name": "PROFIL_LU_REF",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_EVENEMENT_SENTINELLE",
+        "dataType": "string"
+      },
+      {
+        "name": "FLAG_REF_DIR",
+        "dataType": "string"
+      },
+      {
+        "name": "ALERTE_REFERENT_ENVOI",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_LU_REF",
+        "dataType": "string"
+      },
+      {
+        "name": "VALIDATION_SAISI_LIBRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_VALID",
+        "dataType": "string"
+      },
+      {
+        "name": "PROFIL_VALID",
+        "dataType": "string"
+      },
+      {
+        "name": "ARCHIVER",
+        "dataType": "string"
+      },
+      {
+        "name": "ARCHIVE",
+        "dataType": "string"
+      },
+      {
+        "name": "NUM_TICKET_HOTLINE",
+        "dataType": "string"
+      },
+      {
+        "name": "ENTITE_SAUVE",
+        "dataType": "string"
+      },
+      {
+        "name": "FAIT_CSQ_SAUVE",
+        "dataType": "string"
+      },
+      {
+        "name": "COMMENTAIRE_SAUVE",
+        "dataType": "string"
+      },
+      {
+        "name": "ENTITE_CRYPTE",
+        "dataType": "string"
+      },
+      {
+        "name": "FAIT_CSQ_CRYPTE",
+        "dataType": "string"
+      },
+      {
+        "name": "COMMENTAIRE_CRYPTE",
+        "dataType": "string"
+      },
+      {
+        "name": "HEURE_DEC",
+        "dataType": "string"
+      },
+      {
+        "name": "FIC_ANALYSE",
+        "dataType": "string"
+      },
+      {
+        "name": "NUM_CHAMBRE",
+        "dataType": "string"
+      },
+      {
+        "name": "MMT_SAUVE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_RISQUE",
+        "dataType": "string"
+      },
+      {
+        "name": "ENTITE_CLAIRE",
+        "dataType": "string"
+      },
+      {
+        "name": "ALERTE_REFERENT_DATE_ENVOI",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_GRAVITE",
+        "dataType": "string"
+      },
+      {
+        "name": "ACTION_EFF_IMMEDIATEMENT",
+        "dataType": "string"
+      },
+      {
+        "name": "ANALYSE_CAUSE",
+        "dataType": "string"
+      },
+      {
+        "name": "TYPE_CLINEA_ORPEA",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_SOUS_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_DECLARATION_EVENEMENT",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_SUP",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_SUP",
+        "dataType": "string"
+      },
+      {
+        "name": "PERSONNE_CONCERNEE_AUTRE",
+        "dataType": "string"
+      },
+      {
+        "name": "LIEU_AUTRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_ENVOI_MAIL_COMPTE_RENDU",
+        "dataType": "string"
+      },
+      {
+        "name": "NOMBRE_DE_VICTIME_EXPOSEE",
+        "dataType": "string"
+      },
+      {
+        "name": "AUTRE_SOUS_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_MOD",
+        "dataType": "string"
+      },
+      {
+        "name": "CHAMP_TRAITEMENT_TMP",
+        "dataType": "string"
+      },
+      {
+        "name": "DESCRIPTION_FAIT_CONSEQUENCE",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_FEI\", \"ENTITE\", \"ID_SERVICE\", \"NUM_FEI\", \"NOM_DEC\", \"PRENOM_DEC\", \"PERS_CONCERNEE\", \"AUT_PERS\", \"DEC_ANONYM\", \"ID_REFQUAL\", \"FONCTION\", \"AUT_FCT\", \"ANNEE\", \"DATE_EVT\", \"HEUR_EVT\", \"LIEU\", \"AUT_LIEU\", \"MOMENT\", \"FAIT_CSQ\", \"NUM_ORD\", \"FLAG_CLOT\", \"EXIST_ACT\", \"DIFFUSE_ACT\", \"AUT_DIFF\", \"RET_INFO_ACT\", \"DATE_RET_INFO_ACT\", \"ID_PFL_CRE\", \"DATE_CRE\", \"ID_PFL_MAJ\", \"DATE_MAJ\", \"COMMENTAIRE\", \"MOIS\", \"MOIS_CLOT\", \"CLOT_FEI\", \"DATE_CLOT\", \"DELAI_DECLARE\", \"DELAI_RETOUR_DECLARANT\", \"FLAG_SENTINELLE\", \"DATE_ENVOI\", \"FEI_ENVOYER\", \"LU_REF\", \"CHEMIN_DOC\", \"PROFIL_ENVOI\", \"PROFIL_LU_REF\", \"ID_EVENEMENT_SENTINELLE\", \"FLAG_REF_DIR\", \"ALERTE_REFERENT_ENVOI\", \"DATE_LU_REF\", \"VALIDATION_SAISI_LIBRE\", \"DATE_VALID\", \"PROFIL_VALID\", \"ARCHIVER\", \"ARCHIVE\", \"NUM_TICKET_HOTLINE\", \"ENTITE_SAUVE\", \"FAIT_CSQ_SAUVE\", \"COMMENTAIRE_SAUVE\", \"ENTITE_CRYPTE\", \"FAIT_CSQ_CRYPTE\", \"COMMENTAIRE_CRYPTE\", \"HEURE_DEC\", \"FIC_ANALYSE\", \"NUM_CHAMBRE\", \"MMT_SAUVE\", \"ID_RISQUE\", \"ENTITE_CLAIRE\", \"ALERTE_REFERENT_DATE_ENVOI\", \"ID_GRAVITE\", \"ACTION_EFF_IMMEDIATEMENT\", \"ANALYSE_CAUSE\", \"TYPE_CLINEA_ORPEA\", \"ID_THEME\", \"ID_SOUS_THEME\", \"DATE_DECLARATION_EVENEMENT\", \"DATE_SUP\", \"CODE_USER_NT_SUP\", \"PERSONNE_CONCERNEE_AUTRE\", \"LIEU_AUTRE\", \"DATE_ENVOI_MAIL_COMPTE_RENDU\", \"NOMBRE_DE_VICTIME_EXPOSEE\", \"AUTRE_SOUS_THEME\", \"CODE_USER_NT_CRE\", \"CODE_USER_NT_MOD\", \"CHAMP_TRAITEMENT_TMP\", \"DESCRIPTION_FAIT_CONSEQUENCE\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "QUAL_FEI_ORP_SERVICE",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_SERVICE",
+        "dataType": "string"
+      },
+      {
+        "name": "LIB_SERVICE",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "VALIDE",
+        "dataType": "string"
+      },
+      {
+        "name": "ANNEE",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_SERVICE\", \"LIB_SERVICE\", \"CODE_USER_NT_CRE\", \"DATE_CRE\", \"CODE_USER_NT_MAJ\", \"DATE_MAJ\", \"VALIDE\", \"ANNEE\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "QUAL_FEI_EIGS_ACTION",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_EIGS",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_POUR_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_SUP",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_SUP",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_MOD",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_MOD",
+        "dataType": "string"
+      },
+      {
+        "name": "OBJECTIF_ACTION",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_FEI_EIGS_ACTION",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_REAL_PREVISIONNELLE",
+        "dataType": "string"
+      },
+      {
+        "name": "ACTION_A_ENTREPRENDRE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_RESPONSABLE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_FEI_EIGS_CAUSE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_ACTION_PAQ",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_EIGS\", \"ID_POUR_ENTITE\", \"CODE_USER_NT_CRE\", \"DATE_CRE\", \"CODE_USER_NT_SUP\", \"DATE_SUP\", \"CODE_USER_NT_MOD\", \"DATE_MOD\", \"OBJECTIF_ACTION\", \"ID_FEI_EIGS_ACTION\", \"DATE_REAL_PREVISIONNELLE\", \"ACTION_A_ENTREPRENDRE\", \"ID_RESPONSABLE\", \"ID_FEI_EIGS_CAUSE\", \"ID_ACTION_PAQ\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "QUAL_PLAN_ACTION",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_ACTION",
+        "dataType": "string"
+      },
+      {
+        "name": "PBL",
+        "dataType": "string"
+      },
+      {
+        "name": "ACT_A_ENTRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_DEBUT",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_PREVI_INIT",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_EFFECT",
+        "dataType": "string"
+      },
+      {
+        "name": "ACT_ANNULE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_PFL_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_PFL_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_POUR_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "IDSOUS_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_INSTANCE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_ANNULE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_RESPONSABLE",
+        "dataType": "string"
+      },
+      {
+        "name": "NUMORDRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_PREVI_REPORT",
+        "dataType": "string"
+      },
+      {
+        "name": "COMMENTAIRE",
+        "dataType": "string"
+      },
+      {
+        "name": "ACT_TEMP",
+        "dataType": "string"
+      },
+      {
+        "name": "IDGRILLE_CORRESPONDANT",
+        "dataType": "string"
+      },
+      {
+        "name": "FEN_GEN",
+        "dataType": "string"
+      },
+      {
+        "name": "IDSOUS_THEME_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "ARCHIVER",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_VALID",
+        "dataType": "string"
+      },
+      {
+        "name": "QUI_VALID",
+        "dataType": "string"
+      },
+      {
+        "name": "PROFIL_MODIF",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_INDICATEUR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_ETAT_AVANCEMENT",
+        "dataType": "string"
+      },
+      {
+        "name": "NEW_PLAN",
+        "dataType": "string"
+      },
+      {
+        "name": "SUPPRIMER",
+        "dataType": "string"
+      },
+      {
+        "name": "MOTIF_SUPPRESSION",
+        "dataType": "string"
+      },
+      {
+        "name": "LISTE_ID_RESPONSABLE",
+        "dataType": "string"
+      },
+      {
+        "name": "TYPE_PA",
+        "dataType": "string"
+      },
+      {
+        "name": "NUM_PRECO",
+        "dataType": "string"
+      },
+      {
+        "name": "LISTE_ID_INDICATEUR",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_SS_THEME_ENT_SAUV",
+        "dataType": "string"
+      },
+      {
+        "name": "ANNEE_ACT",
+        "dataType": "string"
+      },
+      {
+        "name": "LISTE_ID_FCT_RESP",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_SS_SS_SS_THEME",
+        "dataType": "string"
+      },
+      {
+        "name": "IDSOUS_THEME_ENTITE_SAUVE",
+        "dataType": "string"
+      },
+      {
+        "name": "IDSOUS_THEME_SAUVE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_THEMATIQUE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_DEBUT_REELLE",
+        "dataType": "string"
+      },
+      {
+        "name": "MODALITE_DE_SUIVI",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_STATUT_ACTION",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_SOURCE_GROUPE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_SOURCE_SPECIFIQUE_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_SOUS_SOURCE_ENTITE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_QUESTION_EVAL_FLASH",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_NT_MOD",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_TRAITEMENT",
+        "dataType": "string"
+      },
+      {
+        "name": "SQ_ORPEA",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "CODE_USER_NT_MOD",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_ECHEANCE",
+        "dataType": "string"
+      },
+      {
+        "name": "CIBLE",
+        "dataType": "string"
+      },
+      {
+        "name": "CHAINE_DE_SAUVEGARDE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_ACT_MULTI",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_ACTION_RECURRENTE",
+        "dataType": "string"
+      },
+      {
+        "name": "INDICATEUR_DE_SUIVI_AUTRE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_SOUS_SOUS_SOURCE",
+        "dataType": "string"
+      },
+      {
+        "name": "ACTION_MULTI_SITE_MERE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_ACTION_MERE_MULTI_SITE",
+        "dataType": "string"
+      },
+      {
+        "name": "SAUVE_OLD_IDSOUS_THEME",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_ACTION\", \"PBL\", \"ACT_A_ENTRE\", \"DATE_DEBUT\", \"DATE_PREVI_INIT\", \"DATE_EFFECT\", \"ACT_ANNULE\", \"ID_PFL_CRE\", \"DATE_CRE\", \"ID_PFL_MAJ\", \"DATE_MAJ\", \"ENTITE\", \"ID_POUR_ENTITE\", \"IDSOUS_THEME\", \"ID_INSTANCE\", \"DATE_ANNULE\", \"ID_RESPONSABLE\", \"NUMORDRE\", \"DATE_PREVI_REPORT\", \"COMMENTAIRE\", \"ACT_TEMP\", \"IDGRILLE_CORRESPONDANT\", \"FEN_GEN\", \"IDSOUS_THEME_ENTITE\", \"ARCHIVER\", \"DATE_VALID\", \"QUI_VALID\", \"PROFIL_MODIF\", \"ID_INDICATEUR\", \"ID_ETAT_AVANCEMENT\", \"NEW_PLAN\", \"SUPPRIMER\", \"MOTIF_SUPPRESSION\", \"LISTE_ID_RESPONSABLE\", \"TYPE_PA\", \"NUM_PRECO\", \"LISTE_ID_INDICATEUR\", \"ID_SS_THEME_ENT_SAUV\", \"ANNEE_ACT\", \"LISTE_ID_FCT_RESP\", \"ID_SS_SS_SS_THEME\", \"IDSOUS_THEME_ENTITE_SAUVE\", \"IDSOUS_THEME_SAUVE\", \"ID_THEMATIQUE\", \"DATE_DEBUT_REELLE\", \"MODALITE_DE_SUIVI\", \"ID_STATUT_ACTION\", \"ID_SOURCE_GROUPE\", \"ID_SOURCE_SPECIFIQUE_ENTITE\", \"ID_SOUS_SOURCE_ENTITE\", \"ID_QUESTION_EVAL_FLASH\", \"CODE_NT_MOD\", \"DATE_TRAITEMENT\", \"SQ_ORPEA\", \"CODE_USER_NT_CRE\", \"CODE_USER_NT_MOD\", \"DATE_ECHEANCE\", \"CIBLE\", \"CHAINE_DE_SAUVEGARDE\", \"ID_ACT_MULTI\", \"DATE_ACTION_RECURRENTE\", \"INDICATEUR_DE_SUIVI_AUTRE\", \"ID_SOUS_SOUS_SOURCE\", \"ACTION_MULTI_SITE_MERE\", \"ID_ACTION_MERE_MULTI_SITE\", \"SAUVE_OLD_IDSOUS_THEME\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table43",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_ACTION",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_RESPONSABLE",
+        "dataType": "string"
+      },
+      {
+        "name": "ETAPE_ACT",
+        "dataType": "string"
+      },
+      {
+        "name": "QUAND",
+        "dataType": "string"
+      },
+      {
+        "name": "FLAG_PA",
+        "dataType": "string"
+      },
+      {
+        "name": "IDPA_CORRESP",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_PFL_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_CRE",
+        "dataType": "string"
+      },
+      {
+        "name": "ID_PFL_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_MAJ",
+        "dataType": "string"
+      },
+      {
+        "name": "DELAI_ACT",
+        "dataType": "string"
+      },
+      {
+        "name": "TYPE_ACT",
+        "dataType": "string"
+      },
+      {
+        "name": "NUM_ACT",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_ACTION\", \"ID_FEI\", \"ID_RESPONSABLE\", \"ETAPE_ACT\", \"QUAND\", \"FLAG_PA\", \"IDPA_CORRESP\", \"ID_PFL_CRE\", \"DATE_CRE\", \"ID_PFL_MAJ\", \"DATE_MAJ\", \"DELAI_ACT\", \"TYPE_ACT\", \"NUM_ACT\"})\n\nin\n    SelectedColumns"
+  },
+  {
+    "tableName": "Table44",
+    "connectionType": "loadscript",
+    "connection": {
+      "type": "loadscript"
+    },
+    "columns": [
+      {
+        "name": "ID_FEI",
+        "dataType": "string"
+      },
+      {
+        "name": "DATE_DEC_FEI",
+        "dataType": "string"
+      }
+    ],
+    "m_query": "let\n    Source = Sql.Database(\"ServerName\", \"DatabaseName\"),\n    Table = Source{{[Schema=\"dbo\",Item=\"TableName\"]}}[Data]\n,\n    SelectedColumns = Table.SelectColumns(Table, {\"ID_FEI\", \"DATE_DEC_FEI\"})\n\nin\n    SelectedColumns"
   }
 ]

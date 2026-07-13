@@ -1,0 +1,4 @@
+app_id,app_name,source_path,business_owner,criticality,data_volume_tier,complexity_tier,set_analysis_depth,inter_record_functions,custom_extensions,section_access_complexity,target_workspace,target_wave,profile,planned_start,planned_end,status,fidelity_target,notes
+W1-001,Sales Discovery Wave,examples/qlik/test_samples/small/small_sales.json,analytics@company.com,medium,S,B,low,false,false,low,Wave1-Sales,Wave-1,fast,2026-07-06,2026-07-07,planned,90,Wave 1 baseline throughput app
+W1-002,HR Analytics Wave,examples/qlik/test_samples/medium/medium_hr_analytics.json,hr-bi@company.com,high,M,B,medium,true,false,medium,Wave1-HR,Wave-1,strict,2026-07-07,2026-07-09,planned,92,Wave 1 strict-control validation app
+W1-003,Enterprise Sales Wave,examples/qlik/test_samples/large/large_enterprise_sales.json,sales-ops@company.com,high,L,C,high,true,true,high,Wave1-Enterprise,Wave-1,regulated,2026-07-08,2026-07-10,planned,95,Wave 1 regulated promotion candidate

@@ -1,0 +1,38 @@
+{
+  "defaults": {},
+  "profiles": {
+    "fast": {
+      "mode": "import",
+      "bridge_tables": "none",
+      "output_format": "pbip"
+    },
+    "strict": {
+      "mode": "import",
+      "bridge_tables": "auto",
+      "output_format": "pbip"
+    },
+    "regulated": {
+      "mode": "import",
+      "bridge_tables": "auto",
+      "output_format": "pbip",
+      "culture": "en-US"
+    }
+  },
+  "entries": [
+    {
+      "file": "examples/qlik/test_samples/small/small_sales.json",
+      "profile": "fast",
+      "output_dir": "output/waves/enterprise_wave1/staging/Wave1-Sales"
+    },
+    {
+      "file": "examples/qlik/test_samples/medium/medium_hr_analytics.json",
+      "profile": "strict",
+      "output_dir": "output/waves/enterprise_wave1/staging/Wave1-HR"
+    },
+    {
+      "file": "examples/qlik/test_samples/large/large_enterprise_sales.json",
+      "profile": "regulated",
+      "output_dir": "output/waves/enterprise_wave1/staging/Wave1-Enterprise"
+    }
+  ]
+}

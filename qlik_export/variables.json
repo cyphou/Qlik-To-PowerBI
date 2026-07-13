@@ -1,8 +1,392 @@
 [
   {
-    "name": "vCurrentYear",
-    "definition": "",
-    "comment": "Année en cours",
+    "name": "TO_Reel_P",
+    "definition": "='TO Reel '&$(LastMonth)&' ('&[Période]&')'",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DIM_ARTICLE",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_REF_SIRH_PAIE",
+    "definition": "NN",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "R_Store_And_Drop_All_Tables_Directory",
+    "definition": "lib://Folder_Qlik_Sense_DEV/4_Extract_QVD/",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_RESIDENT_SORTIE",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_FACT_NOP_BUDGET",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_FACT_NOP_REEL",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_REF_STRUCTURE_ETABLISSEMENT",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_FACT_CONV_TRI_SOIN",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_R_Store_And_Drop_All_Tables_Directory",
+    "definition": "lib://Folder_Qlik_Sense_DEV/4_Extract_QVD/",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_REF_NOP_REGROUPEMENT_CC",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_SRH_ADT",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "SRH_ADT_PERIODE",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_SRH_CPTPLANNING_ORPEA",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_FACT_SRH_ETB_EMPLOI",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_REF_NOP_REGROUPEMENT",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DIM_COMPTE_COMPTABLE",
+    "definition": "NN",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_REF_COMPTE_COMPTABLE",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_SRH_EMPLOI",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_SRH_REALISE",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "D_E_TO_Reel_P",
+    "definition": "sum({<[Type Info (Nop Mensuel)]={'REEL'},[%Calendar_Prec] = {'non'},[ID Ordre (Nop Regroupement)]={'1'}>} [Montant (Nop Mensuel)])/count(distinct{<[%Calendar_Prec] = {'non'}>} [%Month_Id])",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DETAIL_COMPTABLE",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_Date_",
+    "definition": "_DEV",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "FACT_NOP_BUDGET",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_LEO_VIEW_TO_BI",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_SRH_HMENS",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "VExtractQvd",
+    "definition": "EHPAD DIR OP QVD",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DIM_NOP_REGROUPEMENT",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_R_Data_Share_Dir_Op_In",
+    "definition": "lib://Folder_Data_Share_PRD/DIR_OP_EHPAD/Data_In/EHPAD/",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_CONTACT_PAYEUR_EHPAD",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DIM_CALENDRIER",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_FACT_SIRH_PAIE",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_REF_SIRH_EMPLOI",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DEPARTEMENT_PROVENANCE",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_SRH_INDIVIDU",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_FACTURE_HEBERGEMENT_EHPAD",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_R_Data_Share",
+    "definition": "lib://Folder_Data_Share_PRD/",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_RESIDENT_PAYEUR_EHPAD",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_SRH_CONTRAT",
+    "definition": "NON",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_FACTURE_HEBERGEMENT",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DIM_GEOGRAPHIE",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_REF_NOP_REGROUPEMENT_CC_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_SRH_ADT_2_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_SRH_ADT_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DETAIL_COMPTABLE_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_FACT_SIRH_PAIE_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_LEO_VIEW_TO_BI_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DIM_ENSEMBLE_ORPEA_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DIM_ETAB_ORPEA_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_FACT_NOP_REEL_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_FACT_NOP_BUDGET_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_REF_STRUCTURE_ETABLISSEMENT_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DIM_NOP_REGROUPEMENT_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_FACTURE_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DIM_ARTICLE_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DEPARTEMENT_PROVENANCE_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_EHPAD_HIST_RESIDENT_TRF_ART",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DIM_ETABLISSEMENT_EHPAD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_DIM_ETABLISSEMENT_EHPAD_SITE",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_EHPAD_HIST_RESIDENT_ABSENCES",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_EHPAD_HIST_RESIDENT_ADMIN",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_EHPAD_FACT_SUIVI_PRESENCE_RSD",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_EHPAD_HIST_RESIDENT",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_EHPAD_HIST_RESIDENT_SEJ_DEP",
+    "definition": "OUI",
+    "comment": "",
+    "isScript": false
+  },
+  {
+    "name": "S_T_COMPLEMENT_EIG_GENERIQUE",
+    "definition": "OUI",
+    "comment": "",
     "isScript": false
   }
 ]

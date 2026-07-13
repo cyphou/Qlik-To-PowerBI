@@ -1,0 +1,88 @@
+{
+  "app_name": "complex_dwh_demo",
+  "app_version": "1.0",
+  "created_date": "2024-01-01",
+  "description": "Multi-layer data warehouse with bronze/silver/gold/mart layers, dimensional modeling, and aggregations",
+  "script": "// ============================================================\n// COMPLEX LINEAGE EXAMPLE: Multi-Layer Data Warehouse\n// Demonstrates: parallel flows, bronze/silver/gold stages,\n//               dimensional modeling, fact tables\n// ============================================================\n\n// ========== CONFIGURATION & VARIABLES ==========\nSET DateFormat='YYYY-MM-DD';\nSET TimestampFormat='YYYY-MM-DD hh:mm:ss';\nLET vStartDate = '2024-01-01';\nLET vEndDate = '2024-12-31';\n\n// ========== SECTION ACCESS (RLS) ==========\nSection Access;\nLOAD *\nINLINE [\n    ACCESS, USERID, REGION\n    ADMIN, ADMIN, *\n    USER, JOHN_SMITH, NORTH\n    USER, JANE_DOE, SOUTH\n];\nSECTION APPLICATION;\n\n// ============================================================\n// LAYER 1: BRONZE LAYER (Raw Data Ingestion)\n// ============================================================\n\n// ========== Raw Sales Transactions ==========\nRawSales:\nLOAD\n    OrderID,\n    OrderDate,\n    CustomerID,\n    ProductID,\n    Quantity,\n    UnitPrice,\n    SalesAmount,\n    RegionCode,\n    StoreID\nFROM [data/sources/sales_transactions.csv]\n(txt, codepage is 1252, embedded labels, delimiter is ',', msq);\n\n// ========== Raw Customer Master Data ==========\nRawCustomers:\nLOAD\n    CustomerID,\n    CustomerName,\n    Email,\n    Phone,\n    RegistrationDate,\n    CustomerSegment,\n    CreditLimit\nFROM [data/sources/customers.xlsx]\n(ooxml, embedded labels, table is Sheet1);\n\n// ========== Raw Products Catalog ==========\nRawProducts:\nSQL SELECT \n    ProductID,\n    ProductName,\n    CategoryID,\n    CategoryName,\n    SubCategoryID,\n    SubCategoryName,\n    UnitCost,\n    ListPrice,\n    SupplierID\nFROM [ProductCatalog].[dbo].[Products] p\nLEFT JOIN [ProductCatalog].[dbo].[Categories] c ON p.CategoryID = c.CategoryID;\n\n// ========== Raw Supplier Data ==========\nRawSuppliers:\nLOAD\n    SupplierID,\n    SupplierName,\n    Country,\n    PaymentTerms,\n    LeadTime\nFROM [data/sources/suppliers.xlsx]\n(ooxml, embedded labels, table is Suppliers);\n\n// ========== Raw Store Locations ==========\nStoreLocations:\nLOAD\n    StoreID,\n    StoreName,\n    RegionCode,\n    RegionName,\n    CountryCode,\n    CityName,\n    OpenDate,\n    ManagerID\nFROM [data/sources/store_locations.csv]\n(txt, codepage is 1252, embedded labels, delimiter is ',', msq);\n\n// ============================================================\n// LAYER 2: SILVER LAYER (Cleaned & Standardized)\n// ============================================================\n\n// ========== Cleaned Sales Facts ==========\nSalesFacts:\nLOAD\n    OrderID & '-' & CustomerID & '-' & ProductID as SalesKey,\n    OrderID,\n    DATE(OrderDate) as OrderDate,\n    CustomerID,\n    ProductID,\n    StoreID,\n    TRIM(RegionCode) as RegionCode,\n    Quantity,\n    UnitPrice,\n    SalesAmount,\n    SalesAmount * (1 + IF(Quantity > 100, 0.05, 0)) as AdjustedSalesAmount\nRESIDENT RawSales\nWHERE OrderDate >= '$(vStartDate)' AND OrderDate <= '$(vEndDate)';\n\n// ========== Deduplicated Customers ==========\nCustomers:\nLOAD DISTINCT\n    CustomerID,\n    TRIM(CustomerName) as CustomerName,\n    LOWER(TRIM(Email)) as Email,\n    TRIM(Phone) as Phone,\n    DATE(RegistrationDate) as RegistrationDate,\n    TRIM(CustomerSegment) as CustomerSegment,\n    CreditLimit\nRESIDENT RawCustomers;\n\n// ========== Product Standardization ==========\nProducts:\nLOAD\n    ProductID,\n    TRIM(ProductName) as ProductName,\n    TRIM(CategoryName) as Category,\n    UnitCost,\n    ListPrice,\n    ListPrice - UnitCost as GrossMargin\nRESIDENT RawProducts;\n\n// ============================================================\n// LAYER 3: GOLD LAYER (Business Aggregations & KPIs)\n// ============================================================\n\n// ========== Monthly Sales Summary ==========\nMonthlySummary:\nLOAD\n    YEAR(OrderDate) & '-' & MONTH(OrderDate) as YearMonth,\n    YEAR(OrderDate) as Year,\n    MONTH(OrderDate) as Month,\n    RegionCode,\n    SUM(SalesAmount) as TotalSales,\n    SUM(Quantity) as TotalQuantity,\n    COUNT(DISTINCT OrderID) as OrderCount,\n    COUNT(DISTINCT CustomerID) as CustomerCount,\n    AVG(SalesAmount) as AvgOrderValue\nRESIDENT SalesFacts\nGROUP BY \n    YEAR(OrderDate),\n    MONTH(OrderDate),\n    RegionCode;\n\n// ========== Customer Cohort Analysis ==========\nCustomerMetrics:\nLOAD\n    CustomerID,\n    CustomerSegment,\n    MIN(OrderDate) as FirstOrderDate,\n    MAX(OrderDate) as LastOrderDate,\n    COUNT(DISTINCT OrderID) as TotalOrders,\n    SUM(SalesAmount) as LifetimeSalesValue,\n    AVG(SalesAmount) as AvgOrderValue\nRESIDENT SalesFacts\nGROUP BY CustomerID, CustomerSegment;\n\n// ========== Product Performance ==========\nProductMetrics:\nLOAD\n    ProductID,\n    ProductName,\n    Category,\n    SUM(SalesAmount) as TotalRevenue,\n    SUM(Quantity) as TotalQtySold,\n    COUNT(DISTINCT OrderID) as OrdersContaining,\n    COUNT(DISTINCT CustomerID) as UniqueBuyers\nRESIDENT SalesFacts\nLEFT JOIN (Products) LOAD ProductID, ProductName, Category\nGROUP BY ProductID, ProductName, Category;\n\n// ========== Regional Performance Analysis ==========\nRegionalAnalysis:\nLOAD\n    RegionCode,\n    RegionName,\n    SUM(SalesAmount) as RegionalSales,\n    SUM(Quantity) as RegionalVolume,\n    COUNT(DISTINCT CustomerID) as RegionalCustomers,\n    COUNT(DISTINCT StoreID) as StoreCount\nRESIDENT SalesFacts\nLEFT JOIN (Stores) LOAD RegionCode, RegionName, StoreID\nGROUP BY RegionCode, RegionName;\n\n// ============================================================\n// LAYER 4: MART LAYER (Dimensional Star Schema)\n// ============================================================\n\n// ========== Fact Table: Sales ==========\nFactSales:\nCONCATENATE (SalesFacts)\nLOAD\n    SalesKey,\n    OrderID,\n    OrderDate,\n    CustomerID,\n    ProductID,\n    StoreID,\n    RegionCode,\n    Quantity,\n    UnitPrice,\n    SalesAmount,\n    AdjustedSalesAmount,\n    'ACTUAL' as RecordType\nRESIDENT SalesFacts;\n\n// ============================================================\n// EXPORT & STORAGE\n// ============================================================\n\n// Store processed data\nSTORE FactSales INTO [data/warehouse/fact_sales.qvd];\nSTORE MonthlySummary INTO [data/warehouse/monthly_summary.qvd];\nSTORE CustomerMetrics INTO [data/warehouse/customer_metrics.qvd];\nSTORE ProductMetrics INTO [data/warehouse/product_metrics.qvd];\nSTORE RegionalAnalysis INTO [data/warehouse/regional_analysis.qvd];\n",
+  "measures": [
+    {
+      "id": "measure_total_sales",
+      "name": "Total Sales",
+      "expression": "=SUM([SalesAmount])",
+      "format": "$#,##0.00"
+    },
+    {
+      "id": "measure_order_count",
+      "name": "Order Count",
+      "expression": "=COUNT(DISTINCT [OrderID])",
+      "format": "#,##0"
+    },
+    {
+      "id": "measure_avg_order_value",
+      "name": "Average Order Value",
+      "expression": "=SUM([SalesAmount])/COUNT(DISTINCT [OrderID])",
+      "format": "$#,##0.00"
+    },
+    {
+      "id": "measure_lifetime_value",
+      "name": "Lifetime Customer Value",
+      "expression": "=SUM([SalesAmount])/COUNT(DISTINCT [CustomerID])",
+      "format": "$#,##0.00"
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "dim_date",
+      "name": "Order Date",
+      "field": "OrderDate"
+    },
+    {
+      "id": "dim_region",
+      "name": "Region",
+      "field": "RegionCode"
+    },
+    {
+      "id": "dim_customer_segment",
+      "name": "Customer Segment",
+      "field": "CustomerSegment"
+    },
+    {
+      "id": "dim_category",
+      "name": "Product Category",
+      "field": "Category"
+    }
+  ],
+  "datasources": [
+    {
+      "name": "sales_transactions.csv",
+      "type": "csv"
+    },
+    {
+      "name": "customers.xlsx",
+      "type": "excel"
+    },
+    {
+      "name": "ProductCatalog",
+      "type": "database"
+    },
+    {
+      "name": "suppliers.xlsx",
+      "type": "excel"
+    },
+    {
+      "name": "store_locations.csv",
+      "type": "csv"
+    }
+  ],
+  "sheets": [],
+  "variables": [
+    {
+      "name": "vStartDate",
+      "definition": "'2024-01-01'"
+    },
+    {
+      "name": "vEndDate",
+      "definition": "'2024-12-31'"
+    }
+  ]
+}

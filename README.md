@@ -58,6 +58,12 @@ python migrate.py "MonApp.qvf" --output-dir output/step1 --skip-extraction
 # 🔍 Pre-migration readiness check
 python migrate.py "MonApp.qvf" --assess
 
+# 📊 Generate comparison report with data prep lineage
+python migrate.py "MonApp.qvf" --compare --data-prep-lineage
+
+# 🚫 Generate comparison report without data prep lineage
+python migrate.py "MonApp.qvf" --compare --no-data-prep-lineage
+
 # 🚀 Migrate + deploy to Power BI Service in one shot
 python migrate.py "MonApp.qvf" --deploy WORKSPACE_ID
 
@@ -78,6 +84,9 @@ python migrate.py "MonApp.qvf" --output-format fabric
 
 # 🔀 Merge multiple apps into a shared semantic model
 python migrate.py --merge app1.json app2.json app3.json
+
+# 📁 Recursive batch migration across nested folders
+python migrate.py --batch exports/ --batch-recursive --workers 4
 
 # 📊 Portfolio-level server assessment
 python migrate.py --assess-server exports/
@@ -102,6 +111,9 @@ python migrate.py --web-ui --web-port 8501
 
 # ⚡ Parallel batch migration
 python migrate.py "MonApp.qvf" --batch exports/ --workers 4
+
+# ⚡ Recursive batch migration across nested folders
+python migrate.py --batch exports/ --batch-recursive --workers 4
 
 # 📦 Profile-based multi-app manifest migration
 python migrate.py --migration-manifest examples/migration_manifest.example.json
@@ -135,9 +147,24 @@ python migrate.py --server-url https://qlik.example.com --server-app-id abc123
 | :--- | :--- |
 | Section Access → RLS roles with USERPRINCIPALNAME. Wildcard `*` support, OMIT → OLS annotations, REDUCTION parsing. PII detection, naming conventions, audit trail. Schema drift detection. | One-command deploy to Power BI Service or Microsoft Fabric with Azure AD auth (Service Principal / Managed Identity). Bundle deployment, multi-tenant templates, blue/green deployment. |
 
-| 🏭 **Fabric-Native Output** | 🔀 **Multi-App Merge** |
+| 📈 **Data Preparation Lineage** | 🏭 **Fabric-Native Output** |
 | :--- | :--- |
-| `--output-format fabric` generates: Lakehouse delta tables, Dataflow Gen2 ingestion, PySpark ETL notebooks, 3-stage Data Pipeline orchestrator, DirectLake semantic model. | `--merge` combines multiple Qlik apps into a shared semantic model with thin reports. Fingerprint-based table matching, Jaccard overlap scoring, deduplication, per-table merge rules. |
+| Interactive data-prep lineage in comparison reports. Tracks Qlik load-script and Power Query M steps, supports Bronze/Silver/Gold/Mart categorization, classifies purpose and complexity, and falls back to source JSON when `loadscript.json` is unavailable. | `--output-format fabric` generates: Lakehouse delta tables, Dataflow Gen2 ingestion, PySpark ETL notebooks, 3-stage Data Pipeline orchestrator, DirectLake semantic model. |
+
+| 🔀 **Multi-App Merge** | `--merge` combines multiple Qlik apps into a shared semantic model with thin reports. Fingerprint-based table matching, Jaccard overlap scoring, deduplication, per-table merge rules. |
+
+### Data Preparation Lineage
+
+Comparison reports can now include a dedicated **Data Preparation Lineage** section that shows:
+
+- Transformation steps from raw sources through cleaned, aggregated, and mart layers
+- Layer metadata: `bronze`, `silver`, `gold`, `mart`
+- Purpose metadata: `ingestion`, `transformation`, `aggregation`, `export`, `security`
+- Complexity scoring: `simple`, `moderate`, `complex`
+- Multi-source indicators for `JOIN`, `CONCATENATE`, and union-style flows
+
+The parser first reads `qlik_export/loadscript.json`, then falls back to the source JSON app when needed so comparison reports still render lineage for JSON-based runs.
+For larger corpora split across subfolders, add `--batch-recursive` so batch discovery finds every supported export.
 
 > **Note:** Zero external dependencies for core migration. The entire engine runs on Python's standard library.
 
@@ -533,6 +560,8 @@ flowchart LR
 | `--plugins MODULE.CLASS` | Load custom migration plugins |
 | `--dry-run` | Preview without writing files |
 | `--verbose` | Detailed logging |
+| `--gate ENV` | Run environment quality gates (`dev`, `test`, `prod`) after generation |
+| `--force-deployment` | Continue even when a quality gate fails (controlled override) |
 | `--assess` | Pre-migration readiness check |
 | `--wizard` | Interactive guided migration |
 | `--output-format FORMAT` | Output format: `pbip` (default), `tmdl`, `pbir`, `fabric` |
@@ -685,15 +714,44 @@ m_query = generate_m_query({
 | 🏗️ | [Mapping Reference](docs/MAPPING_REFERENCE.md) | Visual, data type, connector mappings |
 | 📊 | [API Reference](docs/API_REFERENCE.md) | Public API for key modules |
 | 🚀 | [Deployment Guide](docs/guides/DEPLOYMENT_GUIDE.md) | PBI Service & Fabric deploy |
+| 🔐 | [RLS Audit Workflow](docs/guides/RLS_AUDIT_WORKFLOW.md) | Operational review flow for strict and regulated profile security sign-off |
+| 🏭 | [Migration Factory Runbook](docs/guides/MIGRATION_FACTORY_RUNBOOK.md) | Step-by-step operational runbook for repeatable enterprise-scale wave execution |
 | 🔌 | [Plugin Development](docs/guides/PLUGIN_DEVELOPMENT.md) | Build custom migration plugins |
 | ☁️ | [Qlik Cloud Migration](docs/guides/MIGRATION_QLIK_CLOUD.md) | Migrate from Qlik Cloud |
 | 📋 | [Qlik Objects Coverage](docs/technical/QLIK_OBJECTS_COVERAGE.md) | 72 Qlik objects — 100% coverage |
 | 🧭 | [Live Dev Plan](docs/DEV_PLAN_v12.md) | Current execution plan (v12.x) |
 | ✅ | [Roadmap Status Snapshot](docs/reports/ROADMAP_STATUS_2026-06-24.md) | Reconciled status and milestones |
 | 🧭 | [Full Migration Workspace Roadmap 2026-06-26](docs/reports/FULL_MIGRATION_WORKSPACE_ROADMAP_2026-06-26.md) | Next execution roadmap for managing full migration workspaces |
+| 🏢 | [Enterprise Complex Flow Roadmap 2026-06-26](docs/reports/ENTERPRISE_COMPLEX_FLOW_ROADMAP_2026-06-26.md) | Decision model and phased roadmap for large, prepflow-heavy Qlik estates |
+| 🏭 | [Enterprise Scale Migration Roadmap 2026-06-29](docs/reports/ENTERPRISE_SCALE_MIGRATION_ROADMAP_2026-06-29.md) | Updated scale plan with status check, config-driven factory model, and security controls |
+| 🧱 | [Dev-All Roadmap Execution Pack 2026-06-29](docs/reports/DEV_ALL_ROADMAP_2026-06-29.md) | Concrete Week 2-8 execution package with owners, checkpoints, and command tracks |
+| 🧭 | [Next Roadmap After Wave 2 2026-06-29](docs/reports/NEXT_ROADMAP_AFTER_WAVE2_2026-06-29.md) | Wave 3 and stabilization plan with runnable command track and governance controls |
+| 📊 | [Program KPI Dashboard 2026-06-29](docs/reports/PROGRAM_KPI_DASHBOARD_2026-06-29.md) | Full program KPI rollup (Wave 0-3), test suite confirmation, and optimization backlog |
+| 📅 | [Week 1 Wave 0 Status 2026-06-29](docs/reports/WEEK1_WAVE0_STATUS_2026-06-29.md) | Execution outcomes, KPI snapshot, and risks from the first scaled gated wave |
+| 📅 | [Wave 1 Status 2026-06-29](docs/reports/WAVE1_STATUS_2026-06-29.md) | Wave 1 execution outcomes and gate results for all in-scope apps |
+| 📅 | [Wave 2 Status 2026-06-29](docs/reports/WAVE2_STATUS_2026-06-29.md) | Wave 2 execution outcomes and gate results for all in-scope apps |
+| 📅 | [Wave 3 Status 2026-06-29](docs/reports/WAVE3_STATUS_2026-06-29.md) | Wave 3 execution outcomes and gate results for all in-scope apps |
+| ✅ | [Wave 3 Prod Gate Rehearsal 2026-06-29](docs/reports/WAVE3_PROD_GATE_REHEARSAL_2026-06-29.md) | Dry-run production gate rehearsal result and promotion readiness notes |
+| 🚀 | [Wave 3 Prod Execution 2026-06-29](docs/reports/WAVE3_PROD_EXECUTION_2026-06-29.md) | Non-dry-run production gate execution outcome for Wave 3 |
+| 🌊 | [Wave 1 Execution Plan 2026-06-29](docs/reports/WAVE1_EXECUTION_PLAN_2026-06-29.md) | Operational runbook for Wave 1 manifest execution and sign-off |
+| 🌊 | [Wave 2 Execution Plan 2026-06-29](docs/reports/WAVE2_EXECUTION_PLAN_2026-06-29.md) | Operational runbook for Wave 2 scale execution and governance |
+| 🌊 | [Wave 3 Execution Plan 2026-06-29](docs/reports/WAVE3_EXECUTION_PLAN_2026-06-29.md) | Regulated and complex cutover execution runbook for Wave 3 |
+| 🧪 | [Pilot Wave Staging Drill](docs/guides/PILOT_WAVE_STAGING_DRILL.md) | Step-by-step staging pilot and rollback readiness drill |
+| 🧾 | [Wave 1 Staging Manifest](examples/waves/wave1_staging_manifest.json) | Starter manifest for first gated staging wave |
+| 🗂️ | [Wave Run Registry Template](docs/templates/WAVE_RUN_REGISTRY_TEMPLATE.csv) | Central status registry for runs, blockers, approvals, and evidence links |
+| 🗂️ | [Wave Run Registry 2026-06-29](docs/reports/WAVE_RUN_REGISTRY_2026-06-29.csv) | Live run registry with Wave 1 completed entries and Wave 2 planned entries |
+| ▶️ | [Pilot Wave Runner Script](scripts/run_pilot_wave_staging.ps1) | PowerShell helper to dry-run and execute the pilot wave |
+| 🏭 | [Enterprise Complex Wave Manifest Template](examples/waves/enterprise_complex_wave_manifest.template.json) | Tiered manifest template for large migration waves |
+| ⚙️ | [Enterprise Complex Flow Runner](scripts/run_enterprise_complex_flow.ps1) | Orchestrates download-first, generate-first, or hybrid gated wave runs |
+| 🌊 | [Enterprise Wave 0 Portfolio](examples/waves/enterprise_wave0_portfolio.csv) | Concrete pilot inventory covering small, medium, and large sample apps |
+| 🌊 | [Enterprise Wave 1 Portfolio](examples/waves/enterprise_wave1_portfolio.csv) | Wave 1 app inventory used to build ready manifests and staging outputs |
+| 🌊 | [Enterprise Wave 2 Portfolio](examples/waves/enterprise_wave2_portfolio.csv) | Wave 2 app inventory for scale execution planning |
+| 🌊 | [Enterprise Wave 3 Portfolio](examples/waves/enterprise_wave3_portfolio.csv) | Wave 3 app inventory for regulated and flow-heavy cutover readiness |
+| ▶️ | [Enterprise Wave 0 Runner](scripts/run_enterprise_wave0.ps1) | Builds and runs the concrete Wave 0 manifest through the gate path |
 | 🗂️ | [Qlik App Portfolio Template (CSV)](docs/templates/QLIK_APP_PORTFOLIO_TEMPLATE.csv) | Portfolio tracker for Qlik app wave planning |
 | 🧱 | [Qlik App Portfolio Template (JSON)](docs/templates/qlik_app_portfolio.template.json) | Structured app inventory with quality-gate fields |
 | 🌊 | [Wave Execution Plan Template](docs/templates/WAVE_EXECUTION_PLAN_TEMPLATE.md) | Reusable runbook for migration wave execution |
+| 🛡️ | [RLS Audit Sign-Off Template](docs/templates/RLS_AUDIT_SIGNOFF_TEMPLATE.md) | Reusable approval record for strict and regulated profile apps |
 | ⚙️ | [Wave Manifest Builder](scripts/build_wave_manifests.py) | Generate per-wave manifests and optional runnable `*_ready` manifests |
 | 🛠️ | [Parity Checker Script](tools/analysis/parity_status_check.py) | Automated parity/drift verification |
 | 🤝 | [Tableau Agent/Feature Parity Report](docs/reports/TABLEAU_AGENT_FEATURE_PARITY_2026-06-24.md) | Upstream parity workflow and findings |

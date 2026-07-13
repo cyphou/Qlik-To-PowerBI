@@ -62,6 +62,10 @@ artifacts/*.json
 
 # Migration output (generated, not committed)
 test_output/
+output/
+cloud_test_output/
+migrated_output/
+batch_output/
 
 # OS
 Thumbs.db
