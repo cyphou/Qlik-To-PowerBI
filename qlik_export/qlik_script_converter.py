@@ -22,12 +22,16 @@ def _split_top_level_csv(text: str) -> List[str]:
     in_single = False
     in_double = False
 
-    for ch in text:
+    for i, ch in enumerate(text):
         if ch == "'" and not in_double:
             in_single = not in_single
             current.append(ch)
             continue
         if ch == '"' and not in_single:
+            # Handle escaped double quotes ("")
+            if in_double and i + 1 < len(text) and text[i + 1] == '"':
+                current.append(ch)
+                continue
             in_double = not in_double
             current.append(ch)
             continue

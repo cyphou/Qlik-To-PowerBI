@@ -167,22 +167,28 @@ class PowerBIProjectGenerator:
     def create_semantic_model_structure(self, project_dir, report_name, converted_objects):
         """Creates the SemanticModel structure (format identical to PBI Hero reference)"""
         
+        import time as _time
         sm_dir = os.path.join(project_dir, f"{report_name}.SemanticModel")
         if os.path.exists(sm_dir):
-            try:
-                shutil.rmtree(sm_dir)
-            except OSError:
-                for root, dirs, files in os.walk(sm_dir, topdown=False):
-                    for name in files:
-                        try:
-                            os.remove(os.path.join(root, name))
-                        except OSError:
-                            pass
-                    for name in dirs:
-                        try:
-                            os.rmdir(os.path.join(root, name))
-                        except OSError:
-                            pass
+            for attempt in range(5):
+                try:
+                    shutil.rmtree(sm_dir)
+                    break
+                except (OSError, PermissionError):
+                    if attempt < 4:
+                        _time.sleep(0.5 * (attempt + 1))
+                    else:
+                        for root, dirs, files in os.walk(sm_dir, topdown=False):
+                            for name in files:
+                                try:
+                                    os.remove(os.path.join(root, name))
+                                except OSError:
+                                    pass
+                            for name in dirs:
+                                try:
+                                    os.rmdir(os.path.join(root, name))
+                                except OSError:
+                                    pass
         os.makedirs(sm_dir, exist_ok=True)
         
         # 1. Create .platform
@@ -1343,6 +1349,31 @@ class PowerBIProjectGenerator:
             if hasattr(self, '_measure_names') and prop in self._measure_names:
                 return True
         return False
+
+    def _pick_fallback_column(self):
+        """Pick a meaningful fallback column from the model field map.
+
+        Prefers date or ID columns over arbitrary first-inserted columns
+        so the visual shows something useful rather than a random field.
+        """
+        if not hasattr(self, '_field_map') or not self._field_map:
+            return 'Column'
+        candidates = list(self._field_map.keys())
+        # Prefer date columns
+        for c in candidates:
+            cl = c.lower()
+            if 'date' in cl or 'year' in cl or 'month' in cl:
+                return c
+        # Then ID columns
+        for c in candidates:
+            cl = c.lower()
+            if cl.endswith('id') or cl.endswith('_id') or cl.startswith('id_'):
+                return c
+        # Then name columns
+        for c in candidates:
+            if 'name' in c.lower() or 'nom' in c.lower():
+                return c
+        return candidates[0]
     
     def _clean_field_name(self, name):
         """Strip all known source derivation prefixes from a field name"""
@@ -1397,10 +1428,10 @@ class PowerBIProjectGenerator:
                     logger.debug("Visual field '%s' not in model — skipping binding", clean)
             cleaned_fields = validated_fields
             if not cleaned_fields:
-                # All original fields are unresolvable — bind to the first
-                # available column from the model so the visual isn't empty.
+                # All original fields are unresolvable — bind to a meaningful
+                # column from the model (prefer date or ID columns over arbitrary first).
                 if self._field_map:
-                    fallback_col = next(iter(self._field_map))
+                    fallback_col = self._pick_fallback_column()
                     cleaned_fields = [{'name': fallback_col, 'role': 'dimension'}]
                 else:
                     return None

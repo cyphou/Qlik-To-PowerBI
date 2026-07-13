@@ -1061,16 +1061,17 @@ def _materialize_measure_referenced_columns(model):
         tname = table.get("name", "")
         col_names = {c.get("name", "") for c in table.get("columns", [])}
         # Compile regex once per table (not per measure)
-        pattern = re.compile(r"'" + re.escape(tname) + r"'\[([^\]]+)\]")
+        qualified_pattern = re.compile(r"'" + re.escape(tname) + r"'\[([^\]]+)\]")
+        # Also catch unqualified [Column] refs (no table prefix)
+        unqualified_pattern = re.compile(r"(?<!')\[([^\]]+)\]")
         for measure in table.get("measures", []):
             expr = measure.get("expression", "")
             if not expr:
                 continue
-            # Find 'TableName'[Column] references targeting this table
-            for match in pattern.finditer(expr):
+            # Pass 1: Find 'TableName'[Column] references targeting this table
+            for match in qualified_pattern.finditer(expr):
                 col_ref = match.group(1)
                 if col_ref not in col_names:
-                    # Materialize as a hidden string column
                     table["columns"].append({
                         "name": col_ref,
                         "dataType": "String",
@@ -1080,8 +1081,55 @@ def _materialize_measure_referenced_columns(model):
                     })
                     col_names.add(col_ref)
                     total += 1
+            # Pass 2: Unqualified [Column] refs within the owning table
+            for match in unqualified_pattern.finditer(expr):
+                col_ref = match.group(1)
+                # Skip known DAX keywords and existing columns
+                if col_ref in col_names:
+                    continue
+                if col_ref.upper() in _DAX_KEYWORDS:
+                    continue
+                table["columns"].append({
+                    "name": col_ref,
+                    "dataType": "String",
+                    "sourceColumn": col_ref,
+                    "summarizeBy": "none",
+                    "isHidden": True,
+                })
+                col_names.add(col_ref)
+                total += 1
 
     return total
+
+
+_DAX_KEYWORDS = {
+    'TRUE', 'FALSE', 'BLANK', 'NULL', 'AND', 'OR', 'NOT', 'IN',
+    'VAR', 'RETURN', 'ORDER', 'BY', 'ASC', 'DESC', 'DEFINE',
+    'EVALUATE', 'MEASURE', 'COLUMN', 'TABLE', 'ROW', 'ALL',
+    'ALLEXCEPT', 'ALLSELECTED', 'VALUES', 'FILTER', 'CALCULATE',
+    'CALCULATETABLE', 'RELATED', 'RELATEDTABLE', 'LOOKUPVALUE',
+    'EARLIER', 'EARLIEST', 'USERELATIONSHIP', 'CROSSFILTER',
+    'SUMMARIZE', 'SUMMARIZECOLUMNS', 'ADDCOLUMNS', 'SELECTCOLUMNS',
+    'TOPN', 'GENERATE', 'GENERATEALL', 'TREATAS', 'NATURALLEFTOUTERJOIN',
+    'NATURALINNERJOIN', 'UNION', 'INTERSECT', 'EXCEPT', 'DATATABLE',
+    'GENERATESERIES', 'SELECTEDVALUE', 'HASONEVALUE', 'HASONEFILTER',
+    'ISFILTERED', 'ISCROSSFILTERED', 'ISBLANK', 'ISNUMBER', 'ISTEXT',
+    'SWITCH', 'IF', 'COALESCE', 'SUM', 'AVERAGE', 'COUNT', 'COUNTA',
+    'COUNTROWS', 'MIN', 'MAX', 'DISTINCTCOUNT', 'DIVIDE', 'RANKX',
+    'SUMX', 'AVERAGEX', 'COUNTX', 'MINX', 'MAXX', 'CONCATENATEX',
+    'FIRSTNONBLANK', 'LASTNONBLANK', 'REMOVEFILTERS', 'KEEPFILTERS',
+    'STARTOFMONTH', 'ENDOFMONTH', 'STARTOFYEAR', 'ENDOFYEAR',
+    'STARTOFQUARTER', 'ENDOFQUARTER', 'TOTALYTD', 'TOTALQTD', 'TOTALMTD',
+    'SAMEPERIODLASTYEAR', 'DATEADD', 'DATESYTD', 'DATESQTD', 'DATESMTD',
+    'YEAR', 'MONTH', 'DAY', 'HOUR', 'MINUTE', 'SECOND', 'WEEKDAY',
+    'WEEKNUM', 'DATE', 'TIME', 'NOW', 'TODAY', 'FORMAT', 'VALUE',
+    'INT', 'ROUND', 'CEILING', 'FLOOR', 'ABS', 'SQRT', 'POWER',
+    'LOG', 'LOG10', 'EXP', 'MOD', 'SIGN', 'PI', 'RAND',
+    'LEFT', 'RIGHT', 'MID', 'LEN', 'UPPER', 'LOWER', 'TRIM',
+    'SUBSTITUTE', 'REPT', 'CONCATENATE', 'UNICODE', 'UNICHAR',
+    'USERPRINCIPALNAME', 'USERNAME', 'CUSTOMDATA',
+    'OFFSET', 'WINDOW', 'INDEX', 'NORM', 'STDEV',
+}
 
 
 def _downgrade_many_to_many_direction(model):
