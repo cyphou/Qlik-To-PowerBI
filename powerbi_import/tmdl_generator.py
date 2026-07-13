@@ -1709,8 +1709,9 @@ def _infer_cross_table_relationships(model):
 
             common_cols = t1_cols & t2_cols
             for col in common_cols:
+                freq = _col_table_freq.get(col, 0)
                 # Skip columns that appear in too many tables (audit/tech columns)
-                if _col_table_freq.get(col, 0) > _MAX_TABLE_FREQ:
+                if freq > _MAX_TABLE_FREQ:
                     continue
                 col_lower = col.lower().rstrip('_')
                 # Score: exact ID/key column names get highest priority
@@ -1727,6 +1728,13 @@ def _infer_cross_table_relationships(model):
                     score = 40
                 else:
                     score = 20  # Any common column
+                # Frequency weighting (relationship intelligence v2):
+                # a column shared by exactly two tables is the ideal FK; one
+                # shared across many tables is an ambiguous shared key.
+                if freq == 2:
+                    score += 10
+                elif freq >= 4:
+                    score -= 15
                 if score > best_score:
                     best_score = score
                     best_col = col
