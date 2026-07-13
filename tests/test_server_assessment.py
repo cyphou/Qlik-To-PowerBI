@@ -45,6 +45,26 @@ class TestDiscoverAppExports:
         found = [os.path.basename(p) for p in _discover_app_exports(str(tmp_path))]
         assert "deep_app.json" in found
 
+    def test_recursive_finds_deeply_nested(self, tmp_path):
+        deep = tmp_path / "space" / "stream" / "apps"
+        deep.mkdir(parents=True)
+        (deep / "buried.qvf").write_bytes(b"binary")
+        # flat scan misses it (3 levels deep)
+        flat = [os.path.basename(p) for p in _discover_app_exports(str(tmp_path))]
+        assert "buried.qvf" not in flat
+        # recursive finds it
+        rec = [os.path.basename(p) for p in _discover_app_exports(str(tmp_path), recursive=True)]
+        assert "buried.qvf" in rec
+
+    def test_recursive_excludes_generated_project_dirs(self, tmp_path):
+        (tmp_path / "real.qvf").write_bytes(b"binary")
+        gen = tmp_path / "MyApp.SemanticModel" / "definition"
+        gen.mkdir(parents=True)
+        (gen / "model.json").write_text("{}", encoding="utf-8")
+        rec = [os.path.basename(p) for p in _discover_app_exports(str(tmp_path), recursive=True)]
+        assert "real.qvf" in rec
+        assert "model.json" not in rec
+
 
 # ─────────────────────────────────────────────────────────────
 #  run_server_assessment (synthetic adapted data)

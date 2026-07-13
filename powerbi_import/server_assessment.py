@@ -212,8 +212,12 @@ _NON_APP_JSON_MARKERS = (
 )
 
 
-def _discover_app_exports(directory: str) -> List[str]:
-    """Find Qlik app exports (*.json / *.qvf) in a directory (one level deep).
+def _discover_app_exports(directory: str, recursive: bool = False) -> List[str]:
+    """Find Qlik app exports (*.json / *.qvf) in a directory.
+
+    By default scans the directory and one sub-level. With ``recursive=True``
+    it walks the entire tree — useful for enterprise Qlik-server dumps where
+    binary QVF exports are nested in per-stream / per-space folders.
 
     Skips generated/intermediate JSON files so a folder that also contains
     migration output is still assessable.
@@ -221,16 +225,34 @@ def _discover_app_exports(directory: str) -> List[str]:
     import glob
 
     candidates: List[str] = []
-    for pattern in ('*.json', '*.qvf'):
-        candidates.extend(glob.glob(os.path.join(directory, pattern)))
-        candidates.extend(glob.glob(os.path.join(directory, '*', pattern)))
+    if recursive:
+        for pattern in ('*.json', '*.qvf'):
+            candidates.extend(
+                glob.glob(os.path.join(directory, '**', pattern), recursive=True)
+            )
+    else:
+        for pattern in ('*.json', '*.qvf'):
+            candidates.extend(glob.glob(os.path.join(directory, pattern)))
+            candidates.extend(glob.glob(os.path.join(directory, '*', pattern)))
+
+    # Directory segments that mark generated migration output (skip in recursive)
+    _GEN_DIR_MARKERS = (
+        os.sep + 'definition' + os.sep,
+        '.semanticmodel' + os.sep,
+        '.report' + os.sep,
+        os.sep + 'power_query' + os.sep,
+    )
 
     app_files: List[str] = []
     for path in sorted(set(candidates)):
         base = os.path.basename(path).lower()
+        low = path.lower()
         if path.lower().endswith('.json') and any(
             marker in base for marker in _NON_APP_JSON_MARKERS
         ):
+            continue
+        # In recursive mode, exclude files inside generated project folders.
+        if recursive and any(m in low for m in _GEN_DIR_MARKERS):
             continue
         app_files.append(path)
     return app_files
@@ -239,16 +261,19 @@ def _discover_app_exports(directory: str) -> List[str]:
 def assess_portfolio(
     directory: str,
     output_dir: Optional[str] = None,
+    recursive: bool = False,
 ) -> dict:
     """Run a portfolio-level assessment over a folder of Qlik app exports.
 
     Discovers every ``*.json`` / ``*.qvf`` app export in ``directory`` (and one
-    sub-level), extracts and adapts each, runs :func:`run_server_assessment`,
-    and — when ``output_dir`` is given — writes an executive HTML report.
+    sub-level, or the whole tree when ``recursive=True``), extracts and adapts
+    each, runs :func:`run_server_assessment`, and — when ``output_dir`` is
+    given — writes an executive HTML report.
 
     Args:
         directory: Folder containing Qlik app exports.
         output_dir: Optional folder to write ``portfolio_assessment.html``.
+        recursive: Walk the entire directory tree (enterprise server dumps).
 
     Returns:
         ``ServerAssessment.to_dict()`` augmented with short CLI aliases
@@ -265,7 +290,7 @@ def assess_portfolio(
         from extraction_orchestrator import ExtractionOrchestrator  # type: ignore
         from format_adapter import adapt_qlik_for_generation  # type: ignore
 
-    app_files = _discover_app_exports(directory)
+    app_files = _discover_app_exports(directory, recursive=recursive)
     if not app_files:
         raise ValueError(
             f"No Qlik app exports (*.json / *.qvf) found in {directory}"

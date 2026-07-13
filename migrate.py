@@ -2627,7 +2627,11 @@ def main():
 
             print_header("PORTFOLIO ASSESSMENT")
             out_dir = args.output_dir or os.path.join('output', 'assessments')
-            result = assess_portfolio(args.assess_server, output_dir=out_dir)
+            result = assess_portfolio(
+                args.assess_server,
+                output_dir=out_dir,
+                recursive=getattr(args, 'batch_recursive', False),
+            )
 
             print(f"  Apps analyzed:  {result.get('total_apps', 0)}")
             print(f"  GREEN:          {result.get('green', 0)}")
