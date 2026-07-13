@@ -30,6 +30,9 @@ import os
 import re
 import uuid
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Add project root to sys.path for package imports
 _project_root = os.path.join(os.path.dirname(__file__), '..')

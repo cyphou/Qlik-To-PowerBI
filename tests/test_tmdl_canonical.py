@@ -1398,3 +1398,14 @@ class TestDowngradeManyToManyDirection:
         count = _downgrade_many_to_many_direction(model)
         assert count == 0
         assert model["model"]["relationships"][0]["crossFilteringBehavior"] == "oneDirection"
+
+    def test_both_directions_no_cardinality_downgrades(self):
+        """bothDirections + cardinality=None → downgraded (with logger call, no crash)."""
+        model = {"model": {"relationships": [{
+            "name": "R4",
+            "crossFilteringBehavior": "bothDirections",
+            # no cardinality key at all
+        }]}}
+        count = _downgrade_many_to_many_direction(model)
+        assert count == 1
+        assert model["model"]["relationships"][0]["crossFilteringBehavior"] == "oneDirection"

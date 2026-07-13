@@ -1,5 +1,46 @@
 # Changelog
 
+## v12.1.0 — Binary QVF Export Support & Model Robustness
+
+### New Capabilities
+- **Binary Qlik app export support** — `extraction_orchestrator.py` now decodes
+  non-ZIP `.qvf` exports that embed compressed JSON records (`qvapp_*` sections with
+  zlib/gzip payloads). Falls back automatically when the file is not a ZIP archive.
+  Guarded against decompression bombs (256 MB cap per payload).
+
+### Generation Fixes
+- **Unnamed measure fix** — promoted Qlik variables always receive a usable measure name.
+- **Set-analysis DAX** — supports bracketed field names and `distinct{<...>}` syntax;
+  normalized `ext_fields` dedup to prevent duplicate filters.
+- **Load-script parser hardening** — strips inline `//` comments (quote-aware, preserves
+  URLs), trailing `SQL SELECT`/`SELECT` clauses, and bracketed `[TableLabel]:` lines;
+  safe M column-name quoting.
+- **M column sanitization** — drops leaked table-label fragments from extracted names.
+- **Clean regeneration** — SemanticModel folder is fully rebuilt (5× retry w/ backoff for
+  OneDrive sync locks); no stale `.pq`/`.tmdl` files survive.
+- **Visual binding validation** — visuals only bind to fields present in the model;
+  smart fallback column (prefers date/ID/name) when all source fields are unresolvable.
+
+### Semantic Model Phases
+- **Phase 11d — `_materialize_measure_referenced_columns`** — adds hidden stub columns for
+  fields referenced by measures but missing from tables (Qlik runtime-only fields from
+  external QVDs). Handles both qualified `'Table'[Col]` and unqualified `[Col]` refs with a
+  DAX-keyword exclusion list.
+- **Phase 11e — `_downgrade_many_to_many_direction`** — switches `manyToMany` +
+  `bothDirections` relationships to `oneDirection` to avoid ambiguous filter propagation.
+- **Relationship inference cap** — columns appearing in >5 tables (audit/technical columns
+  like `ID_CHGT_TECH`) are excluded as join keys, preventing relationship explosion.
+
+### Robustness
+- Coerce non-string measure/dimension fields to `str` in binary extractor (fixes
+  `TypeError: unhashable type 'dict'`).
+- Module-level `logger` added to `tmdl_generator.py`.
+
+### Tests
+- +34 new tests (2,931 → 2,965): binary extractor payload decoding & bomb guard,
+  dict-coercion, measure-column materialization, m2m downgrade (incl. `cardinality=None`),
+  load-field cleaning, top-level CSV splitting.
+
 ## v12.0.0 — Preceptorship, Self-Healing & Reporting
 
 ### New Modules (14)
@@ -26,6 +67,7 @@
 #### Phase 6: Script Lineage
 - **`script_lineage.py`** — Qlik load script parser → lineage graph (LOAD/FROM/RESIDENT/JOIN/MAPPING)
 - **`script_lineage_report.py`** — HTML visualization with Mermaid diagrams + JSON export
+- **`data_prep_lineage.py`** — Multi-layer data preparation lineage with layer, purpose, complexity, and source-count metadata; supports comparison-report fallback to source JSON for JSON-based runs
 
 ### New CLI Flags (10)
 - `--preceptor-review` — Run preceptorship quality review loop
@@ -38,12 +80,14 @@
 - `--package` — ZIP bundle of all migration artifacts
 - `--goals` — Extract Qlik KPIs → PBI Goals/Metrics
 - `--script-lineage` — Qlik load script lineage report
+- `--data-prep-lineage` / `--no-data-prep-lineage` — Toggle data prep lineage in comparison reports
 
 ### Pipeline Wiring
 - Self-healing v3 runs after QA pipeline (fixes model-level issues)
 - Repair strategies run on DAX/M expressions after QA
 - Preceptor review runs post-repair as final quality gate
 - Full lineage, cutover, goals, script lineage run after generation
+- Data prep lineage now embeds multi-layer medallion-style analysis in comparison reports
 - PDF/PPTX/package run as final reporting step
 
 ### Stats
