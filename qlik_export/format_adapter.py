@@ -122,6 +122,48 @@ _QLIK_CHART_TYPE_MAP = {
 }
 
 
+# ── Column-name normalization ───────────────────────────────────────
+
+# Statement keywords that indicate a leaked/malformed column name.
+_STATEMENT_TOKENS = re.compile(
+    r'^(let|set|load|select|from|where|group|order|store|drop|call|sub|'
+    r'trace|if|for|next|exit|section)\b',
+    re.IGNORECASE,
+)
+
+
+def _normalize_column_name(name) -> str:
+    """Strip SQL/Qlik brackets and surrounding whitespace from a column name.
+
+    Binary QVF load scripts emit bracketed identifiers (``[Cost]``,
+    ``[Customer Number]``) that must not appear in TMDL column names.
+    """
+    if not isinstance(name, str):
+        if isinstance(name, dict):
+            name = name.get('name') or name.get('qName') or ''
+        else:
+            name = str(name) if name is not None else ''
+    n = name.strip()
+    # Strip one layer of surrounding [ ] or " "
+    if len(n) >= 2 and n[0] == '[' and n[-1] == ']':
+        n = n[1:-1].strip()
+    elif len(n) >= 2 and n[0] == '"' and n[-1] == '"':
+        n = n[1:-1].strip()
+    return n
+
+
+def _is_valid_column_name(name: str) -> bool:
+    """Reject malformed column names (statement leaks, newlines, empties)."""
+    if not name or '\n' in name or '\r' in name:
+        return False
+    if _STATEMENT_TOKENS.match(name):
+        return False
+    # A name that still contains an unbalanced bracket or ';' is a leak
+    if ';' in name or name.count('[') != name.count(']'):
+        return False
+    return True
+
+
 def adapt_qlik_for_generation(qlik_data: Dict[str, Any]) -> Dict[str, Any]:
     """Transform Qlik extraction output to generation-layer format.
 
@@ -288,8 +330,15 @@ def _adapt_datasources(
         if not raw_columns:
             logger.warning("Empty columns in datasource '%s' — using fallback", table_name)
         columns = []
+        seen_col_names = set()
         for col in raw_columns:
-            col_name = col.get('name', '')
+            col_name = _normalize_column_name(col.get('name', ''))
+            # Drop malformed / leaked names (empty, statement fragments, newlines)
+            if not col_name or not _is_valid_column_name(col_name):
+                continue
+            if col_name.lower() in seen_col_names:
+                continue
+            seen_col_names.add(col_name.lower())
             col_type = (col.get('dataType', '')
                         or col.get('type', '')
                         or 'string').lower()
@@ -479,6 +528,40 @@ def _inject_relationships(datasources: List[Dict], associations: List[Dict]):
 
 # ── Calculations ────────────────────────────────────────────────────
 
+def _strip_leading_eq(expr: str) -> str:
+    """Strip Qlik's leading ``=`` from master-item expressions (``=Sum(x)``)."""
+    if isinstance(expr, str):
+        e = expr.strip()
+        if e.startswith('='):
+            return e[1:].strip()
+        return e
+    return expr
+
+
+def _is_plain_field_reference(expr: str) -> bool:
+    """True when *expr* is just a bare/bracketed field name, not a calculation.
+
+    Master dimensions frequently reference an existing physical column
+    (``Region``, ``[Invoice Number]``). Turning those into measures/calcs
+    produces invalid DAX like ``measure Region = Region``. Such references
+    map to columns that already exist, so they must be skipped.
+    """
+    if not isinstance(expr, str):
+        return False
+    e = expr.strip()
+    if not e or e.startswith('='):
+        return False
+    inner = e
+    if inner.startswith('[') and inner.endswith(']'):
+        inner = inner[1:-1]
+    if '(' in inner:
+        return False
+    # Strong calculation signals (arithmetic / concatenation) outside brackets.
+    if re.search(r'[+*/&]', inner):
+        return False
+    return True
+
+
 def _adapt_calculations(
     qlik_measures: List[Dict],
     qlik_dimensions: List[Dict],
@@ -497,7 +580,7 @@ def _adapt_calculations(
         calculations.append({
             'name': name,
             'caption': m.get('label', m.get('name', name)),
-            'formula': m.get('expression', m.get('definition', '')),
+            'formula': _strip_leading_eq(m.get('expression', m.get('definition', ''))),
             'role': 'measure',
             'datatype': m.get('dataType', 'real'),
             'original_type': 'qlik_measure',
@@ -506,7 +589,7 @@ def _adapt_calculations(
     # Dimensions → calculations (only calculated ones with expressions)
     for d in qlik_dimensions:
         name = d.get('name', d.get('label', ''))
-        field = d.get('field', d.get('definition', ''))
+        field = _strip_leading_eq(d.get('field', d.get('definition', '')))
 
         # Only include as a calculation if it has an expression
         # (not just a plain field reference)
@@ -535,8 +618,12 @@ def _adapt_calculations(
         name = mi.get('name', mi.get('label', ''))
         if not name or name in seen_names:
             continue
-        expr = mi.get('expression', mi.get('definition', mi.get('field', '')))
+        expr = _strip_leading_eq(mi.get('expression', mi.get('definition', mi.get('field', ''))))
         if not expr:
+            continue
+        # Skip plain field references (they map to existing physical columns;
+        # turning them into measures yields invalid ``measure X = X`` DAX).
+        if _is_plain_field_reference(expr):
             continue
         seen_names.add(name)
         calculations.append({

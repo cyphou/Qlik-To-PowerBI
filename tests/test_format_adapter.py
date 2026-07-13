@@ -894,3 +894,90 @@ class TestWorksheetDictCoercion:
         ws = _adapt_worksheets(visuals)
         assert ws[0]["dimensions"][0]["field"] == "Region"
         assert ws[0]["measures"][0]["name"] == "Sales"
+
+
+# == Column-name normalization + master-item filtering (fidelity) ====
+
+from qlik_export.format_adapter import (
+    _normalize_column_name, _is_valid_column_name,
+    _strip_leading_eq, _is_plain_field_reference, _adapt_calculations,
+)
+
+
+class TestNormalizeColumnName:
+    def test_strips_brackets(self):
+        assert _normalize_column_name("[Cost]") == "Cost"
+        assert _normalize_column_name("[Customer Number]") == "Customer Number"
+
+    def test_strips_quotes(self):
+        assert _normalize_column_name('"Region"') == "Region"
+
+    def test_plain_name_unchanged(self):
+        assert _normalize_column_name("Sales") == "Sales"
+
+    def test_dict_coerced(self):
+        assert _normalize_column_name({"qName": "Margin"}) == "Margin"
+
+
+class TestIsValidColumnName:
+    def test_rejects_newline_leak(self):
+        assert not _is_valid_column_name("Tracking\nLet vX = 1")
+
+    def test_rejects_statement_keyword(self):
+        assert not _is_valid_column_name("Let vLastReloadYear = year(now())")
+        assert not _is_valid_column_name("SELECT foo")
+
+    def test_rejects_semicolon(self):
+        assert not _is_valid_column_name("Cost; DROP")
+
+    def test_rejects_unbalanced_bracket(self):
+        assert not _is_valid_column_name("Cost]")
+
+    def test_accepts_normal(self):
+        assert _is_valid_column_name("Customer Number")
+        assert _is_valid_column_name("Sales")
+
+
+class TestStripLeadingEq:
+    def test_strips(self):
+        assert _strip_leading_eq("=Sum(Sales)") == "Sum(Sales)"
+
+    def test_no_eq_unchanged(self):
+        assert _strip_leading_eq("Sum(Sales)") == "Sum(Sales)"
+
+
+class TestIsPlainFieldReference:
+    def test_bare_name_is_plain(self):
+        assert _is_plain_field_reference("Region")
+
+    def test_bracketed_is_plain(self):
+        assert _is_plain_field_reference("[Invoice Number]")
+
+    def test_function_is_not_plain(self):
+        assert not _is_plain_field_reference("Sum(Sales)")
+
+    def test_eq_expr_is_not_plain(self):
+        assert not _is_plain_field_reference("=Year([Date])")
+
+    def test_arithmetic_is_not_plain(self):
+        assert not _is_plain_field_reference("Sales*Cost")
+
+
+class TestMasterItemFieldRefFiltering:
+    def test_plain_master_dimension_skipped(self):
+        """A master dimension that is a plain field ref must not become a measure."""
+        master_items = [
+            {"name": "Region", "type": "dimension", "field": "Region"},
+            {"name": "Sales", "type": "measure", "expression": "Sum(Sales)"},
+        ]
+        calcs = _adapt_calculations([], [], master_items)
+        names = {c["name"] for c in calcs}
+        assert "Region" not in names   # plain ref skipped
+        assert "Sales" in names        # real measure kept
+
+    def test_calculated_master_dimension_kept(self):
+        master_items = [
+            {"name": "Year", "type": "dimension", "field": "=Year([Date])"},
+        ]
+        calcs = _adapt_calculations([], [], master_items)
+        assert any(c["name"] == "Year" and "Year(" in c["formula"] for c in calcs)
