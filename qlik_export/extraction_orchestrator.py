@@ -465,14 +465,19 @@ class ExtractionOrchestrator:
         for vis in visualizations:
             for dim in vis.get("dimensions", []):
                 field = dim.get("field", "")
+                if not isinstance(field, str):
+                    field = str(field)
                 if not field or field in seen:
                     continue
                 seen.add(field)
+                label = dim.get("label", field)
+                if not isinstance(label, str):
+                    label = field
                 dims.append({
                     "id": field,
-                    "name": dim.get("label", field),
+                    "name": label or field,
                     "field": field,
-                    "label": dim.get("label", field),
+                    "label": label or field,
                     "fields": [field],
                 })
         return dims
@@ -483,17 +488,25 @@ class ExtractionOrchestrator:
         seen = set()
         for vis in visualizations:
             for measure in vis.get("measures", []):
-                key = (measure.get("name", ""), measure.get("expression", ""))
+                raw_name = measure.get("name", "")
+                raw_expr = measure.get("expression", "")
+                # Coerce to string — some Qlik exports embed dicts/lists here
+                name = str(raw_name) if not isinstance(raw_name, str) else raw_name
+                expr = str(raw_expr) if not isinstance(raw_expr, str) else raw_expr
+                key = (name, expr)
                 if not key[0] and not key[1]:
                     continue
                 if key in seen:
                     continue
                 seen.add(key)
+                label = measure.get("label", "")
+                if not isinstance(label, str):
+                    label = name
                 measures.append({
-                    "id": key[0],
-                    "name": measure.get("name", ""),
-                    "expression": measure.get("expression", ""),
-                    "label": measure.get("label", measure.get("name", "")),
+                    "id": name,
+                    "name": name,
+                    "expression": expr,
+                    "label": label or name,
                 })
         return measures
 
