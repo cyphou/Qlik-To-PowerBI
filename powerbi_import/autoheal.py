@@ -263,7 +263,7 @@ def _heal_m_partitions(text: str, tmdl_path: str, rewrite_policy: str = _DEFAULT
         original_m = "\n".join(block)
         if not original_m.strip():
             continue
-        healed = heal_m(original_m)
+        healed = heal_m(original_m, rewrite_policy=policy)
         if not healed.changed:
             continue
         if validate_m_query(healed.healed):

@@ -45,6 +45,7 @@ class HealReport:
 
 HIGH = "high"
 MEDIUM = "medium"
+DEFAULT_REWRITE_POLICY = "balanced"
 
 
 def _m_spans(expr: str) -> List[Tuple[int, int]]:
@@ -170,10 +171,50 @@ def heal_balance_parens(m: str) -> Tuple[str, Optional[HealAction]]:
     )
 
 
-def heal_m(m: str) -> HealReport:
+def heal_missing_in_clause(m: str) -> Tuple[str, Optional[HealAction]]:
+    """Add a top-level 'in <LastStep>' for incomplete let blocks.
+
+    Conservative by design: only applies when expression starts with 'let'
+    and no top-level 'in' line exists.
+    """
+    lines = m.splitlines()
+    if not lines:
+        return m, None
+
+    first = lines[0].strip().lower()
+    if first != "let":
+        return m, None
+
+    has_in = any(re.match(r"^\s*in\b", ln, flags=re.IGNORECASE) for ln in lines)
+    if has_in:
+        return m, None
+
+    step_name: Optional[str] = None
+    assign_re = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=")
+    for ln in lines[1:]:
+        m_assign = assign_re.match(ln)
+        if m_assign:
+            step_name = m_assign.group(1)
+
+    if not step_name:
+        return m, None
+
+    healed = m.rstrip() + f"\nin\n    {step_name}"
+    return healed, HealAction(
+        "missing_in_clause",
+        "m_syntax",
+        MEDIUM,
+        m,
+        healed,
+        "Added missing top-level 'in' clause using last let step",
+    )
+
+
+def heal_m(m: str, rewrite_policy: str = DEFAULT_REWRITE_POLICY) -> HealReport:
     original = m
     current = m
     actions: List[HealAction] = []
+    policy = str(rewrite_policy or DEFAULT_REWRITE_POLICY).strip().lower()
 
     def _apply(fn):
         nonlocal current
@@ -185,5 +226,7 @@ def heal_m(m: str) -> HealReport:
     _apply(heal_quote_identifiers)
     _apply(heal_trailing_comma)
     _apply(heal_balance_parens)
+    if policy == "aggressive":
+        _apply(heal_missing_in_clause)
 
     return HealReport(original=original, healed=current, actions=actions)
