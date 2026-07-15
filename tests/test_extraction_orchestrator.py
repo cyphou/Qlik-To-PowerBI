@@ -245,6 +245,74 @@ class TestExtractFromJson:
         finally:
             os.unlink(path)
 
+    def test_json_restitution_binary_hydrates_datasources_from_source_app(self):
+        """When app has Binary load and no local model, import datasources from source app."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source_qvf = os.path.join(tmpdir, "source_model.qvf")
+            restitution_json = os.path.join(tmpdir, "restitution.json")
+
+            source_payload = {
+                "app_metadata": {"name": "SourceModel"},
+                "datasources": [
+                    {
+                        "tableName": "FactSales",
+                        "connectionType": "qvd",
+                        "columns": [{"name": "Amount", "dataType": "numeric"}],
+                    }
+                ],
+                "dimensions": [],
+                "measures": [],
+                "visualizations": [],
+                "sheets": [],
+                "variables": [],
+                "loadscript": {"script": ""},
+                "associations": [],
+                "bookmarks": [],
+                "master_items": [],
+            }
+            with open(source_qvf, "w", encoding="utf-8") as f:
+                json.dump(source_payload, f)
+
+            restitution_payload = {
+                "app_metadata": {"name": "RestitutionApp"},
+                "datasources": [],
+                "dimensions": [{"name": "Region", "field": "Region"}],
+                "measures": [{"name": "Total", "expression": "Sum(Amount)"}],
+                "visualizations": [
+                    {
+                        "type": "barchart",
+                        "title": "Total by Region",
+                        "dimensions": [{"field": "Region"}],
+                        "measures": [{"name": "Total"}],
+                    }
+                ],
+                "sheets": [{"id": "s1", "title": "Overview"}],
+                "variables": [],
+                "loadscript": {"script": 'Binary "source_model.qvf";'},
+                "associations": [],
+                "bookmarks": [],
+                "master_items": [],
+            }
+            with open(restitution_json, "w", encoding="utf-8") as f:
+                json.dump(restitution_payload, f)
+
+            orch = ExtractionOrchestrator()
+            result = orch.extract(restitution_json)
+
+            assert result.get("datasources")
+            assert result["datasources"][0]["tableName"] == "FactSales"
+
+
+class TestBinaryLoadResolutionHelpers:
+    def test_extract_binary_load_target(self):
+        script = """
+        // comment
+        Binary "lib://DataFiles/source_app.qvf";
+        LOAD * INLINE [A\n1\n];
+        """
+        target = ExtractionOrchestrator._extract_binary_load_target(script)
+        assert target == "lib://DataFiles/source_app.qvf"
+
 
 # ═══════════════════════════════════════════════════════════════
 #  load_intermediate_json

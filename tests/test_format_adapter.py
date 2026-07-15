@@ -263,6 +263,34 @@ class TestDatasourceAdaptation:
         assert len(result['datasources']) == 1
         assert result['datasources'][0]['columns'] == []
 
+    def test_no_datasource_recovers_from_worksheet_and_measure_hints(self):
+        data = {
+            'datasources': [],
+            'dimensions': [],
+            'measures': [{'name': 'Total Sales', 'expression': 'Sum(Amount)'}],
+            'visualizations': [{
+                'type': 'barchart',
+                'title': 'Sales by Region',
+                'dimensions': [{'field': 'Region'}],
+                'measures': [{'name': 'Total Sales'}],
+            }],
+            'sheets': [{'id': 's1', 'title': 'Overview'}],
+            'variables': [],
+            'loadscript': {},
+            'associations': [],
+            'bookmarks': [],
+            'master_items': [],
+            'app_metadata': {},
+        }
+
+        result = adapt_qlik_for_generation(data)
+
+        assert len(result['datasources']) == 1
+        ds = result['datasources'][0]
+        assert ds['name'] == 'RecoveredModel'
+        assert any(c.get('name') == 'Region' for c in ds.get('columns', []))
+        assert any(c.get('name') == 'Total Sales' for c in ds.get('calculations', []))
+
     def test_missing_columns_key(self):
         """Datasource dict without 'columns' key at all."""
         data = {

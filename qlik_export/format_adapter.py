@@ -246,6 +246,14 @@ def adapt_qlik_for_generation(qlik_data: Dict[str, Any]) -> Dict[str, Any]:
 
     # 3.3 — Parse Section Access from load script → user_filters (RLS)
     user_filters = _parse_section_access(qlik_loadscript)
+
+    # 3.3b — Recovery path for sparse exports: synthesize a minimal datasource
+    # from worksheet/calculation hints so generation can proceed.
+    if not datasources:
+        datasources = _build_fallback_datasource_from_semantic_hints(
+            worksheets, calculations, parameters
+        )
+
     # Inject calculations into datasources (Tableau format nests them)
     _inject_calculations_into_datasources(datasources, calculations)
 
@@ -662,6 +670,76 @@ def _inject_calculations_into_datasources(
             'role': calc.get('role', 'measure'),
             'datatype': calc.get('datatype', 'string'),
         })
+
+
+def _build_fallback_datasource_from_semantic_hints(
+    worksheets: List[Dict],
+    calculations: List[Dict],
+    parameters: List[Dict],
+) -> List[Dict]:
+    """Build a minimal datasource when extraction produced no physical tables.
+
+    Some Qlik exports (especially sparse/binary variants) can still carry
+    rich worksheet and calculation metadata while the datasource payload is
+    empty. In this case we recover a thin model with inferred columns so the
+    PBIP/TMDL generation phase does not abort.
+    """
+    if not worksheets and not calculations and not parameters:
+        return []
+
+    inferred_names = []
+    seen = set()
+
+    for ws in worksheets:
+        for dim in ws.get('dimensions', []):
+            raw_name = _normalize_column_name(dim.get('field', dim.get('name', '')))
+            if not raw_name or not _is_valid_column_name(raw_name):
+                continue
+            key = raw_name.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            inferred_names.append(raw_name)
+
+    columns = [
+        {
+            'name': col_name,
+            'datatype': _infer_column_datatype(col_name),
+            'caption': col_name,
+            'role': 'dimension',
+            'hidden': False,
+            'description': 'Recovered from worksheet metadata',
+            'default_format': '',
+        }
+        for col_name in inferred_names
+    ]
+
+    if not columns:
+        columns.append({
+            'name': '__SyntheticKey',
+            'datatype': 'whole',
+            'caption': '__SyntheticKey',
+            'role': 'dimension',
+            'hidden': True,
+            'description': 'Synthetic key for sparse datasource recovery',
+            'default_format': '',
+        })
+
+    table_name = 'RecoveredModel'
+    logger.warning(
+        "No datasources found; synthesizing fallback datasource '%s' with %d columns",
+        table_name,
+        len(columns),
+    )
+
+    return [{
+        'name': table_name,
+        'connection': {'type': 'recovered'},
+        'tables': [{'name': table_name, 'columns': list(columns)}],
+        'columns': list(columns),
+        'calculations': [],
+        'relationships': [],
+    }]
 
 
 # ── Worksheets (from Qlik visualizations) ───────────────────────────

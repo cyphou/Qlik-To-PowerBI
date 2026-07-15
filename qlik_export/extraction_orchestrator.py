@@ -63,7 +63,7 @@ class ExtractionOrchestrator:
     # Public API
     # ─────────────────────────────────────────────────────────────
 
-    def extract(self, input_path: str) -> Dict[str, Any]:
+    def extract(self, input_path: str, resolve_binary: bool = True) -> Dict[str, Any]:
         """
         Run extraction from a QVF or JSON file.
 
@@ -86,7 +86,7 @@ class ExtractionOrchestrator:
             raise ValueError(f"Unsupported file format: {ext}. Use .qvf or .json")
 
         # Post-extraction: parse load script → enrich datasources with M queries
-        self._enrich_from_loadscript()
+        self._enrich_from_loadscript(resolve_binary=resolve_binary)
 
         logger.info(f"Extraction completed from {path.name}")
         return self._data
@@ -647,6 +647,13 @@ class ExtractionOrchestrator:
                     "source_file": str(json_path),
                     "extracted_at": datetime.now().isoformat(),
                 }
+            else:
+                # Preserve explicit metadata but ensure resolver-critical fields
+                # are available for relative-path handling (e.g., Binary source).
+                if not isinstance(self._data["app_metadata"], dict):
+                    self._data["app_metadata"] = {}
+                self._data["app_metadata"].setdefault("source_file", str(json_path))
+                self._data["app_metadata"].setdefault("extracted_at", datetime.now().isoformat())
             # Fallback: if no datasources but 'tables' key exists, use it
             if not self._data.get("datasources") and "tables" in raw:
                 tables = raw["tables"]
@@ -1253,7 +1260,7 @@ class ExtractionOrchestrator:
     # Load script → datasource enrichment
     # ─────────────────────────────────────────────────────────────
 
-    def _enrich_from_loadscript(self) -> None:
+    def _enrich_from_loadscript(self, resolve_binary: bool = True) -> None:
         """Parse the Qlik load script and enrich datasources with M queries.
 
         Uses ``QlikScriptToPowerQueryConverter`` to convert LOAD statements
@@ -1264,6 +1271,12 @@ class ExtractionOrchestrator:
         script = self._data.get("loadscript", {}).get("script", "")
         if not script or not script.strip():
             return
+
+        # Restitution-only apps often use `Binary` to import the data model
+        # from another app. If local datasources are empty, try to resolve the
+        # referenced source file and hydrate datasources from it.
+        if resolve_binary and not self._data.get("datasources"):
+            self._hydrate_datasources_from_binary_source(script)
 
         try:
             from qlik_export.qlik_script_converter import (
@@ -1352,6 +1365,114 @@ class ExtractionOrchestrator:
                 "Load script enrichment: %d datasources enriched, %d new tables added",
                 enriched, added,
             )
+
+    @staticmethod
+    def _extract_binary_load_target(script: str) -> Optional[str]:
+        """Return the first `Binary ...;` target path found in a load script."""
+        import re as _re
+
+        if not script:
+            return None
+
+        # Keep first Binary statement only; this mirrors the load order.
+        match = _re.search(r"(?im)^\s*binary\s+(.+?)\s*;", script)
+        if not match:
+            return None
+
+        token = match.group(1).strip()
+        if (token.startswith('"') and token.endswith('"')) or (
+            token.startswith("'") and token.endswith("'")
+        ):
+            token = token[1:-1].strip()
+        return token or None
+
+    @staticmethod
+    def _resolve_binary_source_candidates(binary_target: str,
+                                         source_file: Optional[str]) -> List[Path]:
+        """Resolve likely filesystem candidates for a Binary source reference."""
+        candidates: List[Path] = []
+        if not binary_target:
+            return candidates
+
+        target = binary_target.strip()
+        source_dir = Path(source_file).resolve().parent if source_file else Path.cwd()
+
+        def _push(path_obj: Path):
+            try:
+                resolved = path_obj.resolve()
+            except Exception:
+                return
+            if resolved not in candidates:
+                candidates.append(resolved)
+
+        # Qlik lib:// references cannot be resolved directly without connection
+        # metadata; use basename probing in the same tree as the current app.
+        if target.lower().startswith("lib://"):
+            probe_name = Path(target.replace("\\", "/")).name
+            if probe_name:
+                for found in source_dir.rglob(probe_name):
+                    _push(found)
+            return candidates
+
+        path_target = Path(target)
+        if path_target.is_absolute():
+            _push(path_target)
+            return candidates
+
+        _push(source_dir / path_target)
+        _push(Path.cwd() / path_target)
+        return candidates
+
+    def _hydrate_datasources_from_binary_source(self, script: str) -> bool:
+        """Hydrate datasources from the app referenced by a Qlik Binary load."""
+        binary_target = self._extract_binary_load_target(script)
+        if not binary_target:
+            return False
+
+        source_file = self._data.get("app_metadata", {}).get("source_file")
+        candidates = self._resolve_binary_source_candidates(binary_target, source_file)
+        if not candidates:
+            logger.warning(
+                "Binary load detected (%s) but no local source file could be resolved",
+                binary_target,
+            )
+            return False
+
+        source_path = Path(source_file).resolve() if source_file else None
+        for candidate in candidates:
+            if source_path and candidate == source_path:
+                continue
+            if not candidate.exists() or not candidate.is_file():
+                continue
+
+            try:
+                nested = ExtractionOrchestrator(output_dir=str(self.output_dir))
+                # Avoid infinite loops for cyclic Binary references.
+                nested.extract(str(candidate), resolve_binary=False)
+            except Exception as exc:
+                logger.warning("Binary source extraction failed for %s: %s", candidate, exc)
+                continue
+
+            nested_ds = nested._data.get("datasources", [])
+            if not nested_ds:
+                continue
+
+            self._data["datasources"] = nested_ds
+            if not self._data.get("associations") and nested._data.get("associations"):
+                self._data["associations"] = nested._data.get("associations", [])
+
+            logger.warning(
+                "Binary load source resolved (%s): imported %d datasources",
+                candidate,
+                len(nested_ds),
+            )
+            return True
+
+        logger.warning(
+            "Binary load detected (%s) but no datasource-bearing source app was found",
+            binary_target,
+        )
+        return False
 
     @staticmethod
     def _extract_columns_from_m_query(m_query: str) -> List[Dict]:

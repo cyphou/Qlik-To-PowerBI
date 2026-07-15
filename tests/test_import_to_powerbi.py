@@ -89,6 +89,32 @@ def partial_json_dir(tmp_path):
 
 
 @pytest.fixture
+def sparse_model_json_dir(tmp_path):
+    """No datasources, but enough semantic hints to recover a minimal model."""
+    files = {
+        'app_metadata.json': {'name': 'SparseModel'},
+        'datasources.json': [],
+        'dimensions.json': [],
+        'measures.json': [{'name': 'Total Sales', 'expression': 'Sum(Amount)'}],
+        'visualizations.json': [{
+            'type': 'barchart',
+            'title': 'Sales by Region',
+            'dimensions': [{'field': 'Region'}],
+            'measures': [{'name': 'Total Sales'}],
+        }],
+        'sheets.json': [{'id': 'sheet1', 'title': 'Overview'}],
+        'variables.json': [],
+        'loadscript.json': {},
+        'associations.json': [],
+        'bookmarks.json': [],
+        'master_items.json': [],
+    }
+    for name, content in files.items():
+        (tmp_path / name).write_text(json.dumps(content), encoding='utf-8')
+    return str(tmp_path)
+
+
+@pytest.fixture
 def empty_json_dir(tmp_path):
     """Create a directory with all empty JSON files."""
     files = {
@@ -205,6 +231,13 @@ class TestImportAll:
         captured = capsys.readouterr()
         assert "IMPORT POWER BI" in captured.out
         assert "Sales Chart" in captured.out or "Report" in captured.out
+
+    def test_import_all_sparse_model_recovers_datasource(self, sparse_model_json_dir, capsys):
+        importer = PowerBIImporter(source_dir=sparse_model_json_dir)
+        importer.import_all(generate_pbip=False)
+        captured = capsys.readouterr()
+        assert "No datasources" not in captured.out
+        assert "Datasources: 1" in captured.out
 
     def test_import_all_custom_report_name(self, qlik_json_dir, capsys):
         """Custom report_name should be used."""
