@@ -9,6 +9,7 @@ into the generation-compatible ``converted_objects`` dict, then drives the
 import os
 import sys
 import json
+import re
 from datetime import datetime
 
 try:
@@ -56,6 +57,12 @@ class PowerBIImporter:
 
         if not converted_objects.get('datasources'):
             print(f"  [ERROR] No datasources found in {os.path.join(self.source_dir, 'datasources.json')}")
+            binary_target = self._detect_binary_target_from_loadscript()
+            if binary_target:
+                print(f"     Detected Qlik Binary source reference: {binary_target}")
+                print("     This restitution app likely does not contain its own data model.")
+                print("     Try: python migrate.py <restitution-app> --binary-source <source-app.qvf|.json>")
+                print("     Or:  python migrate.py <restitution-app> --binary-source-dir <directory>")
             print("     Run extraction first: python migrate.py <file>")
             return
 
@@ -188,6 +195,36 @@ class PowerBIImporter:
             except Exception:
                 data[key] = [] if key != 'aliases' else {}
         return data
+
+    def _detect_binary_target_from_loadscript(self):
+        """Return the first Binary load target from loadscript.json when present."""
+        path = os.path.join(self.source_dir, 'loadscript.json')
+        if not os.path.exists(path):
+            return None
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                payload = json.load(f)
+        except Exception:
+            return None
+
+        script = ''
+        if isinstance(payload, dict):
+            script = payload.get('script', '')
+        elif isinstance(payload, str):
+            script = payload
+
+        if not script:
+            return None
+
+        m = re.search(r"(?im)^\s*binary\s+(.+?)\s*;", script)
+        if not m:
+            return None
+        target = m.group(1).strip()
+        if (target.startswith('"') and target.endswith('"')) or (
+            target.startswith("'") and target.endswith("'")
+        ):
+            target = target[1:-1].strip()
+        return target or None
     
     def generate_powerbi_project(self, report_name, converted_objects, output_dir=None,
                                  calendar_start=None, calendar_end=None, culture=None,

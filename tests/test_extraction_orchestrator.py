@@ -313,6 +313,28 @@ class TestBinaryLoadResolutionHelpers:
         target = ExtractionOrchestrator._extract_binary_load_target(script)
         assert target == "lib://DataFiles/source_app.qvf"
 
+    def test_resolve_binary_candidates_honors_overrides(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source_file = os.path.join(tmpdir, "restitution.qvf")
+            with open(source_file, "w", encoding="utf-8") as f:
+                f.write("{}")
+
+            override_dir = os.path.join(tmpdir, "models")
+            os.makedirs(override_dir, exist_ok=True)
+            source_model = os.path.join(override_dir, "source_model.qvf")
+            with open(source_model, "w", encoding="utf-8") as f:
+                f.write("{}")
+
+            candidates = ExtractionOrchestrator._resolve_binary_source_candidates(
+                binary_target="source_model.qvf",
+                source_file=source_file,
+                preferred_source=source_model,
+                search_dirs=[override_dir],
+            )
+
+            assert candidates
+            assert any(str(c).endswith("source_model.qvf") for c in candidates)
+
 
 # ═══════════════════════════════════════════════════════════════
 #  load_intermediate_json

@@ -63,7 +63,13 @@ class ExtractionOrchestrator:
     # Public API
     # ─────────────────────────────────────────────────────────────
 
-    def extract(self, input_path: str, resolve_binary: bool = True) -> Dict[str, Any]:
+    def extract(
+        self,
+        input_path: str,
+        resolve_binary: bool = True,
+        binary_source: Optional[str] = None,
+        binary_source_dirs: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """
         Run extraction from a QVF or JSON file.
 
@@ -86,7 +92,11 @@ class ExtractionOrchestrator:
             raise ValueError(f"Unsupported file format: {ext}. Use .qvf or .json")
 
         # Post-extraction: parse load script → enrich datasources with M queries
-        self._enrich_from_loadscript(resolve_binary=resolve_binary)
+        self._enrich_from_loadscript(
+            resolve_binary=resolve_binary,
+            binary_source=binary_source,
+            binary_source_dirs=binary_source_dirs,
+        )
 
         logger.info(f"Extraction completed from {path.name}")
         return self._data
@@ -1260,7 +1270,12 @@ class ExtractionOrchestrator:
     # Load script → datasource enrichment
     # ─────────────────────────────────────────────────────────────
 
-    def _enrich_from_loadscript(self, resolve_binary: bool = True) -> None:
+    def _enrich_from_loadscript(
+        self,
+        resolve_binary: bool = True,
+        binary_source: Optional[str] = None,
+        binary_source_dirs: Optional[List[str]] = None,
+    ) -> None:
         """Parse the Qlik load script and enrich datasources with M queries.
 
         Uses ``QlikScriptToPowerQueryConverter`` to convert LOAD statements
@@ -1276,7 +1291,11 @@ class ExtractionOrchestrator:
         # from another app. If local datasources are empty, try to resolve the
         # referenced source file and hydrate datasources from it.
         if resolve_binary and not self._data.get("datasources"):
-            self._hydrate_datasources_from_binary_source(script)
+            self._hydrate_datasources_from_binary_source(
+                script,
+                binary_source=binary_source,
+                binary_source_dirs=binary_source_dirs,
+            )
 
         try:
             from qlik_export.qlik_script_converter import (
@@ -1387,8 +1406,12 @@ class ExtractionOrchestrator:
         return token or None
 
     @staticmethod
-    def _resolve_binary_source_candidates(binary_target: str,
-                                         source_file: Optional[str]) -> List[Path]:
+    def _resolve_binary_source_candidates(
+        binary_target: str,
+        source_file: Optional[str],
+        preferred_source: Optional[str] = None,
+        search_dirs: Optional[List[str]] = None,
+    ) -> List[Path]:
         """Resolve likely filesystem candidates for a Binary source reference."""
         candidates: List[Path] = []
         if not binary_target:
@@ -1405,11 +1428,32 @@ class ExtractionOrchestrator:
             if resolved not in candidates:
                 candidates.append(resolved)
 
+        if preferred_source:
+            _push(Path(preferred_source))
+
+        for extra_dir in (search_dirs or []):
+            if not extra_dir:
+                continue
+            try:
+                extra_path = Path(extra_dir).resolve()
+            except Exception:
+                continue
+            if extra_path.is_dir():
+                _push(extra_path / Path(target).name)
+
         # Qlik lib:// references cannot be resolved directly without connection
         # metadata; use basename probing in the same tree as the current app.
         if target.lower().startswith("lib://"):
             probe_name = Path(target.replace("\\", "/")).name
             if probe_name:
+                for extra_dir in (search_dirs or []):
+                    try:
+                        extra_path = Path(extra_dir).resolve()
+                    except Exception:
+                        continue
+                    if extra_path.is_dir():
+                        for found in extra_path.rglob(probe_name):
+                            _push(found)
                 for found in source_dir.rglob(probe_name):
                     _push(found)
             return candidates
@@ -1423,17 +1467,28 @@ class ExtractionOrchestrator:
         _push(Path.cwd() / path_target)
         return candidates
 
-    def _hydrate_datasources_from_binary_source(self, script: str) -> bool:
+    def _hydrate_datasources_from_binary_source(
+        self,
+        script: str,
+        binary_source: Optional[str] = None,
+        binary_source_dirs: Optional[List[str]] = None,
+    ) -> bool:
         """Hydrate datasources from the app referenced by a Qlik Binary load."""
         binary_target = self._extract_binary_load_target(script)
         if not binary_target:
             return False
 
         source_file = self._data.get("app_metadata", {}).get("source_file")
-        candidates = self._resolve_binary_source_candidates(binary_target, source_file)
+        candidates = self._resolve_binary_source_candidates(
+            binary_target,
+            source_file,
+            preferred_source=binary_source,
+            search_dirs=binary_source_dirs,
+        )
         if not candidates:
             logger.warning(
-                "Binary load detected (%s) but no local source file could be resolved",
+                "Binary load detected (%s) but no local source file could be resolved. "
+                "Use --binary-source <file> or --binary-source-dir <dir>.",
                 binary_target,
             )
             return False
@@ -1469,7 +1524,8 @@ class ExtractionOrchestrator:
             return True
 
         logger.warning(
-            "Binary load detected (%s) but no datasource-bearing source app was found",
+            "Binary load detected (%s) but no datasource-bearing source app was found. "
+            "Use --binary-source <file> or --binary-source-dir <dir>.",
             binary_target,
         )
         return False

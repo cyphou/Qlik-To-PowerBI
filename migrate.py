@@ -206,7 +206,7 @@ def _collect_batch_inputs(batch_dir: str, recursive: bool = False):
 
 # ── Step 1: Qlik Extraction ─────────────────────────────────────────
 
-def run_extraction(qlik_file):
+def run_extraction(qlik_file, binary_source=None, binary_source_dirs=None):
     """Extract objects from a .qvf or JSON export → intermediate JSON files.
 
     Writes the 11 Qlik intermediate JSON files to ``qlik_export/``.
@@ -235,7 +235,11 @@ def run_extraction(qlik_file):
         # Output JSON files to qlik_export/ directory
         output_dir = os.path.join(os.path.dirname(__file__), 'qlik_export')
         orchestrator = ExtractionOrchestrator(output_dir=output_dir)
-        orchestrator.extract(qlik_file)
+        orchestrator.extract(
+            qlik_file,
+            binary_source=binary_source,
+            binary_source_dirs=binary_source_dirs,
+        )
         json_dir = orchestrator.write_intermediate_json(output_dir)
 
         # Collect extraction counts
@@ -938,7 +942,8 @@ def _evaluate_quality_gate(
 def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
                         calendar_start=None, calendar_end=None, culture=None,
                         workers=None, gate=None, force_deployment=False,
-                        recursive=False):
+                        recursive=False, binary_source=None,
+                        binary_source_dirs=None):
     """Batch migrate all .qvf/.json/.qvw files in a directory.
 
     Args:
@@ -998,7 +1003,11 @@ def run_batch_migration(batch_dir, output_dir=None, skip_extraction=False,
 
             # Step 1: Extract
             if not skip_extraction:
-                file_results['extraction'] = run_extraction(qlik_file)
+                file_results['extraction'] = run_extraction(
+                    qlik_file,
+                    binary_source=binary_source,
+                    binary_source_dirs=binary_source_dirs,
+                )
                 if not file_results['extraction']:
                     logger.warning(f"Extraction failed for {basename}, skipping")
                     return basename, {'success': False, 'error': 'extraction'}
@@ -1252,7 +1261,11 @@ def _run_batch_config(args):
         file_results = {}
 
         if not skip:
-            file_results['extraction'] = run_extraction(qlik_file)
+            file_results['extraction'] = run_extraction(
+                qlik_file,
+                binary_source=getattr(args, 'binary_source', None),
+                binary_source_dirs=getattr(args, 'binary_source_dir', None),
+            )
             if not file_results['extraction']:
                 results[basename] = {'success': False, 'error': 'extraction'}
                 continue
@@ -1485,7 +1498,11 @@ def _run_migration_manifest(args):
         file_results = {}
 
         if not skip:
-            file_results['extraction'] = run_extraction(qlik_file)
+            file_results['extraction'] = run_extraction(
+                qlik_file,
+                binary_source=getattr(args, 'binary_source', None),
+                binary_source_dirs=getattr(args, 'binary_source_dir', None),
+            )
             if not file_results['extraction']:
                 results[basename] = {'success': False, 'error': 'extraction'}
                 continue
@@ -1595,6 +1612,21 @@ def main():
         '--skip-extraction',
         action='store_true',
         help='Skip extraction (use existing intermediate JSON in qlik_export/)'
+    )
+
+    parser.add_argument(
+        '--binary-source',
+        metavar='FILE',
+        default=None,
+        help='Explicit source app file for Qlik Binary load model hydration'
+    )
+
+    parser.add_argument(
+        '--binary-source-dir',
+        metavar='DIR',
+        action='append',
+        default=None,
+        help='Additional directory to search for Qlik Binary source apps (repeatable)'
     )
 
     parser.add_argument(
@@ -2753,6 +2785,8 @@ def main():
             gate=getattr(args, 'gate', None),
             force_deployment=getattr(args, 'force_deployment', False),
             recursive=getattr(args, 'batch_recursive', False),
+            binary_source=getattr(args, 'binary_source', None),
+            binary_source_dirs=getattr(args, 'binary_source_dir', None),
         )
 
     # ── Qlik Server direct extraction mode ──────────────────────
@@ -2927,7 +2961,11 @@ def main():
     # Step 1: Extraction
     if not args.skip_extraction:
         progress.start("Extracting Qlik objects")
-        results['extraction'] = run_extraction(args.qlik_file)
+        results['extraction'] = run_extraction(
+            args.qlik_file,
+            binary_source=getattr(args, 'binary_source', None),
+            binary_source_dirs=getattr(args, 'binary_source_dir', None),
+        )
         if not results['extraction']:
             progress.fail("Extraction failed")
             if not json_mode:

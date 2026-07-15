@@ -223,6 +223,29 @@ class TestImportAll:
         captured = capsys.readouterr()
         assert "ERROR" in captured.out or "No datasources" in captured.out
 
+    def test_import_all_no_datasources_with_binary_script_prints_guidance(self, tmp_path, capsys):
+        files = {
+            'app_metadata.json': {'name': 'RestitutionOnly'},
+            'datasources.json': [],
+            'dimensions.json': [],
+            'measures.json': [],
+            'visualizations.json': [],
+            'sheets.json': [],
+            'variables.json': [],
+            'loadscript.json': {'script': 'Binary "source_model.qvf";'},
+            'associations.json': [],
+            'bookmarks.json': [],
+            'master_items.json': [],
+        }
+        for name, content in files.items():
+            (tmp_path / name).write_text(json.dumps(content), encoding='utf-8')
+
+        importer = PowerBIImporter(source_dir=str(tmp_path))
+        importer.import_all(generate_pbip=False)
+        captured = capsys.readouterr()
+        assert "Detected Qlik Binary source reference" in captured.out
+        assert "--binary-source" in captured.out
+
     def test_import_all_with_data(self, qlik_json_dir, capsys):
         """import_all with valid data should proceed (generation may fail without full deps)."""
         importer = PowerBIImporter(source_dir=qlik_json_dir)

@@ -237,6 +237,12 @@ class TestNewCLIFlags(unittest.TestCase):
     def test_refresh_timezone_flag(self):
         self._assert_flag("--refresh-timezone")
 
+    def test_binary_source_flag(self):
+        self._assert_flag("--binary-source")
+
+    def test_binary_source_dir_flag(self):
+        self._assert_flag("--binary-source-dir")
+
 
 if __name__ == "__main__":
     unittest.main()
