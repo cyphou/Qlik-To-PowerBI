@@ -149,6 +149,9 @@ All existing tests must pass. New features should include tests.
 ```bash
 # Migrate all samples and validate
 python migrate.py --batch examples/Qlik_samples/ --output-dir /tmp/test_output
+
+# Simplified equivalent (PowerShell wrapper)
+./scripts/simple_migration.ps1 -SourceFolder "examples/Qlik_samples" -TargetFolder "/tmp/test_output"
 ```
 
 ### 5. Submit a Pull Request

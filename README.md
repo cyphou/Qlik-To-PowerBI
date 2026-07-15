@@ -27,6 +27,9 @@ python migrate.py your_app.qvf
 
 # Simplified presets (recommended)
 python migrate.py your_app.qvf --simple-mode balanced
+
+# Auto-inferred command (no --simple-command required)
+python migrate.py --target your_app.qvf
 ```
 
 Simple presets:
@@ -44,10 +47,16 @@ python migrate.py --help-simple
 Simple command shortcuts:
 
 ```bash
-# Migrate
+# Migrate (explicit)
 python migrate.py --simple-command migrate --target your_app.qvf
 
-# Batch migration
+# Migrate (auto-inferred)
+python migrate.py --target your_app.qvf
+
+# Batch migration (auto-inferred from folder target)
+python migrate.py --target ./exports
+
+# Batch migration (explicit)
 python migrate.py --simple-command batch --target ./exports
 
 # Compare report
@@ -56,7 +65,10 @@ python migrate.py --simple-command compare --target your_app.qvf
 # Full quality checks
 python migrate.py --simple-command qa --target your_app.qvf
 
-# Migrate + deploy
+# Migrate + deploy (auto-inferred)
+python migrate.py --target your_app.qvf --workspace-id <WORKSPACE_ID>
+
+# Migrate + deploy (explicit)
 python migrate.py --simple-command deploy --target your_app.qvf --workspace-id <WORKSPACE_ID>
 
 # Qlik server diagnostics

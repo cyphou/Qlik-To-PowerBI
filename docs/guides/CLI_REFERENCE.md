@@ -8,6 +8,26 @@ This page documents the current command-line interface of `migrate.py`.
 python migrate.py <qlik_file> [options]
 ```
 
+## Simplified Usage (Recommended)
+
+```bash
+# Single-file migration (auto-inferred: migrate)
+python migrate.py --target sales.qvf
+
+# Folder migration (auto-inferred: batch)
+python migrate.py --target exports/
+
+# Migration + deploy (auto-inferred: deploy)
+python migrate.py --target sales.qvf --workspace-id <workspace_id>
+
+# Explicit shortcuts (optional)
+python migrate.py --simple-command qa --target sales.qvf
+python migrate.py --simple-command server-test --server-url https://qlik.example.com
+
+# Folder -> folder operational wrapper (PowerShell)
+./scripts/simple_migration.ps1 -SourceFolder "C:\QlikExports" -TargetFolder "C:\QlikMigrated"
+```
+
 `<qlik_file>` can be:
 - `.qvf`
 - `.json` export
@@ -109,6 +129,11 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 ## Full Option Index
 
 ### Core input/output and execution
+- `--simple-mode` (`fast`, `balanced`, `max`)
+- `--help-simple`
+- `--simple-command` (`migrate`, `migrate-max`, `assess`, `compare`, `qa`, `batch`, `batch-max`, `deploy`, `server-test`)
+- `--target`
+- `--workspace-id`
 - `--skip-extraction`
 - `--wizard`
 - `--output-dir`
