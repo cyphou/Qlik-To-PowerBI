@@ -25,31 +25,53 @@ manual rework.
 # That's it. One command.
 python migrate.py your_app.qvf
 
-# Simplified presets (recommended)
+# Recommended preset
 python migrate.py your_app.qvf --preset balanced
 
-# Simplified source/output aliases
+# Compact source/output aliases
 python migrate.py --source your_app.qvf --out output/my_project
 ```
 
-Simple arguments:
+Compact arguments:
 
 - `--source`: one input path (file => single migration, folder => batch)
 - `--src`: alias for positional `qlik_file`
 - `--out`: alias for `--output-dir`
-- `--preset`: alias for `--simple-mode` (`fast`, `balanced`, `max`)
+- `--preset`: migration profile (`fast`, `balanced`, `max`)
 - `--workspace`: alias for deployment workspace ID (`--deploy`)
 
 Presets:
 
-- `--simple-mode fast`: fastest run with conservative rewrites and minimal checks.
-- `--simple-mode balanced`: recommended default with safe checks enabled.
-- `--simple-mode max`: strict + aggressive rewrites + full verification gates.
+- `--preset fast`: fastest run with conservative rewrites and minimal checks.
+- `--preset balanced`: recommended default with safe checks enabled.
+- `--preset max`: strict + aggressive rewrites + full verification gates.
 
-Show concise preset help:
+Show preset help:
 
 ```bash
-python migrate.py --help-simple
+python migrate.py --help-presets
+```
+
+Recommended 6 command patterns:
+
+```bash
+# 1) Single file migration
+python migrate.py --source app.qvf
+
+# 2) Batch migration from folder
+python migrate.py --source ./exports
+
+# 3) Compare report
+python migrate.py --source app.qvf --compare
+
+# 4) QA pipeline
+python migrate.py --source app.qvf --qa
+
+# 5) Migration + deploy
+python migrate.py --source app.qvf --workspace <WORKSPACE_ID>
+
+# 6) Shared semantic model merge
+python migrate.py --shared-model app1.qvf app2.qvf --model-name SharedModel
 ```
 
 Examples:
@@ -70,22 +92,6 @@ python migrate.py --source your_app.qvf --qa
 
 # Migrate + deploy
 python migrate.py --source your_app.qvf --workspace <WORKSPACE_ID>
-```
-
-Ultra-simple folder-to-folder workflow (recommended for operations):
-
-```powershell
-# Source folder -> target folder
-./scripts/simple_migration.ps1 -SourceFolder "C:\QlikExports" -TargetFolder "C:\QlikMigrated"
-
-# Add lineage output
-./scripts/simple_migration.ps1 -SourceFolder "C:\QlikExports" -TargetFolder "C:\QlikMigrated" -Lineage
-
-# Add shared semantic model / fusion
-./scripts/simple_migration.ps1 -SourceFolder "C:\QlikExports" -TargetFolder "C:\QlikMigrated" -SharedSemantic -Fusion
-
-# Deploy to Power BI Online
-./scripts/simple_migration.ps1 -SourceFolder "C:\QlikExports" -TargetFolder "C:\QlikMigrated" -DeployOnline -WorkspaceId "<WORKSPACE_ID>"
 ```
 
 > **Tip:** The output is a `.pbip` project — just double-click to open in Power BI Desktop (Developer Mode).
@@ -616,10 +622,10 @@ flowchart LR
 
 | Flag | Description |
 |:-----|:-----------|
-| `--source PATH` | Simplified input path (file = single migration, folder = batch migration) |
+| `--source PATH` | Input path (file = single migration, folder = batch migration) |
 | `--src FILE` | Alias for positional source file argument |
 | `--out DIR` | Alias for `--output-dir` |
-| `--preset MODE` | Alias for `--simple-mode` (`fast`, `balanced`, `max`) |
+| `--preset MODE` | Migration profile (`fast`, `balanced`, `max`) |
 | `--workspace ID` | Alias for `--deploy WORKSPACE_ID` |
 | `--output-dir DIR` | Custom output directory |
 | `--skip-extraction` | Reuse previously extracted intermediate JSON |

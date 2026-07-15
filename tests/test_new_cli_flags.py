@@ -267,20 +267,23 @@ class TestNewCLIFlags(unittest.TestCase):
     def test_no_ensure_open_strict_flag(self):
         self._assert_flag("--no-ensure-open-strict")
 
-    def test_simple_mode_flag(self):
-        self._assert_flag("--simple-mode")
+    def test_preset_flag(self):
+        self._assert_flag("--preset")
 
-    def test_help_simple_flag(self):
-        self._assert_flag("--help-simple")
+    def test_help_presets_flag(self):
+        self._assert_flag("--help-presets")
 
-    def test_simple_command_flag(self):
-        self._assert_flag("--simple-command")
+    def test_source_flag(self):
+        self._assert_flag("--source")
 
-    def test_target_flag(self):
-        self._assert_flag("--target")
+    def test_src_flag(self):
+        self._assert_flag("--src")
 
-    def test_workspace_id_flag(self):
-        self._assert_flag("--workspace-id")
+    def test_out_flag(self):
+        self._assert_flag("--out")
+
+    def test_workspace_flag(self):
+        self._assert_flag("--workspace")
 
 if __name__ == "__main__":
     unittest.main()

@@ -1596,7 +1596,7 @@ def _run_migration_manifest(args):
 
 # ── Main entry point ────────────────────────────────────────────────
 
-_SIMPLE_MODE_PRESETS = {
+_PRESET_PROFILES = {
     'fast': {
         'ensure_open': True,
         'ensure_open_strict': False,
@@ -1641,54 +1641,31 @@ _SIMPLE_MODE_PRESETS = {
     },
 }
 
-_SIMPLE_COMMANDS = {
-    'migrate': {'simple_mode': 'balanced'},
-    'migrate-max': {'simple_mode': 'max'},
-    'assess': {'assess': True, 'simple_mode': 'balanced'},
-    'compare': {'compare': True, 'simple_mode': 'balanced'},
-    'qa': {'qa': True, 'simple_mode': 'max'},
-    'batch': {'batch_recursive': True, 'simple_mode': 'balanced'},
-    'batch-max': {'batch_recursive': True, 'simple_mode': 'max'},
-    'deploy': {'simple_mode': 'balanced', 'deploy_refresh': True},
-    'server-test': {},
-}
 
-
-def _print_simple_help() -> None:
-    print("Simplified arguments (single migrate.py entrypoint):")
+def _print_preset_help() -> None:
+    print("Compact arguments (single migrate.py entrypoint):")
     print("  --source PATH           -> auto route (file=single migration, folder=batch)")
     print("  --src FILE              -> alias for positional qlik_file")
     print("  --out DIR               -> alias for --output-dir")
-    print("  --preset MODE           -> alias for --simple-mode (fast|balanced|max)")
+    print("  --preset MODE           -> apply profile (fast|balanced|max)")
     print("  --workspace ID          -> alias for --deploy WORKSPACE_ID")
     print("")
     print("Preset behavior:")
-    print("  --simple-mode fast      -> fastest, conservative rewrites, minimal checks")
-    print("  --simple-mode balanced  -> recommended default, safe checks enabled")
-    print("  --simple-mode max       -> strict + aggressive rewrites + full checks")
+    print("  --preset fast           -> fastest, conservative rewrites, minimal checks")
+    print("  --preset balanced       -> recommended default, safe checks enabled")
+    print("  --preset max            -> strict + aggressive rewrites + full checks")
     print("")
     print("Typical usage:")
     print("  python migrate.py --source app.qvf --preset balanced")
     print("  python migrate.py --source ./exports --preset max")
     print("  python migrate.py --source app.qvf --workspace <WORKSPACE_ID>")
-    print("")
-    print("Legacy shortcuts (still supported):")
-    print("  --simple-command migrate --target app.qvf")
-    print("  --simple-command migrate-max --target app.qvf")
-    print("  --simple-command assess --target app.qvf")
-    print("  --simple-command compare --target app.qvf")
-    print("  --simple-command qa --target app.qvf")
-    print("  --simple-command batch --target ./exports")
-    print("  --simple-command batch-max --target ./exports")
-    print("  --simple-command deploy --target app.qvf --workspace-id <WORKSPACE_ID>")
-    print("  --simple-command server-test --server-url https://qlik.example.com")
 
 
-def _apply_simple_mode_preset(args):
-    mode = str(getattr(args, 'simple_mode', '') or '').strip().lower()
+def _apply_preset_profile(args):
+    mode = str(getattr(args, 'preset', '') or '').strip().lower()
     if not mode:
         return args
-    preset = _SIMPLE_MODE_PRESETS.get(mode)
+    preset = _PRESET_PROFILES.get(mode)
     if not preset:
         return args
     for key, value in preset.items():
@@ -1716,80 +1693,10 @@ def _apply_argument_simplification(args):
     if getattr(args, 'out', None) and not getattr(args, 'output_dir', None):
         args.output_dir = args.out
 
-    if getattr(args, 'preset', None) and not getattr(args, 'simple_mode', None):
-        args.simple_mode = args.preset
-
-    workspace = getattr(args, 'workspace', None) or getattr(args, 'workspace_id', None)
+    workspace = getattr(args, 'workspace', None)
     if workspace and not getattr(args, 'deploy', None):
         args.deploy = workspace
 
-    return args
-
-
-def _apply_simple_command(args):
-    cmd = str(getattr(args, 'simple_command', '') or '').strip().lower()
-    if not cmd:
-        return args
-
-    if cmd not in _SIMPLE_COMMANDS:
-        return args
-
-    target = getattr(args, 'target', None)
-    workspace_id = getattr(args, 'workspace_id', None)
-
-    if cmd in {'migrate', 'migrate-max', 'assess', 'compare', 'qa'}:
-        if target and not getattr(args, 'qlik_file', None):
-            args.qlik_file = target
-
-    if cmd in {'batch', 'batch-max'}:
-        if target and not getattr(args, 'batch', None):
-            args.batch = target
-
-    if cmd == 'deploy':
-        if target and not getattr(args, 'qlik_file', None):
-            args.qlik_file = target
-        if workspace_id and not getattr(args, 'deploy', None):
-            args.deploy = workspace_id
-
-    if cmd == 'server-test':
-        args.server_test = True
-
-    # Apply command preset defaults.
-    preset = _SIMPLE_COMMANDS[cmd]
-    for key, value in preset.items():
-        if hasattr(args, key):
-            setattr(args, key, value)
-
-    return args
-
-
-def _infer_simple_command(args):
-    """Infer simple command from minimal inputs when not explicitly provided.
-
-    Priority:
-    1) --workspace-id + --target  -> deploy
-    2) --target directory          -> batch
-    3) --target file/path          -> migrate
-    """
-    if getattr(args, 'simple_command', None):
-        return args
-
-    target = getattr(args, 'target', None)
-    workspace_id = getattr(args, 'workspace_id', None)
-    if not target:
-        return args
-
-    if workspace_id:
-        args.simple_command = 'deploy'
-        return args
-
-    # Directory-like target maps to batch.
-    if os.path.isdir(target) or str(target).endswith(('/', '\\')):
-        args.simple_command = 'batch'
-        return args
-
-    # Fallback: treat as single-file migration target.
-    args.simple_command = 'migrate'
     return args
 
 def main():
@@ -1859,7 +1766,7 @@ def main():
         '--preset',
         choices=['fast', 'balanced', 'max'],
         default=None,
-        help='Alias for --simple-mode'
+        help='Apply a compact migration profile (fast, balanced, max)'
     )
 
     parser.add_argument(
@@ -1870,38 +1777,10 @@ def main():
     )
 
     parser.add_argument(
-        '--simple-mode',
-        choices=['fast', 'balanced', 'max'],
-        default=None,
-        help='Use simplified migration presets (fast, balanced, max) instead of tuning many flags'
-    )
-
-    parser.add_argument(
-        '--help-simple',
+        '--help-presets',
         action='store_true',
         default=False,
-        help='Show concise migration presets and usage examples'
-    )
-
-    parser.add_argument(
-        '--simple-command',
-        choices=['migrate', 'migrate-max', 'assess', 'compare', 'qa', 'batch', 'batch-max', 'deploy', 'server-test'],
-        default=None,
-        help='One-command shortcuts for common workflows (optional if --target is provided; command is auto-inferred)'
-    )
-
-    parser.add_argument(
-        '--target',
-        metavar='PATH',
-        default=None,
-        help='Target file or folder used by --simple-command'
-    )
-
-    parser.add_argument(
-        '--workspace-id',
-        metavar='ID',
-        default=None,
-        help='Workspace ID used by --simple-command deploy'
+        help='Show compact profile guidance and usage examples'
     )
 
     parser.add_argument(
@@ -2768,8 +2647,8 @@ def main():
 
     args = parser.parse_args()
 
-    if getattr(args, 'help_simple', False):
-        _print_simple_help()
+    if getattr(args, 'help_presets', False):
+        _print_preset_help()
         return ExitCode.SUCCESS
 
     # Load configuration file if specified (CLI args take precedence)
@@ -2812,14 +2691,8 @@ def main():
     # Keep a single migrate.py entrypoint with simplified argument aliases.
     args = _apply_argument_simplification(args)
 
-    # Infer one-command shortcut from minimal inputs (target/workspace).
-    args = _infer_simple_command(args)
-
-    # Map one-command shortcuts first, then apply the selected mode preset.
-    args = _apply_simple_command(args)
-
-    # Optional simplification layer for day-to-day runs.
-    args = _apply_simple_mode_preset(args)
+    # Apply compact preset profile if requested.
+    args = _apply_preset_profile(args)
 
     # Setup structured logging
     json_mode = getattr(args, 'json', False)

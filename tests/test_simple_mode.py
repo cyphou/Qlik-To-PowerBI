@@ -1,16 +1,17 @@
-"""Tests for simplified migration presets in migrate.py."""
+"""Tests for compact preset and argument alias behavior in migrate.py."""
 
 from argparse import Namespace
 
-from migrate import _apply_simple_command, _apply_simple_mode_preset, _infer_simple_command
+from migrate import _apply_argument_simplification, _apply_preset_profile
 
 
-def _base_args(simple_mode: str):
+def _base_args(preset: str):
     return Namespace(
-        simple_mode=simple_mode,
-        simple_command=None,
-        target=None,
-        workspace_id=None,
+        preset=preset,
+        source=None,
+        src=None,
+        out=None,
+        workspace=None,
         qlik_file=None,
         batch=None,
         batch_recursive=False,
@@ -31,9 +32,9 @@ def _base_args(simple_mode: str):
     )
 
 
-def test_simple_mode_fast_applies_expected_values():
+def test_preset_fast_applies_expected_values():
     args = _base_args("fast")
-    out = _apply_simple_mode_preset(args)
+    out = _apply_preset_profile(args)
     assert out.ensure_open is True
     assert out.ensure_open_strict is False
     assert out.rewrite_policy == "conservative"
@@ -42,9 +43,9 @@ def test_simple_mode_fast_applies_expected_values():
     assert out.validate is False
 
 
-def test_simple_mode_balanced_applies_expected_values():
+def test_preset_balanced_applies_expected_values():
     args = _base_args("balanced")
-    out = _apply_simple_mode_preset(args)
+    out = _apply_preset_profile(args)
     assert out.ensure_open is True
     assert out.ensure_open_strict is False
     assert out.rewrite_policy == "balanced"
@@ -53,9 +54,9 @@ def test_simple_mode_balanced_applies_expected_values():
     assert out.validate is True
 
 
-def test_simple_mode_max_applies_expected_values():
+def test_preset_max_applies_expected_values():
     args = _base_args("max")
-    out = _apply_simple_mode_preset(args)
+    out = _apply_preset_profile(args)
     assert out.ensure_open is True
     assert out.ensure_open_strict is True
     assert out.rewrite_policy == "aggressive"
@@ -66,59 +67,44 @@ def test_simple_mode_max_applies_expected_values():
     assert out.gate == "prod"
 
 
-def test_simple_mode_unknown_keeps_values():
+def test_preset_unknown_keeps_values():
     args = _base_args("unknown")
-    out = _apply_simple_mode_preset(args)
+    out = _apply_preset_profile(args)
     assert out.ensure_open is False
     assert out.rewrite_policy == "balanced"
     assert out.autoheal_iterations == 3
 
 
-def test_simple_command_migrate_maps_target_to_qlik_file():
+def test_source_file_maps_to_qlik_file():
     args = _base_args("balanced")
-    args.simple_command = "migrate"
-    args.target = "app.qvf"
-    out = _apply_simple_command(args)
+    args.source = "app.qvf"
+    out = _apply_argument_simplification(args)
     assert out.qlik_file == "app.qvf"
-    assert out.simple_mode == "balanced"
 
 
-def test_simple_command_batch_maps_target_to_batch():
+def test_source_folder_maps_to_batch():
     args = _base_args("balanced")
-    args.simple_command = "batch"
-    args.target = "exports"
-    out = _apply_simple_command(args)
-    assert out.batch == "exports"
-    assert out.batch_recursive is True
+    args.source = "exports/"
+    out = _apply_argument_simplification(args)
+    assert out.batch == "exports/"
 
 
-def test_simple_command_deploy_maps_workspace_and_target():
+def test_workspace_maps_to_deploy():
     args = _base_args("balanced")
-    args.simple_command = "deploy"
-    args.target = "app.qvf"
-    args.workspace_id = "ws-123"
-    out = _apply_simple_command(args)
-    assert out.qlik_file == "app.qvf"
+    args.workspace = "ws-123"
+    out = _apply_argument_simplification(args)
     assert out.deploy == "ws-123"
 
 
-def test_simple_command_server_test_enables_server_test():
+def test_src_alias_maps_to_qlik_file():
     args = _base_args("balanced")
-    args.simple_command = "server-test"
-    out = _apply_simple_command(args)
-    assert out.server_test is True
+    args.src = "app.qvf"
+    out = _apply_argument_simplification(args)
+    assert out.qlik_file == "app.qvf"
 
 
-def test_infer_simple_command_migrate_from_target_file():
+def test_out_alias_maps_to_output_dir():
     args = _base_args("balanced")
-    args.target = "app.qvf"
-    out = _infer_simple_command(args)
-    assert out.simple_command == "migrate"
-
-
-def test_infer_simple_command_deploy_from_target_and_workspace():
-    args = _base_args("balanced")
-    args.target = "app.qvf"
-    args.workspace_id = "ws-123"
-    out = _infer_simple_command(args)
-    assert out.simple_command == "deploy"
+    args.out = "output/custom"
+    out = _apply_argument_simplification(args)
+    assert out.output_dir == "output/custom"

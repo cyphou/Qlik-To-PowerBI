@@ -8,7 +8,7 @@ This page documents the current command-line interface of `migrate.py`.
 python migrate.py <qlik_file> [options]
 ```
 
-## Simplified Usage (Recommended)
+## Compact Usage (Recommended)
 
 ```bash
 # Single-file migration
@@ -24,8 +24,28 @@ python migrate.py --source sales.qvf --workspace <workspace_id>
 python migrate.py --source sales.qvf --preset balanced
 python migrate.py --source sales.qvf --preset max
 
-# Folder -> folder operational wrapper (PowerShell)
-./scripts/simple_migration.ps1 -SourceFolder "C:\QlikExports" -TargetFolder "C:\QlikMigrated"
+```
+
+## Recommended 6 Command Patterns
+
+```bash
+# 1) Single file migration
+python migrate.py --source app.qvf
+
+# 2) Batch migration
+python migrate.py --source ./exports
+
+# 3) Compare report
+python migrate.py --source app.qvf --compare
+
+# 4) QA pipeline
+python migrate.py --source app.qvf --qa
+
+# 5) Migration + deploy
+python migrate.py --source app.qvf --workspace <workspace_id>
+
+# 6) Shared semantic model merge
+python migrate.py --shared-model app1.qvf app2.qvf --model-name SharedModel
 ```
 
 `<qlik_file>` can be:
@@ -134,8 +154,7 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 - `--out`
 - `--preset` (`fast`, `balanced`, `max`)
 - `--workspace`
-- `--simple-mode` (`fast`, `balanced`, `max`)
-- `--help-simple`
+- `--help-presets`
 - `--skip-extraction`
 - `--wizard`
 - `--output-dir`
@@ -163,11 +182,6 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 - `--post-check`
 - `--json`
 - `--plugins`
-
-### Legacy compatibility options
-- `--simple-command` (`migrate`, `migrate-max`, `assess`, `compare`, `qa`, `batch`, `batch-max`, `deploy`, `server-test`)
-- `--target`
-- `--workspace-id`
 
 ### Merge, portfolio, and shared model
 - `--merge`

@@ -10,7 +10,7 @@
 # 1. Migrate your QVF or JSON export
 python migrate.py "YourApp.qvf"
 
-# or use simplified argument aliases
+# or use compact argument aliases
 python migrate.py --source "YourApp.qvf" --preset balanced
 
 # 2. Open the generated .pbip project in Power BI Desktop
@@ -33,7 +33,7 @@ cd "C:\path\to\QlikToPowerBI"
 # From a QVF file
 python migrate.py "C:\Data\Sales.qvf"
 
-# Simplified source alias
+# Source alias
 python migrate.py --source "C:\Data\Sales.qvf"
 
 # From a JSON export
@@ -48,11 +48,6 @@ python migrate.py --source "C:\Data\Sales.qvf" --out "C:\Output\Sales"
 # JSON output for CI/CD pipelines
 python migrate.py "C:\Data\Sales.qvf" --json
 
-# Folder -> folder workflow (wrapper)
-.\scripts\simple_migration.ps1 -SourceFolder "C:\Data\Exports" -TargetFolder "C:\Data\Migrated"
-
-# Wrapper with lineage + shared semantic/fusion + optional deploy
-.\scripts\simple_migration.ps1 -SourceFolder "C:\Data\Exports" -TargetFolder "C:\Data\Migrated" -Lineage -SharedSemantic -Fusion
 ```
 
 ### Output Structure
