@@ -67,6 +67,16 @@ class TestAutoHeal(unittest.TestCase):
         self.assertTrue(changed)
         self.assertIn("DISTINCTCOUNT(", fixed)
 
+    def test_rewrite_policy_aggressive_adds_ceil_fix(self):
+        fixed, changed = heal_dax_expression("Ceil([Value])", rewrite_policy="aggressive")
+        self.assertTrue(changed)
+        self.assertIn("CEILING(", fixed)
+
+    def test_rewrite_policy_conservative_keeps_countd(self):
+        fixed, changed = heal_dax_expression("CountD([CustomerId])", rewrite_policy="conservative")
+        self.assertFalse(changed)
+        self.assertEqual(fixed, "CountD([CustomerId])")
+
     def test_rewrite_policy_defaults_to_balanced(self):
         healer = AutoHealer(max_iterations=1, rewrite_policy="unknown")
         self.assertEqual(healer.rewrite_policy, "balanced")

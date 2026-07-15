@@ -184,8 +184,12 @@ def heal_dax_expression(expr: str, rewrite_policy: str = _DEFAULT_REWRITE_POLICY
     if policy == "aggressive":
         replacements.extend([
             (r"\bCountD\s*\(", "DISTINCTCOUNT("),
+            (r"\bCountDistinct\s*\(", "DISTINCTCOUNT("),
             (r"\bLen\s*\(", "LEN("),
             (r"\bTrim\s*\(", "TRIM("),
+            (r"\bCeil\s*\(", "CEILING("),
+            (r"\bFloor\s*\(", "FLOOR("),
+            (r"\bChr\s*\(", "UNICHAR("),
         ])
     for pat, repl in replacements:
         fixed = re.sub(pat, repl, fixed)
