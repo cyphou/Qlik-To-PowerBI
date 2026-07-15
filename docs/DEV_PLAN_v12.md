@@ -11,6 +11,7 @@ This document replaces the previous v12 gap list and reflects the current reposi
 
 For the latest status snapshot, see:
 - docs/reports/ROADMAP_STATUS_2026-06-24.md
+- docs/reports/NEXT_EVOLUTION_ROADMAP_2026-07-15.md
 
 ## Execution Goals
 
