@@ -2,12 +2,20 @@
 
 from argparse import Namespace
 
-from migrate import _apply_simple_mode_preset
+from migrate import _apply_simple_command, _apply_simple_mode_preset
 
 
 def _base_args(simple_mode: str):
     return Namespace(
         simple_mode=simple_mode,
+        simple_command=None,
+        target=None,
+        workspace_id=None,
+        qlik_file=None,
+        batch=None,
+        batch_recursive=False,
+        deploy=None,
+        server_test=False,
         ensure_open=False,
         ensure_open_strict=False,
         rewrite_policy="balanced",
@@ -64,3 +72,38 @@ def test_simple_mode_unknown_keeps_values():
     assert out.ensure_open is False
     assert out.rewrite_policy == "balanced"
     assert out.autoheal_iterations == 3
+
+
+def test_simple_command_migrate_maps_target_to_qlik_file():
+    args = _base_args("balanced")
+    args.simple_command = "migrate"
+    args.target = "app.qvf"
+    out = _apply_simple_command(args)
+    assert out.qlik_file == "app.qvf"
+    assert out.simple_mode == "balanced"
+
+
+def test_simple_command_batch_maps_target_to_batch():
+    args = _base_args("balanced")
+    args.simple_command = "batch"
+    args.target = "exports"
+    out = _apply_simple_command(args)
+    assert out.batch == "exports"
+    assert out.batch_recursive is True
+
+
+def test_simple_command_deploy_maps_workspace_and_target():
+    args = _base_args("balanced")
+    args.simple_command = "deploy"
+    args.target = "app.qvf"
+    args.workspace_id = "ws-123"
+    out = _apply_simple_command(args)
+    assert out.qlik_file == "app.qvf"
+    assert out.deploy == "ws-123"
+
+
+def test_simple_command_server_test_enables_server_test():
+    args = _base_args("balanced")
+    args.simple_command = "server-test"
+    out = _apply_simple_command(args)
+    assert out.server_test is True

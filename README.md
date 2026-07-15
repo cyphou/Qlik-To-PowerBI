@@ -41,6 +41,28 @@ Show concise preset help:
 python migrate.py --help-simple
 ```
 
+Simple command shortcuts:
+
+```bash
+# Migrate
+python migrate.py --simple-command migrate --target your_app.qvf
+
+# Batch migration
+python migrate.py --simple-command batch --target ./exports
+
+# Compare report
+python migrate.py --simple-command compare --target your_app.qvf
+
+# Full quality checks
+python migrate.py --simple-command qa --target your_app.qvf
+
+# Migrate + deploy
+python migrate.py --simple-command deploy --target your_app.qvf --workspace-id <WORKSPACE_ID>
+
+# Qlik server diagnostics
+python migrate.py --simple-command server-test --server-url https://qlik.example.com
+```
+
 > **Tip:** The output is a `.pbip` project — just double-click to open in Power BI Desktop (Developer Mode).
 
 <details>

@@ -1641,6 +1641,18 @@ _SIMPLE_MODE_PRESETS = {
     },
 }
 
+_SIMPLE_COMMANDS = {
+    'migrate': {'simple_mode': 'balanced'},
+    'migrate-max': {'simple_mode': 'max'},
+    'assess': {'assess': True, 'simple_mode': 'balanced'},
+    'compare': {'compare': True, 'simple_mode': 'balanced'},
+    'qa': {'qa': True, 'simple_mode': 'max'},
+    'batch': {'batch_recursive': True, 'simple_mode': 'balanced'},
+    'batch-max': {'batch_recursive': True, 'simple_mode': 'max'},
+    'deploy': {'simple_mode': 'balanced', 'deploy_refresh': True},
+    'server-test': {},
+}
+
 
 def _print_simple_help() -> None:
     print("Simple migration presets:")
@@ -1651,6 +1663,17 @@ def _print_simple_help() -> None:
     print("Typical usage:")
     print("  python migrate.py app.qvf --simple-mode balanced")
     print("  python migrate.py app.qvf --simple-mode max")
+    print("")
+    print("Simple command shortcuts:")
+    print("  --simple-command migrate --target app.qvf")
+    print("  --simple-command migrate-max --target app.qvf")
+    print("  --simple-command assess --target app.qvf")
+    print("  --simple-command compare --target app.qvf")
+    print("  --simple-command qa --target app.qvf")
+    print("  --simple-command batch --target ./exports")
+    print("  --simple-command batch-max --target ./exports")
+    print("  --simple-command deploy --target app.qvf --workspace-id <WORKSPACE_ID>")
+    print("  --simple-command server-test --server-url https://qlik.example.com")
 
 
 def _apply_simple_mode_preset(args):
@@ -1663,6 +1686,43 @@ def _apply_simple_mode_preset(args):
     for key, value in preset.items():
         if hasattr(args, key):
             setattr(args, key, value)
+    return args
+
+
+def _apply_simple_command(args):
+    cmd = str(getattr(args, 'simple_command', '') or '').strip().lower()
+    if not cmd:
+        return args
+
+    if cmd not in _SIMPLE_COMMANDS:
+        return args
+
+    target = getattr(args, 'target', None)
+    workspace_id = getattr(args, 'workspace_id', None)
+
+    if cmd in {'migrate', 'migrate-max', 'assess', 'compare', 'qa'}:
+        if target and not getattr(args, 'qlik_file', None):
+            args.qlik_file = target
+
+    if cmd in {'batch', 'batch-max'}:
+        if target and not getattr(args, 'batch', None):
+            args.batch = target
+
+    if cmd == 'deploy':
+        if target and not getattr(args, 'qlik_file', None):
+            args.qlik_file = target
+        if workspace_id and not getattr(args, 'deploy', None):
+            args.deploy = workspace_id
+
+    if cmd == 'server-test':
+        args.server_test = True
+
+    # Apply command preset defaults.
+    preset = _SIMPLE_COMMANDS[cmd]
+    for key, value in preset.items():
+        if hasattr(args, key):
+            setattr(args, key, value)
+
     return args
 
 def main():
@@ -1719,6 +1779,27 @@ def main():
         action='store_true',
         default=False,
         help='Show concise migration presets and usage examples'
+    )
+
+    parser.add_argument(
+        '--simple-command',
+        choices=['migrate', 'migrate-max', 'assess', 'compare', 'qa', 'batch', 'batch-max', 'deploy', 'server-test'],
+        default=None,
+        help='One-command shortcuts for common workflows (use with --target and optional --workspace-id)'
+    )
+
+    parser.add_argument(
+        '--target',
+        metavar='PATH',
+        default=None,
+        help='Target file or folder used by --simple-command'
+    )
+
+    parser.add_argument(
+        '--workspace-id',
+        metavar='ID',
+        default=None,
+        help='Workspace ID used by --simple-command deploy'
     )
 
     parser.add_argument(
@@ -2625,6 +2706,9 @@ def main():
         if config is None:
             return ExitCode.SUCCESS
         args = wizard_to_args(config)
+
+    # Map one-command shortcuts first, then apply the selected mode preset.
+    args = _apply_simple_command(args)
 
     # Optional simplification layer for day-to-day runs.
     args = _apply_simple_mode_preset(args)

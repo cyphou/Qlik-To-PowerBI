@@ -273,5 +273,14 @@ class TestNewCLIFlags(unittest.TestCase):
     def test_help_simple_flag(self):
         self._assert_flag("--help-simple")
 
+    def test_simple_command_flag(self):
+        self._assert_flag("--simple-command")
+
+    def test_target_flag(self):
+        self._assert_flag("--target")
+
+    def test_workspace_id_flag(self):
+        self._assert_flag("--workspace-id")
+
 if __name__ == "__main__":
     unittest.main()
