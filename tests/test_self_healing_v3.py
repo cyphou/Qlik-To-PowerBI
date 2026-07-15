@@ -8,15 +8,15 @@ from powerbi_import.self_healing_v3 import (
     _heal_self_referencing_measures,
     _heal_sort_by_column,
     _heal_hierarchies,
-    _heal_display_folder_names,
+    _heal_display_folders,
     _heal_relationship_type_mismatch,
-    _heal_invalid_identifier_chars,
+    _heal_invalid_identifiers,
     _heal_int64_decimal_format,
     _heal_datatype_casing,
     _heal_duplicate_relationships,
-    _heal_iskey_ishidden_conflict,
+    _heal_hidden_key,
     _DATATYPE_CANONICAL,
-    _ALL_HEALERS,
+    _V3_HEALERS,
 )
 
 
@@ -126,7 +126,7 @@ class TestHealDisplayFolderNames(unittest.TestCase):
         model = {'model': {'tables': [{'name': 'T', 'measures': [
             {'name': 'A', 'expression': 'SUM(T[X])'},
         ]}]}}
-        count = _heal_display_folder_names(model)
+        count = _heal_display_folders(model)
         self.assertEqual(count, 0)
 
 
@@ -160,7 +160,7 @@ class TestHealInvalidIdentifierChars(unittest.TestCase):
         model = {'model': {'tables': [{'name': 'Sales', 'columns': [
             {'name': 'Revenue'},
         ]}]}}
-        count = _heal_invalid_identifier_chars(model)
+        count = _heal_invalid_identifiers(model)
         self.assertEqual(count, 0)
 
 
@@ -221,22 +221,22 @@ class TestHealIsKeyIsHiddenConflict(unittest.TestCase):
         model = {'model': {'tables': [{'name': 'T', 'columns': [
             {'name': 'ID', 'isKey': True, 'isHidden': False},
         ]}]}}
-        count = _heal_iskey_ishidden_conflict(model)
+        count = _heal_hidden_key(model)
         self.assertEqual(count, 0)
 
 
 class TestAllHealersList(unittest.TestCase):
-    """Test the _ALL_HEALERS list."""
+    """Test the v3 healer registry."""
 
     def test_non_empty(self):
-        self.assertGreater(len(_ALL_HEALERS), 0)
+        self.assertGreater(len(_V3_HEALERS), 0)
 
     def test_all_callable(self):
-        for healer in _ALL_HEALERS:
+        for _, healer in _V3_HEALERS:
             self.assertTrue(callable(healer))
 
     def test_healer_count(self):
-        self.assertEqual(len(_ALL_HEALERS), 11)
+        self.assertGreaterEqual(len(_V3_HEALERS), 11)
 
 
 class TestDatatypeCanonical(unittest.TestCase):

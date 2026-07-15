@@ -14,6 +14,8 @@ Supports:
 - Skip extraction:             python migrate.py app.qvf --skip-extraction
 - Verbose logging:             python migrate.py app.qvf --verbose
 - QA pipeline:                 python migrate.py app.qvf --qa
+- Openability preflight:       python migrate.py app.qvf --verify-open
+- Closed-loop autoheal:        python migrate.py app.qvf --autoheal
 - Environment quality gates:   python migrate.py app.qvf --gate prod
 - Deploy to PBI Service:       python migrate.py app.qvf --deploy WORKSPACE_ID
 - Shared semantic model:       python migrate.py --shared-model a.json b.json
@@ -1912,6 +1914,44 @@ def main():
     )
 
     parser.add_argument(
+        '--ensure-open',
+        dest='ensure_open',
+        action='store_true',
+        help='Always enforce Desktop openability (preflight + autoheal + safety fallback)'
+    )
+
+    parser.add_argument(
+        '--no-ensure-open',
+        dest='ensure_open',
+        action='store_false',
+        help='Disable automatic Desktop openability enforcement'
+    )
+
+    parser.set_defaults(ensure_open=True)
+
+    parser.add_argument(
+        '--verify-open',
+        action='store_true',
+        default=False,
+        help='Run Desktop openability preflight (structure, JSON, TMDL, Power Query M, DAX)'
+    )
+
+    parser.add_argument(
+        '--autoheal',
+        action='store_true',
+        default=False,
+        help='Run deterministic closed-loop autoheal and re-validate the generated project'
+    )
+
+    parser.add_argument(
+        '--autoheal-iterations',
+        metavar='N',
+        type=int,
+        default=3,
+        help='Maximum autoheal iterations (default: 3)'
+    )
+
+    parser.add_argument(
         '--governance',
         action='store_true',
         default=False,
@@ -2377,7 +2417,7 @@ def main():
         '--self-heal-v3',
         action='store_true',
         default=False,
-        help='Run v3 model healers (11 checks) on the semantic model'
+        help='Run v3 model healers (extended checks) on the semantic model'
     )
 
     parser.add_argument(
@@ -3465,6 +3505,43 @@ def main():
             output_dir=args.output_dir,
         )
 
+    # ── Always-on Desktop openability guard (can be disabled) ──
+    if getattr(args, 'ensure_open', True) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.openability_guard import ensure_openable
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            guard_result = ensure_openable(
+                project_dir,
+                max_autoheal_iterations=max(1, int(getattr(args, 'autoheal_iterations', 3) or 3)),
+            )
+            results['ensure_open_result'] = guard_result
+            results['ensure_open'] = bool(guard_result.get('openable'))
+
+            if not json_mode:
+                state = 'PASS' if guard_result.get('openable') else 'FAIL'
+                stage = guard_result.get('stage', 'initial')
+                final = guard_result.get('final', {}) or {}
+                print(
+                    f"  ✓ Openability guard: {state} "
+                    f"(stage={stage}, blocking={final.get('blocking_count', 0)}, warnings={final.get('warning_count', 0)})"
+                )
+                for issue in (final.get('blocking_issues') or [])[:3]:
+                    print(f"    ✗ {issue}")
+
+            if not guard_result.get('openable'):
+                logger.error("Openability guard failed: project still not openable in Desktop")
+                if json_mode:
+                    print(json.dumps({
+                        'status': 'error',
+                        'input': args.qlik_file,
+                        'message': 'Openability guard failed: Desktop openability not guaranteed.',
+                        'ensure_open': guard_result,
+                    }, indent=2, ensure_ascii=False))
+                return ExitCode.GENERATION_FAILED
+        except Exception as exc:
+            logger.debug("Openability guard skipped: %s", exc)
+
     # Step 5b: Environment quality gate checks (optional)
     gate_result = None
     if getattr(args, 'gate', None) and results.get('generation') and not args.dry_run:
@@ -3542,7 +3619,7 @@ def main():
         except Exception as exc:
             logger.debug("QA pipeline skipped: %s", exc)
 
-    # ── v12: Self-Healing v3 (11 model healers) ──────────────
+    # ── v12: Self-Healing v3 (extended model healers) ────────
     if getattr(args, 'self_heal_v3', False) and results.get('generation') and not args.dry_run:
         try:
             from powerbi_import.self_healing_v3 import run_v3_healers
@@ -3567,6 +3644,55 @@ def main():
             sh_report.save_jsonl(os.path.join(out_base, 'self_healing_v3.jsonl'))
         except Exception as exc:
             logger.debug("Self-Healing v3 skipped: %s", exc)
+
+    # ── Desktop openability preflight (optional) ─────────────
+    if getattr(args, 'verify_open', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.openability import check_openability
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            open_report = check_openability(project_dir)
+            results['openability'] = open_report.to_dict()
+            if not json_mode:
+                state = 'PASS' if open_report.openable else 'FAIL'
+                print(
+                    f"  ✓ Openability preflight: {state} "
+                    f"({len(open_report.blocking_issues)} blocking, {len(open_report.warnings)} warnings)"
+                )
+                for issue in open_report.blocking_issues[:3]:
+                    print(f"    ✗ {issue}")
+                for warning in open_report.warnings[:3]:
+                    print(f"    ⚠ {warning}")
+        except Exception as exc:
+            logger.debug("Openability preflight skipped: %s", exc)
+
+    # ── Closed-loop autoheal (optional) ──────────────────────
+    if getattr(args, 'autoheal', False) and results.get('generation') and not args.dry_run:
+        try:
+            from powerbi_import.autoheal import AutoHealer
+            from powerbi_import.openability import check_openability
+
+            out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
+            project_dir = os.path.join(out_base, source_basename)
+            healer = AutoHealer(max_iterations=max(1, int(getattr(args, 'autoheal_iterations', 3) or 3)))
+            autoheal_report = healer.heal_project(project_dir)
+
+            results['autoheal'] = autoheal_report.to_dict()
+            post_open = check_openability(project_dir)
+            results['openability_after_autoheal'] = post_open.to_dict()
+
+            if not json_mode:
+                print(
+                    f"  ✓ Autoheal: {len(autoheal_report.actions)} fix(es), "
+                    f"remaining errors={len(autoheal_report.remaining_errors)}"
+                )
+                state = 'PASS' if post_open.openable else 'FAIL'
+                print(
+                    f"  ✓ Openability after autoheal: {state} "
+                    f"({len(post_open.blocking_issues)} blocking, {len(post_open.warnings)} warnings)"
+                )
+        except Exception as exc:
+            logger.debug("Autoheal skipped: %s", exc)
 
     # ── v12: Repair strategies ────────────────────────────────
     if getattr(args, 'repair_strategies', False) and results.get('generation') and not args.dry_run:
@@ -3979,6 +4105,8 @@ def main():
             json_result["quality_gate"] = gate_result
         if results.get('post_check'):
             json_result["post_check"] = results['post_check']
+        if results.get('ensure_open_result') is not None:
+            json_result["ensure_open"] = results['ensure_open_result']
         print(json.dumps(json_result, indent=2, ensure_ascii=False))
 
         # Finalize telemetry

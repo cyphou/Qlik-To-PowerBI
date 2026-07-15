@@ -243,6 +243,21 @@ class TestNewCLIFlags(unittest.TestCase):
     def test_binary_source_dir_flag(self):
         self._assert_flag("--binary-source-dir")
 
+    def test_verify_open_flag(self):
+        self._assert_flag("--verify-open")
+
+    def test_autoheal_flag(self):
+        self._assert_flag("--autoheal")
+
+    def test_autoheal_iterations_flag(self):
+        self._assert_flag("--autoheal-iterations")
+
+    def test_ensure_open_flag(self):
+        self._assert_flag("--ensure-open")
+
+    def test_no_ensure_open_flag(self):
+        self._assert_flag("--no-ensure-open")
+
 
 if __name__ == "__main__":
     unittest.main()
