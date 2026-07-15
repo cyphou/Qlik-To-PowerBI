@@ -1596,6 +1596,75 @@ def _run_migration_manifest(args):
 
 # ── Main entry point ────────────────────────────────────────────────
 
+_SIMPLE_MODE_PRESETS = {
+    'fast': {
+        'ensure_open': True,
+        'ensure_open_strict': False,
+        'rewrite_policy': 'conservative',
+        'autoheal_iterations': 1,
+        'verify_open': False,
+        'autoheal': False,
+        'validate': False,
+        'post_check': False,
+        'qa': False,
+        'compare': False,
+        'gate': None,
+        'output_format': 'pbip',
+    },
+    'balanced': {
+        'ensure_open': True,
+        'ensure_open_strict': False,
+        'rewrite_policy': 'balanced',
+        'autoheal_iterations': 3,
+        'verify_open': True,
+        'autoheal': False,
+        'validate': True,
+        'post_check': True,
+        'qa': False,
+        'compare': False,
+        'gate': None,
+        'output_format': 'pbip',
+    },
+    'max': {
+        'ensure_open': True,
+        'ensure_open_strict': True,
+        'rewrite_policy': 'aggressive',
+        'autoheal_iterations': 5,
+        'verify_open': True,
+        'autoheal': True,
+        'validate': True,
+        'post_check': True,
+        'qa': True,
+        'compare': True,
+        'gate': 'prod',
+        'output_format': 'pbip',
+    },
+}
+
+
+def _print_simple_help() -> None:
+    print("Simple migration presets:")
+    print("  --simple-mode fast      -> fastest, conservative rewrites, minimal checks")
+    print("  --simple-mode balanced  -> recommended default, safe checks enabled")
+    print("  --simple-mode max       -> strict + aggressive rewrites + full checks")
+    print("")
+    print("Typical usage:")
+    print("  python migrate.py app.qvf --simple-mode balanced")
+    print("  python migrate.py app.qvf --simple-mode max")
+
+
+def _apply_simple_mode_preset(args):
+    mode = str(getattr(args, 'simple_mode', '') or '').strip().lower()
+    if not mode:
+        return args
+    preset = _SIMPLE_MODE_PRESETS.get(mode)
+    if not preset:
+        return args
+    for key, value in preset.items():
+        if hasattr(args, key):
+            setattr(args, key, value)
+    return args
+
 def main():
     """Main entry point."""
 
@@ -1636,6 +1705,20 @@ def main():
         action='store_true',
         default=False,
         help='Launch the interactive migration wizard'
+    )
+
+    parser.add_argument(
+        '--simple-mode',
+        choices=['fast', 'balanced', 'max'],
+        default=None,
+        help='Use simplified migration presets (fast, balanced, max) instead of tuning many flags'
+    )
+
+    parser.add_argument(
+        '--help-simple',
+        action='store_true',
+        default=False,
+        help='Show concise migration presets and usage examples'
     )
 
     parser.add_argument(
@@ -2502,6 +2585,10 @@ def main():
 
     args = parser.parse_args()
 
+    if getattr(args, 'help_simple', False):
+        _print_simple_help()
+        return ExitCode.SUCCESS
+
     # Load configuration file if specified (CLI args take precedence)
     if args.config:
         try:
@@ -2538,6 +2625,9 @@ def main():
         if config is None:
             return ExitCode.SUCCESS
         args = wizard_to_args(config)
+
+    # Optional simplification layer for day-to-day runs.
+    args = _apply_simple_mode_preset(args)
 
     # Setup structured logging
     json_mode = getattr(args, 'json', False)

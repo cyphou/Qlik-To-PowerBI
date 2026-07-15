@@ -24,6 +24,21 @@ manual rework.
 ```bash
 # That's it. One command.
 python migrate.py your_app.qvf
+
+# Simplified presets (recommended)
+python migrate.py your_app.qvf --simple-mode balanced
+```
+
+Simple presets:
+
+- `--simple-mode fast`: fastest run with conservative rewrites and minimal checks.
+- `--simple-mode balanced`: recommended default with safe checks enabled.
+- `--simple-mode max`: strict + aggressive rewrites + full verification gates.
+
+Show concise preset help:
+
+```bash
+python migrate.py --help-simple
 ```
 
 > **Tip:** The output is a `.pbip` project — just double-click to open in Power BI Desktop (Developer Mode).
