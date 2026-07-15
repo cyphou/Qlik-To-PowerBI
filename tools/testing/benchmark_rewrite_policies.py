@@ -181,6 +181,18 @@ def main() -> int:
     parser.add_argument("--skip-extraction", action="store_true")
     parser.add_argument("--strict-mode", action="store_true")
     parser.add_argument("--max-apps", type=int, default=0, help="0 means all apps")
+    parser.add_argument(
+        "--min-aggressive-reduction-vs-conservative",
+        type=float,
+        default=None,
+        help="Fail if aggressive residual-error reduction vs conservative is below this ratio (e.g. 0.30)",
+    )
+    parser.add_argument(
+        "--min-openable-rate",
+        type=float,
+        default=None,
+        help="Fail if any policy openable_rate falls below this ratio (e.g. 0.99)",
+    )
     args = parser.parse_args()
 
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -241,6 +253,38 @@ def main() -> int:
     print(f"RUNS_JSON={runs_json}")
     print(f"RUNS_CSV={runs_csv}")
     print(f"SUMMARY_JSON={summary_json}")
+
+    policies = summary.get("policies") or {}
+    failure_reasons: List[str] = []
+
+    min_reduction = args.min_aggressive_reduction_vs_conservative
+    if min_reduction is not None:
+        aggressive_reduction = float(
+            (policies.get("aggressive") or {}).get("residual_error_reduction_vs_conservative", 0.0)
+        )
+        if aggressive_reduction < float(min_reduction):
+            failure_reasons.append(
+                f"aggressive reduction {aggressive_reduction:.4f} < required {float(min_reduction):.4f}"
+            )
+
+    min_openable = args.min_openable_rate
+    if min_openable is not None:
+        threshold = float(min_openable)
+        for policy in POLICIES:
+            rate = float((policies.get(policy) or {}).get("openable_rate", 0.0))
+            if rate < threshold:
+                failure_reasons.append(
+                    f"{policy} openable_rate {rate:.4f} < required {threshold:.4f}"
+                )
+
+    if failure_reasons:
+        print("BENCHMARK_GATE=FAIL")
+        for reason in failure_reasons:
+            print(f"GATE_REASON={reason}")
+        return 1
+
+    if min_reduction is not None or min_openable is not None:
+        print("BENCHMARK_GATE=PASS")
 
     return 0
 

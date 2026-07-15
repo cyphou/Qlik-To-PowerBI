@@ -1,0 +1,45 @@
+name: Rewrite Policy Benchmark Gate
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  benchmark-policy-gate:
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run rewrite-policy benchmark gate
+        shell: pwsh
+        run: |
+          python tools/testing/benchmark_rewrite_policies.py `
+            --input-root "./examples/qlik" `
+            --output-root "./artifacts/ci_policy_benchmark" `
+            --recursive `
+            --min-aggressive-reduction-vs-conservative 0.00 `
+            --min-openable-rate 0.99
+
+      - name: Upload benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rewrite-policy-benchmark
+          path: |
+            artifacts/ci_policy_benchmark/policy_benchmark_runs.json
+            artifacts/ci_policy_benchmark/policy_benchmark_runs.csv
+            artifacts/ci_policy_benchmark/policy_benchmark_summary.json
