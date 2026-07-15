@@ -136,9 +136,6 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 - `--workspace`
 - `--simple-mode` (`fast`, `balanced`, `max`)
 - `--help-simple`
-- `--simple-command` (`migrate`, `migrate-max`, `assess`, `compare`, `qa`, `batch`, `batch-max`, `deploy`, `server-test`)
-- `--target`
-- `--workspace-id`
 - `--skip-extraction`
 - `--wizard`
 - `--output-dir`
@@ -166,6 +163,11 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 - `--post-check`
 - `--json`
 - `--plugins`
+
+### Legacy compatibility options
+- `--simple-command` (`migrate`, `migrate-max`, `assess`, `compare`, `qa`, `batch`, `batch-max`, `deploy`, `server-test`)
+- `--target`
+- `--workspace-id`
 
 ### Merge, portfolio, and shared model
 - `--merge`

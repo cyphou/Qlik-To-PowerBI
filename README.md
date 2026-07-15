@@ -616,6 +616,11 @@ flowchart LR
 
 | Flag | Description |
 |:-----|:-----------|
+| `--source PATH` | Simplified input path (file = single migration, folder = batch migration) |
+| `--src FILE` | Alias for positional source file argument |
+| `--out DIR` | Alias for `--output-dir` |
+| `--preset MODE` | Alias for `--simple-mode` (`fast`, `balanced`, `max`) |
+| `--workspace ID` | Alias for `--deploy WORKSPACE_ID` |
 | `--output-dir DIR` | Custom output directory |
 | `--skip-extraction` | Reuse previously extracted intermediate JSON |
 | `--json` | Machine-readable JSON output for CI/CD |
