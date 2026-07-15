@@ -105,6 +105,24 @@ class TestAutoHeal(unittest.TestCase):
         self.assertFalse(changed)
         self.assertEqual(fixed, "CountD([CustomerId])")
 
+    def test_rewrite_policy_aggressive_maps_common_qlik_functions(self):
+        fixed, changed = heal_dax_expression(
+            "If(Year(Date(2024,1,1))=2024, Sum([Amount]), Avg([Amount]))",
+            rewrite_policy="aggressive",
+        )
+        self.assertTrue(changed)
+        self.assertIn("IF(", fixed)
+        self.assertIn("YEAR(", fixed)
+        self.assertIn("DATE(", fixed)
+        self.assertIn("SUM(", fixed)
+        self.assertIn("AVERAGE(", fixed)
+
+    def test_rewrite_policy_conservative_keeps_common_qlik_functions(self):
+        expr = "If(Year(Date(2024,1,1))=2024, Sum([Amount]), Avg([Amount]))"
+        fixed, changed = heal_dax_expression(expr, rewrite_policy="conservative")
+        self.assertFalse(changed)
+        self.assertEqual(fixed, expr)
+
     def test_rewrite_policy_defaults_to_balanced(self):
         healer = AutoHealer(max_iterations=1, rewrite_policy="unknown")
         self.assertEqual(healer.rewrite_policy, "balanced")

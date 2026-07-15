@@ -183,8 +183,16 @@ def heal_dax_expression(expr: str, rewrite_policy: str = _DEFAULT_REWRITE_POLICY
         ])
     if policy == "aggressive":
         replacements.extend([
+            (r"\bIf\s*\(", "IF("),
+            (r"\bCount\s*\(", "COUNT("),
+            (r"\bAvg\s*\(", "AVERAGE("),
+            (r"\bSum\s*\(", "SUM("),
             (r"\bCountD\s*\(", "DISTINCTCOUNT("),
             (r"\bCountDistinct\s*\(", "DISTINCTCOUNT("),
+            (r"\bDate\s*\(", "DATE("),
+            (r"\bYear\s*\(", "YEAR("),
+            (r"\bMonth\s*\(", "MONTH("),
+            (r"\bDay\s*\(", "DAY("),
             (r"\bLen\s*\(", "LEN("),
             (r"\bTrim\s*\(", "TRIM("),
             (r"\bCeil\s*\(", "CEILING("),
