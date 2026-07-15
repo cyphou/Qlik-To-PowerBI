@@ -46,6 +46,13 @@ class TestOpenabilityGuard(unittest.TestCase):
             result = ensure_openable(proj, max_autoheal_iterations=2)
             self.assertTrue(result.get("openable"), result)
             self.assertIn(result.get("stage"), {"autoheal", "safety_fallback", "initial"})
+            self.assertIn("root_cause_taxonomy", result)
+            self.assertIn("initial", result["root_cause_taxonomy"])
+            self.assertIn("final", result["root_cause_taxonomy"])
+            self.assertIn("autoheal_metrics", result)
+            self.assertIn("action_count", result["autoheal_metrics"])
+            self.assertIn("stage_trace", result)
+            self.assertGreaterEqual(len(result["stage_trace"]), 1)
 
 
 if __name__ == "__main__":

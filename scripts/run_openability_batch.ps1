@@ -83,6 +83,30 @@ foreach ($app in $apps) {
 
     $ensure = $obj.ensure_open
     $final = $ensure.final
+    $taxonomyInitial = $ensure.root_cause_taxonomy.initial
+    $taxonomyFinal = $ensure.root_cause_taxonomy.final
+    $autohealMetrics = $ensure.autoheal_metrics
+
+    $initialChecksSummary = ""
+    if ($taxonomyInitial -and $taxonomyInitial.by_check) {
+        $initialChecksSummary = (([hashtable]$taxonomyInitial.by_check).GetEnumerator() |
+            Sort-Object Name |
+            ForEach-Object { "$($_.Name):$($_.Value)" }) -join ";"
+    }
+
+    $finalChecksSummary = ""
+    if ($taxonomyFinal -and $taxonomyFinal.by_check) {
+        $finalChecksSummary = (([hashtable]$taxonomyFinal.by_check).GetEnumerator() |
+            Sort-Object Name |
+            ForEach-Object { "$($_.Name):$($_.Value)" }) -join ";"
+    }
+
+    $autohealArtifactSummary = ""
+    if ($autohealMetrics -and $autohealMetrics.by_artifact) {
+        $autohealArtifactSummary = (([hashtable]$autohealMetrics.by_artifact).GetEnumerator() |
+            Sort-Object Name |
+            ForEach-Object { "$($_.Name):$($_.Value)" }) -join ";"
+    }
 
     $results += [pscustomobject]@{
         app = $app.Name
@@ -94,6 +118,12 @@ foreach ($app in $apps) {
         warnings = [int]$final.warning_count
         duration_seconds = [double]$obj.duration_seconds
         output_dir = $obj.output_dir
+        initial_blocking_total = [int]$taxonomyInitial.total_blocking
+        final_blocking_total = [int]$taxonomyFinal.total_blocking
+        initial_blocking_by_check = $initialChecksSummary
+        final_blocking_by_check = $finalChecksSummary
+        autoheal_action_count = [int]$autohealMetrics.action_count
+        autoheal_by_artifact = $autohealArtifactSummary
         error_message = ""
     }
 }
