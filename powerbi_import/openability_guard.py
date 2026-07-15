@@ -44,13 +44,19 @@ _SAFE_M_QUERY = [
 ]
 
 
-def ensure_openable(project_dir: str, max_autoheal_iterations: int = 3, strict_mode: bool = False) -> Dict:
+def ensure_openable(
+    project_dir: str,
+    max_autoheal_iterations: int = 3,
+    strict_mode: bool = False,
+    rewrite_policy: str = "balanced",
+) -> Dict:
     """Try hard to produce an openable project and return diagnostics."""
     initial = check_openability(project_dir)
     initial_dict = initial.to_dict()
     result: Dict = {
         "project_dir": project_dir,
         "strict_mode": bool(strict_mode),
+        "rewrite_policy": str(rewrite_policy or "balanced"),
         "strict_violation": None,
         "stage": "initial",
         "openable": initial.openable,
@@ -73,7 +79,10 @@ def ensure_openable(project_dir: str, max_autoheal_iterations: int = 3, strict_m
     if initial.openable:
         return result
 
-    autoheal_report = AutoHealer(max_iterations=max(1, int(max_autoheal_iterations))).heal_project(project_dir)
+    autoheal_report = AutoHealer(
+        max_iterations=max(1, int(max_autoheal_iterations)),
+        rewrite_policy=str(rewrite_policy or "balanced"),
+    ).heal_project(project_dir)
     autoheal_dict = autoheal_report.to_dict()
     after_auto = check_openability(project_dir)
     after_auto_dict = after_auto.to_dict()

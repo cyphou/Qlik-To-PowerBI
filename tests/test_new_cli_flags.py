@@ -252,6 +252,9 @@ class TestNewCLIFlags(unittest.TestCase):
     def test_autoheal_iterations_flag(self):
         self._assert_flag("--autoheal-iterations")
 
+    def test_rewrite_policy_flag(self):
+        self._assert_flag("--rewrite-policy")
+
     def test_ensure_open_flag(self):
         self._assert_flag("--ensure-open")
 

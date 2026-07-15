@@ -4,6 +4,8 @@ param(
     [switch]$Recursive,
     [switch]$SkipExtraction,
     [switch]$StrictMode,
+    [ValidateSet("conservative", "balanced", "aggressive")]
+    [string]$RewritePolicy = "balanced",
     [switch]$FailOnNonOpenable
 )
 
@@ -64,6 +66,10 @@ foreach ($app in $apps) {
 
     if ($StrictMode) {
         $args += "--ensure-open-strict"
+    }
+
+    if ($RewritePolicy) {
+        $args += @("--rewrite-policy", $RewritePolicy)
     }
 
     $rawLines = python @args

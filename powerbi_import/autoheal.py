@@ -32,6 +32,8 @@ _MEASURE_RE = re.compile(r"^(\s*measure\s+(?:'(?:[^']|'')+'|[^=\n]+?)\s*=\s*)(.+
 _MEASURE_NAME_RE = re.compile(r"^\s*measure\s+(?:'((?:[^']|'')+)'|([^\s=]+))")
 _PARTITION_RE = re.compile(r"^\tpartition\s+(.+?)\s*=\s*(\w+)\s*$")
 _SOURCE_RE = re.compile(r"^\t\tsource\s*=\s*$")
+_DEFAULT_REWRITE_POLICY = "balanced"
+_REWRITE_POLICIES = {"conservative", "balanced", "aggressive"}
 
 
 @dataclass
@@ -58,6 +60,7 @@ class HealAction:
 @dataclass
 class AutoHealReport:
     project_dir: str
+    rewrite_policy: str = _DEFAULT_REWRITE_POLICY
     iterations: int = 0
     actions: List[HealAction] = field(default_factory=list)
     remaining_errors: List[ErrorRecord] = field(default_factory=list)
@@ -73,6 +76,7 @@ class AutoHealReport:
     def to_dict(self) -> Dict:
         return {
             "project_dir": self.project_dir,
+            "rewrite_policy": self.rewrite_policy,
             "iterations": self.iterations,
             "changed": self.changed,
             "clean": self.clean,
@@ -110,12 +114,18 @@ class StaticValidatorSource:
 class AutoHealer:
     """Iterative deterministic auto-healer."""
 
-    def __init__(self, max_iterations: int = 3, error_source: Optional[StaticValidatorSource] = None):
+    def __init__(
+        self,
+        max_iterations: int = 3,
+        error_source: Optional[StaticValidatorSource] = None,
+        rewrite_policy: str = _DEFAULT_REWRITE_POLICY,
+    ):
         self.max_iterations = max(1, int(max_iterations))
         self.error_source = error_source or StaticValidatorSource()
+        self.rewrite_policy = _normalize_rewrite_policy(rewrite_policy)
 
     def heal_project(self, project_dir: str) -> AutoHealReport:
-        report = AutoHealReport(project_dir=project_dir)
+        report = AutoHealReport(project_dir=project_dir, rewrite_policy=self.rewrite_policy)
         if not project_dir or not os.path.isdir(project_dir):
             report.remaining_errors.append(
                 ErrorRecord("info", project_dir, "project", "project dir not found", severity="info")
@@ -130,8 +140,16 @@ class AutoHealer:
                     original = _read(tmdl)
                 except OSError:
                     continue
-                after_dax, dax_actions = _heal_measure_lines(original, tmdl)
-                after_m, m_actions = _heal_m_partitions(after_dax, tmdl)
+                after_dax, dax_actions = _heal_measure_lines(
+                    original,
+                    tmdl,
+                    rewrite_policy=self.rewrite_policy,
+                )
+                after_m, m_actions = _heal_m_partitions(
+                    after_dax,
+                    tmdl,
+                    rewrite_policy=self.rewrite_policy,
+                )
                 if after_m != original:
                     _write(tmdl, after_m)
                     changed = True
@@ -147,18 +165,28 @@ class AutoHealer:
         return report
 
 
-def heal_dax_expression(expr: str) -> Tuple[str, bool]:
+def heal_dax_expression(expr: str, rewrite_policy: str = _DEFAULT_REWRITE_POLICY) -> Tuple[str, bool]:
     """Small deterministic DAX fixer with validation safety."""
+    policy = _normalize_rewrite_policy(rewrite_policy)
     original = expr
     fixed = expr
     replacements = [
         (r"\bIsNull\s*\(", "ISBLANK("),
-        (r"\bNullCount\s*\(", "COUNTBLANK("),
         (r"\bNull\s*\(\)", "BLANK()"),
-        (r"\bAlt\s*\(", "COALESCE("),
-        (r"\bUpper\s*\(", "UPPER("),
-        (r"\bLower\s*\(", "LOWER("),
     ]
+    if policy in {"balanced", "aggressive"}:
+        replacements.extend([
+            (r"\bNullCount\s*\(", "COUNTBLANK("),
+            (r"\bAlt\s*\(", "COALESCE("),
+            (r"\bUpper\s*\(", "UPPER("),
+            (r"\bLower\s*\(", "LOWER("),
+        ])
+    if policy == "aggressive":
+        replacements.extend([
+            (r"\bCountD\s*\(", "DISTINCTCOUNT("),
+            (r"\bLen\s*\(", "LEN("),
+            (r"\bTrim\s*\(", "TRIM("),
+        ])
     for pat, repl in replacements:
         fixed = re.sub(pat, repl, fixed)
 
@@ -172,7 +200,7 @@ def heal_dax_expression(expr: str) -> Tuple[str, bool]:
     return original, False
 
 
-def _heal_measure_lines(text: str, tmdl_path: str) -> Tuple[str, List[HealAction]]:
+def _heal_measure_lines(text: str, tmdl_path: str, rewrite_policy: str = _DEFAULT_REWRITE_POLICY) -> Tuple[str, List[HealAction]]:
     out_lines: List[str] = []
     actions: List[HealAction] = []
     for line in text.splitlines():
@@ -181,7 +209,7 @@ def _heal_measure_lines(text: str, tmdl_path: str) -> Tuple[str, List[HealAction
             out_lines.append(line)
             continue
         prefix, expr = m.group(1), m.group(2)
-        fixed, changed = heal_dax_expression(expr)
+        fixed, changed = heal_dax_expression(expr, rewrite_policy=rewrite_policy)
         if changed:
             out_lines.append(prefix + fixed)
             actions.append(HealAction(
@@ -202,7 +230,11 @@ def _heal_measure_lines(text: str, tmdl_path: str) -> Tuple[str, List[HealAction
     return new_text, actions
 
 
-def _heal_m_partitions(text: str, tmdl_path: str) -> Tuple[str, List[HealAction]]:
+def _heal_m_partitions(text: str, tmdl_path: str, rewrite_policy: str = _DEFAULT_REWRITE_POLICY) -> Tuple[str, List[HealAction]]:
+    policy = _normalize_rewrite_policy(rewrite_policy)
+    if policy == "conservative":
+        return text, []
+
     lines = text.splitlines()
     actions: List[HealAction] = []
     i, n = 0, len(lines)
@@ -252,6 +284,13 @@ def _heal_m_partitions(text: str, tmdl_path: str) -> Tuple[str, List[HealAction]
     if text.endswith("\n"):
         new_text += "\n"
     return new_text, actions
+
+
+def _normalize_rewrite_policy(policy: str) -> str:
+    name = str(policy or _DEFAULT_REWRITE_POLICY).strip().lower()
+    if name not in _REWRITE_POLICIES:
+        return _DEFAULT_REWRITE_POLICY
+    return name
 
 
 def _iter_tmdl(project_dir: str) -> List[str]:

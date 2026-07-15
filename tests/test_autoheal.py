@@ -5,7 +5,7 @@ import os
 import tempfile
 import unittest
 
-from powerbi_import.autoheal import AutoHealer, StaticValidatorSource
+from powerbi_import.autoheal import AutoHealer, StaticValidatorSource, heal_dax_expression
 
 
 def _write_project_with_invalid_m(root: str) -> str:
@@ -52,6 +52,24 @@ class TestAutoHeal(unittest.TestCase):
             report = healer.heal_project(proj)
             self.assertGreaterEqual(len(report.actions), 1)
             self.assertFalse(any(e.artifact == "m" for e in report.remaining_errors))
+
+    def test_rewrite_policy_conservative_skips_m_healing(self):
+        with tempfile.TemporaryDirectory() as td:
+            proj = _write_project_with_invalid_m(td)
+            healer = AutoHealer(max_iterations=1, rewrite_policy="conservative")
+            report = healer.heal_project(proj)
+            self.assertEqual(report.rewrite_policy, "conservative")
+            self.assertFalse(any(a.artifact == "m" for a in report.actions))
+            self.assertTrue(any(e.artifact == "m" for e in report.remaining_errors))
+
+    def test_rewrite_policy_aggressive_adds_countd_fix(self):
+        fixed, changed = heal_dax_expression("CountD([CustomerId])", rewrite_policy="aggressive")
+        self.assertTrue(changed)
+        self.assertIn("DISTINCTCOUNT(", fixed)
+
+    def test_rewrite_policy_defaults_to_balanced(self):
+        healer = AutoHealer(max_iterations=1, rewrite_policy="unknown")
+        self.assertEqual(healer.rewrite_policy, "balanced")
 
 
 if __name__ == "__main__":

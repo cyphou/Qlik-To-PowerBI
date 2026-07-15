@@ -1968,6 +1968,14 @@ def main():
     )
 
     parser.add_argument(
+        '--rewrite-policy',
+        metavar='MODE',
+        choices=['conservative', 'balanced', 'aggressive'],
+        default='balanced',
+        help='Deterministic rewrite policy for autoheal: conservative, balanced, or aggressive (default: balanced)'
+    )
+
+    parser.add_argument(
         '--governance',
         action='store_true',
         default=False,
@@ -3531,6 +3539,7 @@ def main():
                 project_dir,
                 max_autoheal_iterations=max(1, int(getattr(args, 'autoheal_iterations', 3) or 3)),
                 strict_mode=bool(getattr(args, 'ensure_open_strict', False)),
+                rewrite_policy=str(getattr(args, 'rewrite_policy', 'balanced') or 'balanced'),
             )
             results['ensure_open_result'] = guard_result
             results['ensure_open'] = bool(guard_result.get('openable'))
@@ -3697,7 +3706,10 @@ def main():
 
             out_base = args.output_dir or os.path.join('artifacts', 'powerbi_projects', 'migrated')
             project_dir = os.path.join(out_base, source_basename)
-            healer = AutoHealer(max_iterations=max(1, int(getattr(args, 'autoheal_iterations', 3) or 3)))
+            healer = AutoHealer(
+                max_iterations=max(1, int(getattr(args, 'autoheal_iterations', 3) or 3)),
+                rewrite_policy=str(getattr(args, 'rewrite_policy', 'balanced') or 'balanced'),
+            )
             autoheal_report = healer.heal_project(project_dir)
 
             results['autoheal'] = autoheal_report.to_dict()
