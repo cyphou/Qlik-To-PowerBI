@@ -1725,6 +1725,36 @@ def _apply_simple_command(args):
 
     return args
 
+
+def _infer_simple_command(args):
+    """Infer simple command from minimal inputs when not explicitly provided.
+
+    Priority:
+    1) --workspace-id + --target  -> deploy
+    2) --target directory          -> batch
+    3) --target file/path          -> migrate
+    """
+    if getattr(args, 'simple_command', None):
+        return args
+
+    target = getattr(args, 'target', None)
+    workspace_id = getattr(args, 'workspace_id', None)
+    if not target:
+        return args
+
+    if workspace_id:
+        args.simple_command = 'deploy'
+        return args
+
+    # Directory-like target maps to batch.
+    if os.path.isdir(target) or str(target).endswith(('/', '\\')):
+        args.simple_command = 'batch'
+        return args
+
+    # Fallback: treat as single-file migration target.
+    args.simple_command = 'migrate'
+    return args
+
 def main():
     """Main entry point."""
 
@@ -1785,7 +1815,7 @@ def main():
         '--simple-command',
         choices=['migrate', 'migrate-max', 'assess', 'compare', 'qa', 'batch', 'batch-max', 'deploy', 'server-test'],
         default=None,
-        help='One-command shortcuts for common workflows (use with --target and optional --workspace-id)'
+        help='One-command shortcuts for common workflows (optional if --target is provided; command is auto-inferred)'
     )
 
     parser.add_argument(
@@ -2706,6 +2736,9 @@ def main():
         if config is None:
             return ExitCode.SUCCESS
         args = wizard_to_args(config)
+
+    # Infer one-command shortcut from minimal inputs (target/workspace).
+    args = _infer_simple_command(args)
 
     # Map one-command shortcuts first, then apply the selected mode preset.
     args = _apply_simple_command(args)

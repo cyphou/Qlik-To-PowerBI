@@ -63,6 +63,22 @@ python migrate.py --simple-command deploy --target your_app.qvf --workspace-id <
 python migrate.py --simple-command server-test --server-url https://qlik.example.com
 ```
 
+Ultra-simple folder-to-folder workflow (recommended for operations):
+
+```powershell
+# Source folder -> target folder
+./scripts/simple_migration.ps1 -SourceFolder "C:\QlikExports" -TargetFolder "C:\QlikMigrated"
+
+# Add lineage output
+./scripts/simple_migration.ps1 -SourceFolder "C:\QlikExports" -TargetFolder "C:\QlikMigrated" -Lineage
+
+# Add shared semantic model / fusion
+./scripts/simple_migration.ps1 -SourceFolder "C:\QlikExports" -TargetFolder "C:\QlikMigrated" -SharedSemantic -Fusion
+
+# Deploy to Power BI Online
+./scripts/simple_migration.ps1 -SourceFolder "C:\QlikExports" -TargetFolder "C:\QlikMigrated" -DeployOnline -WorkspaceId "<WORKSPACE_ID>"
+```
+
 > **Tip:** The output is a `.pbip` project — just double-click to open in Power BI Desktop (Developer Mode).
 
 <details>

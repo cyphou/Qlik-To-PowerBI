@@ -2,7 +2,7 @@
 
 from argparse import Namespace
 
-from migrate import _apply_simple_command, _apply_simple_mode_preset
+from migrate import _apply_simple_command, _apply_simple_mode_preset, _infer_simple_command
 
 
 def _base_args(simple_mode: str):
@@ -107,3 +107,18 @@ def test_simple_command_server_test_enables_server_test():
     args.simple_command = "server-test"
     out = _apply_simple_command(args)
     assert out.server_test is True
+
+
+def test_infer_simple_command_migrate_from_target_file():
+    args = _base_args("balanced")
+    args.target = "app.qvf"
+    out = _infer_simple_command(args)
+    assert out.simple_command == "migrate"
+
+
+def test_infer_simple_command_deploy_from_target_and_workspace():
+    args = _base_args("balanced")
+    args.target = "app.qvf"
+    args.workspace_id = "ws-123"
+    out = _infer_simple_command(args)
+    assert out.simple_command == "deploy"
