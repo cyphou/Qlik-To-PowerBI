@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # TableauToPowerBI Agent and Feature Parity Report (2026-06-24)
 
 ## Objective
@@ -210,3 +214,4 @@ For feature parity, it checks upstream presence of required modules and required
 1. Confirm the canonical TableauToPowerBI upstream repository (owner/repo).
 2. Run the upstream parity command and archive JSON output in this docs/reports folder.
 3. Add a CI job for upstream parity if and only if upstream endpoint is stable and public.
+

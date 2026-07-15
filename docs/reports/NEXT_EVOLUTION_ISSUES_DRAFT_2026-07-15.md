@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # Next Evolution - Issue Drafts (2026-07-15)
 
 Use these issue definitions with GitHub CLI or manually in the web UI.
@@ -155,3 +159,4 @@ Maintain reliability gains while reducing runtime on large portfolios.
 - No decline in openability or fidelity KPIs.
 - Benchmark report generated and archived in CI artifacts.
 ```
+

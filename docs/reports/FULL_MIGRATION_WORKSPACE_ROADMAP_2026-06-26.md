@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # Full Migration Workspace Roadmap (2026-06-26)
 
 ## Objective
@@ -289,3 +293,4 @@ Operations KPIs:
 - [Qlik App Portfolio CSV Template](../templates/QLIK_APP_PORTFOLIO_TEMPLATE.csv)
 - [Qlik App Portfolio JSON Template](../templates/qlik_app_portfolio.template.json)
 - [Wave Execution Plan Template](../templates/WAVE_EXECUTION_PLAN_TEMPLATE.md)
+

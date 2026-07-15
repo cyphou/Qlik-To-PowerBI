@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # Migration Factory Runbook (2026-06-29)
 
 ## Purpose
@@ -173,3 +177,4 @@ python migrate.py --migration-manifest <manifest> --gate prod --force-deployment
 2. Unknown column/measure `[Year]` in Orders — time-intelligence reference gap; tracked in backlog.
 3. Unmatched parenthesis in advanced inter-record measures — DAX conversion limitation for `RangeSum(Above(...))` and `Aggr(Top-N)`; add to manual review list.
 4. Ambiguous Calendar relationship deactivated — expected for multi-date tables; requires manual reactivation for specific use cases.
+

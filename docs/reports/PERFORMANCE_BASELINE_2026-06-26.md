@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # Performance Baseline and Benchmarks — Qlik-to-Power BI Migration
 
 **Date:** 2026-06-26  
@@ -362,3 +366,4 @@ python migrate.py --profile strict --compare-baseline baseline_2026-06-26.json
 
 **Baseline Established:** 2026-06-26  
 **Next Update:** 2026-08-26 (after Phase 2 completion and larger-scale benchmarks)
+

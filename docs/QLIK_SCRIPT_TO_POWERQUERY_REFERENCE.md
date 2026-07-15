@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # Qlik Script to Power Query Reference
 
 Guide for converting Qlik load scripts to Power Query M using
@@ -173,3 +177,4 @@ in
 5. **Inline loads** → `#table({"Col1","Col2"}, {{"val1","val2"}})`
 6. **Wildcards** → `Folder.Files(path)` + filter + combine
 7. **Section Access** → migrate to TMDL roles (see `roles.tmdl`)
+

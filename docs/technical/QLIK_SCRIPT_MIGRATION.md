@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # Migration Scripts Qlik → Power Query M
 
 ## 📋 Vue d'ensemble
@@ -384,3 +388,4 @@ QlikScriptToPowerQueryConverter.FUNCTION_MAP.update(CUSTOM_FUNCTION_MAP)
 ---
 
 **Note**: Cette conversion automatise ~80% du travail. Une révision manuelle est toujours recommandée pour garantir la qualité et l'exactitude.
+

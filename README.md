@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 <div align="center">
 
 ![Qlik Sense](https://img.shields.io/badge/Qlik_Sense-009848?style=for-the-badge&logo=qlik&logoColor=white)
@@ -15,7 +19,7 @@ manual rework.
 ![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)
 
-[Quick Start](#-quick-start) • [Features](#-key-features) • [How It Works](#-how-it-works) • [DAX Mappings](#-dax-conversions-175-functions) • [Deployment](#-deployment) • [Multi-Agent](#-multi-agent-architecture) • [Docs](#-documentation)
+[Quick Start](#-quick-start) • [Features](#-key-features) • [How It Works](#-how-it-works) • [DAX Mappings](#-dax-conversions-175-functions) • [Deployment](#-deployment) • [Multi-Agent](#-multi-agent-architecture) • [Docs](#-documentation) • [Docs Hub](docs/README.md)
 
 </div>
 
@@ -73,6 +77,14 @@ python migrate.py --source app.qvf --workspace <WORKSPACE_ID>
 # 6) Shared semantic model merge
 python migrate.py --shared-model app1.qvf app2.qvf --model-name SharedModel
 ```
+
+## 📚 Documentation Hub
+
+- Start here: [docs/README.md](docs/README.md)
+- CLI usage: [docs/guides/CLI_REFERENCE.md](docs/guides/CLI_REFERENCE.md)
+- Migration walkthrough: [docs/guides/MIGRATION_GUIDE.md](docs/guides/MIGRATION_GUIDE.md)
+- Deployment: [docs/guides/DEPLOYMENT_GUIDE.md](docs/guides/DEPLOYMENT_GUIDE.md)
+- FAQ: [docs/FAQ.md](docs/FAQ.md)
 
 Examples:
 
@@ -898,3 +910,4 @@ If this tool saves you time, consider giving it a ⭐
 **[MIT License](LICENSE)**
 
 </div>
+

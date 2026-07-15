@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # QlikToPowerBI v12 Parity and Sync — Complete Summary
 
 ## Context
@@ -276,3 +280,4 @@ Use the CI/CD integration in `.github/workflows/ci.yml` (already live for QlikTo
 ---
 
 **For questions or feedback, refer to the inline comments in `TABLEAU_PARITY_SYNC_ROADMAP_2026-06-24.md` or run the parity tools with `--help`.**
+

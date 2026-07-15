@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # 🔴 STATUT ACTUEL - Génération PBIX
 
 ## ❌ Problème Persistant
@@ -159,3 +163,4 @@ Cela permettra de comparer byte-par-byte notre fichier généré avec un vrai PB
 **Dernière mise à jour :** 2026-02-12 16:10  
 **Tests effectués :** 4 approches d'encodage  
 **Status :** Recommandation de workaround en attendant diagnostic complet
+

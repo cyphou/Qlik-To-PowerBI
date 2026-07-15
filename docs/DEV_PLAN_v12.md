@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # DEV_PLAN v12.x - Live Execution Plan
 
 This document replaces the previous v12 gap list and reflects the current repository state.
@@ -97,3 +101,4 @@ python tools/analysis/parity_status_check.py
 - Clarify whether subscription_migrator.py is required or superseded by subscription_generator.py.
 - Decide whether prep_lineage naming should be introduced as aliases or permanently retired in favor of script_lineage.
 - Add CI job executing parity_status_check.py and failing on drift.
+

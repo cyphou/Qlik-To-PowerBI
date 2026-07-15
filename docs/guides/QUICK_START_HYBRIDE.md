@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # 🚀 Démarrage Rapide - Migration Hybride
 
 ## ⚡ En 3 Commandes
@@ -136,3 +140,4 @@ python qvf_examples.py
 ---
 
 **🎯 Vous êtes prêt ! La migration Qlik → Power BI est maintenant à portée de main.**
+

@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # QlikToPowerBI Migration Toolkit — Comprehensive Gap Analysis
 
 **Date:** 2026-02-23 (updated 2026-04-03 for v9.0.0)  
@@ -406,3 +410,4 @@ These are architectural issues that span multiple categories:
 ### `qlik_script_converter.py`
 - **Decent**: Parses LOAD with FROM/RESIDENT/INLINE, field aliases, WHERE clauses
 - **Weak**: No preceding LOAD, no CONCATENATE, no JOIN, no SUB/CALL, no variable substitution. The converted M output has formatting issues (e.g., `',\\n'` instead of `',\n'`).
+

@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # Migration Guide — Qlik to Power BI
 
 Complete technical reference for migrating Qlik Sense applications to Power BI using the automated pipeline.
@@ -415,3 +419,4 @@ Scans all Qlik exports and generates:
 | Path validation | `security_validator.py` | Prevents path traversal attacks |
 | ZIP slip defense | `security_validator.py` | Prevents malicious QVF extraction |
 | Schema drift | `schema_drift.py` | Detects column changes between versions |
+

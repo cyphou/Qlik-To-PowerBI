@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # CLI Reference
 
 This page documents the current command-line interface of `migrate.py`.
@@ -292,3 +296,4 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 - `--server-test` runs diagnostics and exits without executing migration generation.
 - `scripts/build_wave_manifests.py` generates manifest files from portfolio templates; it is intended as a pre-step before `--migration-manifest` runs.
 - `--make-ready` emits additional `*_ready.json` and `*_ready_report.json` files with normalized paths and skipped invalid/missing source entries.
+

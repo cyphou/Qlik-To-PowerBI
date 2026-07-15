@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # API Reference
 
 Public API documentation for key modules in the Qlik to Power BI migration toolkit.
@@ -518,3 +522,4 @@ Generate a JSONL audit trail of all migration decisions.
 ```python
 def generate_audit_trail(migration_events: list, output_path: str) -> str
 ```
+

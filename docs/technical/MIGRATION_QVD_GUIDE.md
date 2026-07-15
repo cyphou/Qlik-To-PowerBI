@@ -1,3 +1,7 @@
+<!-- DOC-SHINY-BANNER -->
+![Documentation](https://img.shields.io/badge/Documentation-Shiny_Style-0A66C2?style=flat-square&logo=readthedocs&logoColor=white)
+![Maintained](https://img.shields.io/badge/Maintained-2026-2EA44F?style=flat-square&logo=github&logoColor=white)
+![Navigation](https://img.shields.io/badge/Navigation-Quick_Access-6F42C1?style=flat-square&logo=bookstack&logoColor=white)
 # 📦 Migration des Fichiers QVD vers Power BI
 
 ## 📋 Qu'est-ce qu'un Fichier QVD ?
@@ -659,3 +663,4 @@ ChangedTypes = Table.TransformColumnTypes(Source, {
 **📚 Voir aussi :**
 - [QUICK_START_HYBRIDE.md](QUICK_START_HYBRIDE.md) - Migration complète Qlik → Power BI
 - [MIGRATION_HYBRIDE_GUIDE.md](MIGRATION_HYBRIDE_GUIDE.md) - Guide détaillé
+
