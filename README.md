@@ -26,13 +26,21 @@ manual rework.
 python migrate.py your_app.qvf
 
 # Simplified presets (recommended)
-python migrate.py your_app.qvf --simple-mode balanced
+python migrate.py your_app.qvf --preset balanced
 
-# Auto-inferred command (no --simple-command required)
-python migrate.py --target your_app.qvf
+# Simplified source/output aliases
+python migrate.py --source your_app.qvf --out output/my_project
 ```
 
-Simple presets:
+Simple arguments:
+
+- `--source`: one input path (file => single migration, folder => batch)
+- `--src`: alias for positional `qlik_file`
+- `--out`: alias for `--output-dir`
+- `--preset`: alias for `--simple-mode` (`fast`, `balanced`, `max`)
+- `--workspace`: alias for deployment workspace ID (`--deploy`)
+
+Presets:
 
 - `--simple-mode fast`: fastest run with conservative rewrites and minimal checks.
 - `--simple-mode balanced`: recommended default with safe checks enabled.
@@ -44,35 +52,24 @@ Show concise preset help:
 python migrate.py --help-simple
 ```
 
-Simple command shortcuts:
+Examples:
 
 ```bash
-# Migrate (explicit)
-python migrate.py --simple-command migrate --target your_app.qvf
+# Single app
+python migrate.py --source your_app.qvf
+python migrate.py --src your_app.qvf --preset max
 
-# Migrate (auto-inferred)
-python migrate.py --target your_app.qvf
-
-# Batch migration (auto-inferred from folder target)
-python migrate.py --target ./exports
-
-# Batch migration (explicit)
-python migrate.py --simple-command batch --target ./exports
+# Batch from folder
+python migrate.py --source ./exports --preset balanced
 
 # Compare report
-python migrate.py --simple-command compare --target your_app.qvf
+python migrate.py --source your_app.qvf --compare
 
 # Full quality checks
-python migrate.py --simple-command qa --target your_app.qvf
+python migrate.py --source your_app.qvf --qa
 
-# Migrate + deploy (auto-inferred)
-python migrate.py --target your_app.qvf --workspace-id <WORKSPACE_ID>
-
-# Migrate + deploy (explicit)
-python migrate.py --simple-command deploy --target your_app.qvf --workspace-id <WORKSPACE_ID>
-
-# Qlik server diagnostics
-python migrate.py --simple-command server-test --server-url https://qlik.example.com
+# Migrate + deploy
+python migrate.py --source your_app.qvf --workspace <WORKSPACE_ID>
 ```
 
 Ultra-simple folder-to-folder workflow (recommended for operations):

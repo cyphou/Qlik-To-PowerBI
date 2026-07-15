@@ -10,8 +10,8 @@
 # 1. Migrate your QVF or JSON export
 python migrate.py "YourApp.qvf"
 
-# or use auto-inferred simplified target mode
-python migrate.py --target "YourApp.qvf"
+# or use simplified argument aliases
+python migrate.py --source "YourApp.qvf" --preset balanced
 
 # 2. Open the generated .pbip project in Power BI Desktop
 #    File → Open → Browse → select the .pbip file
@@ -33,14 +33,17 @@ cd "C:\path\to\QlikToPowerBI"
 # From a QVF file
 python migrate.py "C:\Data\Sales.qvf"
 
-# Auto-inferred migrate command
-python migrate.py --target "C:\Data\Sales.qvf"
+# Simplified source alias
+python migrate.py --source "C:\Data\Sales.qvf"
 
 # From a JSON export
 python migrate.py "C:\Data\Sales_export.json"
 
 # Custom output directory
 python migrate.py "C:\Data\Sales.qvf" --output-dir "C:\Output\Sales"
+
+# Alias form for output directory
+python migrate.py --source "C:\Data\Sales.qvf" --out "C:\Output\Sales"
 
 # JSON output for CI/CD pipelines
 python migrate.py "C:\Data\Sales.qvf" --json

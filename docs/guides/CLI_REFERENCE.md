@@ -11,18 +11,18 @@ python migrate.py <qlik_file> [options]
 ## Simplified Usage (Recommended)
 
 ```bash
-# Single-file migration (auto-inferred: migrate)
-python migrate.py --target sales.qvf
+# Single-file migration
+python migrate.py --source sales.qvf
 
-# Folder migration (auto-inferred: batch)
-python migrate.py --target exports/
+# Folder migration
+python migrate.py --source exports/
 
-# Migration + deploy (auto-inferred: deploy)
-python migrate.py --target sales.qvf --workspace-id <workspace_id>
+# Migration + deploy
+python migrate.py --source sales.qvf --workspace <workspace_id>
 
-# Explicit shortcuts (optional)
-python migrate.py --simple-command qa --target sales.qvf
-python migrate.py --simple-command server-test --server-url https://qlik.example.com
+# Preset aliases
+python migrate.py --source sales.qvf --preset balanced
+python migrate.py --source sales.qvf --preset max
 
 # Folder -> folder operational wrapper (PowerShell)
 ./scripts/simple_migration.ps1 -SourceFolder "C:\QlikExports" -TargetFolder "C:\QlikMigrated"
@@ -129,6 +129,11 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 ## Full Option Index
 
 ### Core input/output and execution
+- `--source`
+- `--src`
+- `--out`
+- `--preset` (`fast`, `balanced`, `max`)
+- `--workspace`
 - `--simple-mode` (`fast`, `balanced`, `max`)
 - `--help-simple`
 - `--simple-command` (`migrate`, `migrate-max`, `assess`, `compare`, `qa`, `batch`, `batch-max`, `deploy`, `server-test`)

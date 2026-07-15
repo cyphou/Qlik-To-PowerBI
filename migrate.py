@@ -1655,16 +1655,24 @@ _SIMPLE_COMMANDS = {
 
 
 def _print_simple_help() -> None:
-    print("Simple migration presets:")
+    print("Simplified arguments (single migrate.py entrypoint):")
+    print("  --source PATH           -> auto route (file=single migration, folder=batch)")
+    print("  --src FILE              -> alias for positional qlik_file")
+    print("  --out DIR               -> alias for --output-dir")
+    print("  --preset MODE           -> alias for --simple-mode (fast|balanced|max)")
+    print("  --workspace ID          -> alias for --deploy WORKSPACE_ID")
+    print("")
+    print("Preset behavior:")
     print("  --simple-mode fast      -> fastest, conservative rewrites, minimal checks")
     print("  --simple-mode balanced  -> recommended default, safe checks enabled")
     print("  --simple-mode max       -> strict + aggressive rewrites + full checks")
     print("")
     print("Typical usage:")
-    print("  python migrate.py app.qvf --simple-mode balanced")
-    print("  python migrate.py app.qvf --simple-mode max")
+    print("  python migrate.py --source app.qvf --preset balanced")
+    print("  python migrate.py --source ./exports --preset max")
+    print("  python migrate.py --source app.qvf --workspace <WORKSPACE_ID>")
     print("")
-    print("Simple command shortcuts:")
+    print("Legacy shortcuts (still supported):")
     print("  --simple-command migrate --target app.qvf")
     print("  --simple-command migrate-max --target app.qvf")
     print("  --simple-command assess --target app.qvf")
@@ -1686,6 +1694,35 @@ def _apply_simple_mode_preset(args):
     for key, value in preset.items():
         if hasattr(args, key):
             setattr(args, key, value)
+    return args
+
+
+def _apply_argument_simplification(args):
+    """Apply simplified argument aliases without changing command model.
+
+    This keeps a single `migrate.py` entrypoint while allowing shorter,
+    more intuitive flags.
+    """
+    source = getattr(args, 'source', None)
+    if source and not getattr(args, 'qlik_file', None) and not getattr(args, 'batch', None):
+        if os.path.isdir(source) or str(source).endswith(('/', '\\')):
+            args.batch = source
+        else:
+            args.qlik_file = source
+
+    if getattr(args, 'src', None) and not getattr(args, 'qlik_file', None):
+        args.qlik_file = args.src
+
+    if getattr(args, 'out', None) and not getattr(args, 'output_dir', None):
+        args.output_dir = args.out
+
+    if getattr(args, 'preset', None) and not getattr(args, 'simple_mode', None):
+        args.simple_mode = args.preset
+
+    workspace = getattr(args, 'workspace', None) or getattr(args, 'workspace_id', None)
+    if workspace and not getattr(args, 'deploy', None):
+        args.deploy = workspace
+
     return args
 
 
@@ -1795,6 +1832,41 @@ def main():
         action='store_true',
         default=False,
         help='Launch the interactive migration wizard'
+    )
+
+    parser.add_argument(
+        '--source',
+        metavar='PATH',
+        default=None,
+        help='Simplified input path (file => single migration, folder => batch migration)'
+    )
+
+    parser.add_argument(
+        '--src',
+        metavar='FILE',
+        default=None,
+        help='Alias for single-file input (same as positional qlik_file)'
+    )
+
+    parser.add_argument(
+        '--out',
+        metavar='DIR',
+        default=None,
+        help='Alias for --output-dir'
+    )
+
+    parser.add_argument(
+        '--preset',
+        choices=['fast', 'balanced', 'max'],
+        default=None,
+        help='Alias for --simple-mode'
+    )
+
+    parser.add_argument(
+        '--workspace',
+        metavar='ID',
+        default=None,
+        help='Alias for deployment workspace ID (maps to --deploy)'
     )
 
     parser.add_argument(
@@ -2736,6 +2808,9 @@ def main():
         if config is None:
             return ExitCode.SUCCESS
         args = wizard_to_args(config)
+
+    # Keep a single migrate.py entrypoint with simplified argument aliases.
+    args = _apply_argument_simplification(args)
 
     # Infer one-command shortcut from minimal inputs (target/workspace).
     args = _infer_simple_command(args)
