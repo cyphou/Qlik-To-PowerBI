@@ -7,6 +7,10 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
+_QLIK_LABEL_PATTERN = (
+    r'(?:\[[^\]\r\n]+\]|"[^"\r\n]+"|\'[^\'\r\n]+\'|[A-Za-z_][^:\r\n]*?)'
+)
+
 
 def _m_quote(text: str) -> str:
     """Quote a string literal for Power Query M."""
@@ -134,6 +138,148 @@ def _detect_stacked_load(stmt: str) -> bool:
     # Count top-level LOAD keywords (not inside strings)
     loads = re.findall(r'\bLOAD\b', stmt, re.IGNORECASE)
     return len(loads) >= 2
+
+
+def _clean_qlik_name(name: str) -> str:
+    """Return the text of a bracketed, quoted, or plain Qlik identifier."""
+    value = str(name or '').strip()
+    if len(value) >= 2 and (
+        (value[0] == '[' and value[-1] == ']')
+        or (value[0] == value[-1] and value[0] in ('"', "'"))
+    ):
+        value = value[1:-1]
+    return value.strip()
+
+
+def _safe_query_name(name: str) -> str:
+    """Create a readable Power Query name without losing accented text."""
+    value = _clean_qlik_name(name)
+    value = re.sub(r'\$\([^)]*\)', '', value)
+    value = re.sub(r'[^\w\- ]+', '_', value, flags=re.UNICODE)
+    value = re.sub(r'[\s\-]+', '_', value).strip('_')
+    return value or 'LoadedData'
+
+
+def _extract_table_label(stmt: str) -> Optional[str]:
+    match = re.match(
+        rf'^({_QLIK_LABEL_PATTERN}):\s*(?:\n\s*)?'
+        r'(?:CONCATENATE\s*\([^)]*\)\s*)?'
+        r'(?:(?:LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\([^)]*\)\s*)?LOAD\b',
+        stmt.strip(),
+        re.IGNORECASE,
+    )
+    return _clean_qlik_name(match.group(1)) if match else None
+
+
+def _derive_query_name(load_stmt: QlikLoadStatement) -> str:
+    """Derive a deterministic name for an unlabeled LOAD statement."""
+    source = load_stmt.source or ''
+    if load_stmt.source_type == 'resident' and source:
+        return f'{_safe_query_name(source)}_Projection'
+    if load_stmt.source_type == 'file' and source:
+        normalized = source.replace('\\', '/').rstrip('/')
+        filename = normalized.rsplit('/', 1)[-1]
+        stem = filename.rsplit('.', 1)[0] if '.' in filename else filename
+        source_name = _safe_query_name(stem)
+        if source_name != 'LoadedData':
+            return source_name
+    if load_stmt.source_type == 'sql' and source:
+        from_match = re.search(r'\bFROM\s+([\w.\[\]"\']+)', source, re.IGNORECASE)
+        if from_match:
+            return _safe_query_name(from_match.group(1).split('.')[-1])
+    if load_stmt.fields:
+        field_name = _safe_query_name(_load_field_name(load_stmt.fields[0]))
+        if field_name != 'LoadedData':
+            return f'{field_name}_Projection'
+    return 'LoadedData'
+
+
+def _unique_query_name(base: str, used_names: set[str]) -> str:
+    candidate = base
+    suffix = 2
+    folded = {name.casefold() for name in used_names}
+    while candidate.casefold() in folded:
+        candidate = f'{base}_{suffix}'
+        suffix += 1
+    return candidate
+
+
+def _indent_m_expression(expression: str, spaces: int = 8) -> str:
+    prefix = ' ' * spaces
+    return '\n'.join(prefix + line for line in expression.splitlines())
+
+
+def _compose_join_query(target_m: str, helper_m: str, join_key: str, join_kind: str) -> str:
+    key = _m_quote(join_key)
+    return (
+        'let\n'
+        '    TargetRows = (\n'
+        f'{_indent_m_expression(target_m)}\n'
+        '    ),\n'
+        '    JoinRows = (\n'
+        f'{_indent_m_expression(helper_m)}\n'
+        '    ),\n'
+        f'    JoinColumns = List.RemoveItems(Table.ColumnNames(JoinRows), {{{key}}}),\n'
+        f'    Joined = Table.NestedJoin(TargetRows, {{{key}}}, JoinRows, {{{key}}}, "__JoinRows", {join_kind}),\n'
+        '    Result = if List.IsEmpty(JoinColumns) then Joined '
+        'else Table.ExpandTableColumn(Joined, "__JoinRows", JoinColumns, JoinColumns)\n'
+        'in\n'
+        '    Result'
+    )
+
+
+def _compose_concatenate_query(target_m: str, appended_m: str) -> str:
+    return (
+        'let\n'
+        '    ExistingRows = (\n'
+        f'{_indent_m_expression(target_m)}\n'
+        '    ),\n'
+        '    AppendedRows = (\n'
+        f'{_indent_m_expression(appended_m)}\n'
+        '    ),\n'
+        '    Result = Table.Combine({ExistingRows, AppendedRows})\n'
+        'in\n'
+        '    Result'
+    )
+
+
+def _replace_query_script(pq_scripts: List[str], query_name: str, expression: str) -> bool:
+    marker = f'// Query: {query_name}'
+    for index in range(len(pq_scripts) - 1, -1, -1):
+        if pq_scripts[index] != marker:
+            continue
+        for script_index in range(index + 1, len(pq_scripts)):
+            item = pq_scripts[script_index]
+            if item.startswith('// Query: '):
+                break
+            if re.search(r'(?m)^\s*let\b', item):
+                pq_scripts[script_index] = expression
+                return True
+    return False
+
+
+def _query_script(pq_scripts: List[str], query_name: str) -> Optional[str]:
+    marker = f'// Query: {query_name}'
+    for index in range(len(pq_scripts) - 1, -1, -1):
+        if pq_scripts[index] != marker:
+            continue
+        for item in pq_scripts[index + 1:]:
+            if item.startswith('// Query: '):
+                break
+            if re.search(r'(?m)^\s*let\b', item):
+                return item
+    return None
+
+
+def _load_field_name(field: str) -> str:
+    parts = re.split(r'\s+as\s+', field, maxsplit=1, flags=re.IGNORECASE)
+    return _clean_qlik_name(parts[-1].strip())
+
+
+def _m_field_ref(name: str) -> str:
+    """Return a quoted M row-field reference for a Qlik field name."""
+    escaped = _clean_qlik_name(name).replace('"', '""')
+    return f'[#"{escaped}"]'
 
 
 class QlikScriptToPowerQueryConverter:
@@ -314,15 +460,14 @@ class QlikScriptToPowerQueryConverter:
         Returns:
             (expression, alias) ou (field_name, None)
         """
-        # Vérifier si c'est un alias (field as alias)
-        if ' as ' in field.lower():
-            parts = re.split(r'\s+as\s+', field, maxsplit=1, flags=re.IGNORECASE)
+        # Qlik scripts frequently align AS aliases with tabs or newlines.
+        parts = re.split(r'\s+as\s+', field, maxsplit=1, flags=re.IGNORECASE)
+        if len(parts) == 2:
             expr = parts[0].strip()
-            alias = parts[1].strip()
+            alias = _clean_qlik_name(parts[1].strip())
             return (expr, alias)
-        else:
-            # Juste un nom de champ
-            return (field.strip(), None)
+        # Juste un nom de champ
+        return (field.strip(), None)
 
     @staticmethod
     def convert_load_to_powerquery(load_stmt: QlikLoadStatement) -> str:
@@ -378,9 +523,20 @@ class QlikScriptToPowerQueryConverter:
             
             for field in load_stmt.fields:
                 expr, alias = QlikScriptToPowerQueryConverter._parse_field_expression(field)
-                
+                quoted_field = (
+                    len(expr) >= 2
+                    and (
+                        (expr[0] == '[' and expr[-1] == ']')
+                        or (expr[0] == expr[-1] and expr[0] in ('"', "'"))
+                    )
+                )
+
                 # Si c'est une expression (contient des fonctions ou opérateurs)
-                if re.search(r'[()\+\-\*/]|\bif\b|\bupper\b|\blower\b', expr, re.IGNORECASE):
+                if not quoted_field and re.search(
+                    r'[()\+\-\*/]|\bif\b|\bupper\b|\blower\b',
+                    expr,
+                    re.IGNORECASE,
+                ):
                     # Colonne calculée
                     pq_expr = QlikScriptToPowerQueryConverter.convert_qlik_function(expr)
                     col_name = alias if alias else expr
@@ -388,9 +544,9 @@ class QlikScriptToPowerQueryConverter:
                 else:
                     # Colonne simple (peut avoir un alias)
                     if alias:
-                        calculated_columns.append((alias, f'[{expr}]'))
+                        calculated_columns.append((alias, _m_field_ref(expr)))
                     else:
-                        simple_columns.append(expr)
+                        simple_columns.append(_clean_qlik_name(expr))
             
             # Ajouter les colonnes calculées
             if calculated_columns:
@@ -734,13 +890,13 @@ class QlikScriptToPowerQueryConverter:
 
         # ── Handle CONCATENATE(Table) LOAD → Table.Combine ───
         concat_pattern = re.compile(
-            r'CONCATENATE\s*\(\s*(\w+)\s*\)\s*\n?\s*LOAD',
+            r'^\s*CONCATENATE\s*\(\s*(\w+)\s*\)\s*\n?\s*LOAD',
             re.IGNORECASE
         )
 
         # ── Handle JOIN directives ────────────────────────────
         join_pattern = re.compile(
-            r'(LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\(\s*(\w+)\s*\)\s*\n?\s*LOAD',
+            r'^\s*(LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\(\s*(\w+)\s*\)\s*\n?\s*LOAD',
             re.IGNORECASE,
         )
         
@@ -749,7 +905,9 @@ class QlikScriptToPowerQueryConverter:
         # Pattern: split before ``TableName:\nLOAD`` or before a bare ``LOAD``
         # that is NOT preceded by a label on the previous line.
         load_statements = re.split(
-            r'\n(?=\w+:\s*\n\s*(?:CONCATENATE\s*\([^)]*\)\s*)?(?:(?:LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\([^)]*\)\s*)?LOAD\b)',
+            rf'\n(?=\s*{_QLIK_LABEL_PATTERN}:\s*\n\s*'
+            r'(?:CONCATENATE\s*\([^)]*\)\s*)?'
+            r'(?:(?:LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\([^)]*\)\s*)?LOAD\b)',
             processed, flags=re.IGNORECASE,
         )
         # Secondary split: within each fragment, split on bare LOAD lines
@@ -760,7 +918,7 @@ class QlikScriptToPowerQueryConverter:
         for fragment in load_statements:
             # Split before LOAD or before JOIN/CONCATENATE directives
             sub = re.split(
-                r'\n(?=(?:(?:LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\([^)]*\)\s*\n?\s*LOAD\b'
+                r'\n(?=\s*(?:(?:LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\([^)]*\)\s*\n?\s*LOAD\b'
                 r'|CONCATENATE\s*\([^)]*\)\s*\n?\s*LOAD\b'
                 r'|LOAD\b))',
                 fragment, flags=re.IGNORECASE,
@@ -781,7 +939,25 @@ class QlikScriptToPowerQueryConverter:
                     else:
                         expanded.append(part)
                         i += 1
-        load_statements = expanded
+        load_statements = []
+        i = 0
+        directive_only = re.compile(
+            r'^\s*(?:(?:LEFT|INNER|RIGHT|OUTER)\s+JOIN|CONCATENATE)\s*\([^)]*\)\s*$',
+            re.IGNORECASE,
+        )
+        while i < len(expanded):
+            part = expanded[i]
+            if directive_only.match(part) and i + 1 < len(expanded):
+                load_statements.append(part + '\n' + expanded[i + 1])
+                i += 2
+            else:
+                load_statements.append(part)
+                i += 1
+        used_query_names = {
+            item.removeprefix('// Query: ').strip()
+            for item in pq_scripts
+            if item.startswith('// Query: ')
+        }
         
         for i, load_stmt_str in enumerate(load_statements):
             if not load_stmt_str.strip():
@@ -829,27 +1005,30 @@ class QlikScriptToPowerQueryConverter:
                 # Detect stacked/preceding LOAD (two LOADs separated by ;)
                 stacked = _detect_stacked_load(load_stmt_str)
 
-                # Extract table name prefix (supports label on same line or preceding line)
-                stripped_stmt = load_stmt_str.strip()
-                table_name_match = re.match(
-                    r'^(\w+):\s*(?:\n\s*)?(?:CONCATENATE\s*\([^)]*\)\s*)?(?:(?:LEFT|INNER|RIGHT|OUTER)\s+JOIN\s*\([^)]*\)\s*)?LOAD',
-                    stripped_stmt, re.IGNORECASE,
-                )
-                table_label = table_name_match.group(1) if table_name_match else f'Table{i+1}'
-
                 # Parser l'instruction
                 load_stmt = QlikScriptToPowerQueryConverter.parse_qlik_load(load_stmt_str)
+                explicit_label = _extract_table_label(load_stmt_str)
+                table_label = explicit_label or _unique_query_name(
+                    _derive_query_name(load_stmt), used_query_names
+                )
                 load_stmt.table_name = table_label
 
                 # Convertir en Power Query
                 pq_script = QlikScriptToPowerQueryConverter.convert_load_to_powerquery(load_stmt)
 
                 if is_concat and concat_target:
-                    pq_scripts.append(f'// CONCATENATE({concat_target}) → Table.Combine')
-                    pq_scripts.append(f'// Query: {table_label}')
-                    # Wrap in Table.Combine with target
-                    pq_scripts.append(pq_script)
-                    pq_scripts.append(f'// To combine: Table.Combine({{{concat_target}, {table_label}}})')
+                    target_script = _query_script(pq_scripts, concat_target)
+                    if target_script and _replace_query_script(
+                        pq_scripts,
+                        concat_target,
+                        _compose_concatenate_query(target_script, pq_script),
+                    ):
+                        pq_scripts.append(f'// CONCATENATE({concat_target}) folded into target query')
+                    else:
+                        logger.warning("CONCATENATE target '%s' was not found", concat_target)
+                        pq_scripts.append(f'// Query: {table_label}')
+                        pq_scripts.append(pq_script)
+                        used_query_names.add(table_label)
                 elif is_join and join_target:
                     # Map Qlik join type to Power Query JoinKind
                     jk_map = {
@@ -860,23 +1039,33 @@ class QlikScriptToPowerQueryConverter:
                     }
                     jk = jk_map.get(join_type, 'JoinKind.LeftOuter')
                     # Infer join key from first field
-                    join_key = load_stmt.fields[0] if load_stmt.fields and load_stmt.fields[0] != '*' else 'Key'
-                    pq_scripts.append(f'// {join_type} JOIN({join_target}) → Table.NestedJoin')
-                    pq_scripts.append(f'// Query: {table_label}')
-                    pq_scripts.append(pq_script)
-                    pq_scripts.append(
-                        f'// Join: Table.NestedJoin({join_target}, '
-                        f'{{"{join_key}"}}, {table_label}, '
-                        f'{{"{join_key}"}}, "{table_label}_Expanded", {jk})'
+                    join_key = (
+                        _load_field_name(load_stmt.fields[0])
+                        if load_stmt.fields and load_stmt.fields[0] != '*'
+                        else 'Key'
                     )
+                    target_script = _query_script(pq_scripts, join_target)
+                    if target_script and _replace_query_script(
+                        pq_scripts,
+                        join_target,
+                        _compose_join_query(target_script, pq_script, join_key, jk),
+                    ):
+                        pq_scripts.append(f'// {join_type} JOIN({join_target}) folded into target query')
+                    else:
+                        logger.warning("JOIN target '%s' was not found", join_target)
+                        pq_scripts.append(f'// Query: {table_label}')
+                        pq_scripts.append(pq_script)
+                        used_query_names.add(table_label)
                 elif stacked:
                     pq_scripts.append(f'// Stacked/Preceding LOAD')
                     pq_scripts.append(f'// Query: {table_label}')
                     pq_scripts.append(pq_script)
+                    used_query_names.add(table_label)
                     pq_scripts.append(f'// Note: Stacked LOAD transforms applied sequentially in M steps')
                 else:
                     pq_scripts.append(f'// Query: {table_label}')
                     pq_scripts.append(pq_script)
+                    used_query_names.add(table_label)
 
                 pq_scripts.append('')
                 

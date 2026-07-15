@@ -22,6 +22,8 @@ Intermediate JSON contract:
 import json
 import logging
 import os
+import re
+import tempfile
 import zipfile
 import zlib
 from datetime import datetime
@@ -316,6 +318,11 @@ class ExtractionOrchestrator:
 
         # Merge master items with those inferred from visualizations
         # (master items take precedence — they carry real expressions/labels).
+        self._resolve_binary_visual_library_items(
+            qvf_data["visualizations"],
+            master_dimensions,
+            master_measures,
+        )
         inferred_dims = self._collect_binary_dimensions(qvf_data["visualizations"])
         inferred_meas = self._collect_binary_measures(qvf_data["visualizations"])
         qvf_data["dimensions"] = self._merge_binary_items(master_dimensions, inferred_dims, key="field")
@@ -379,6 +386,48 @@ class ExtractionOrchestrator:
             seen.add(k)
             merged.append(item)
         return merged
+
+    @staticmethod
+    def _resolve_binary_visual_library_items(
+        visualizations: List[Dict[str, Any]],
+        master_dimensions: List[Dict[str, Any]],
+        master_measures: List[Dict[str, Any]],
+    ) -> None:
+        """Hydrate empty hypercube slots that reference Qlik library items."""
+        dimensions_by_id = {
+            item.get("id"): item for item in master_dimensions if item.get("id")
+        }
+        measures_by_id = {
+            item.get("id"): item for item in master_measures if item.get("id")
+        }
+
+        for visual in visualizations:
+            for dimension in visual.get("dimensions", []):
+                master = dimensions_by_id.get(dimension.get("libraryId"))
+                if master and not dimension.get("field"):
+                    field = master.get("field", "")
+                    if isinstance(field, str) and field.lstrip().startswith("="):
+                        expression = field.lstrip()[1:].strip()
+                        field = (
+                            expression
+                            if re.fullmatch(r"(?:\[[^\]]+\]|[^\W\d]\w*)", expression)
+                            else master.get("name") or master.get("label", "")
+                        )
+                        field = field.strip("[]")
+                    dimension.update({
+                        "field": field,
+                        "name": field,
+                        "label": master.get("label") or master.get("name", ""),
+                    })
+
+            for measure in visual.get("measures", []):
+                master = measures_by_id.get(measure.get("libraryId"))
+                if master and not measure.get("expression"):
+                    measure.update({
+                        "name": master.get("name", ""),
+                        "label": master.get("label") or master.get("name", ""),
+                        "expression": master.get("expression", ""),
+                    })
 
     @staticmethod
     def _collect_embedded_json_payloads(raw_bytes: bytes) -> List[Any]:
@@ -457,7 +506,7 @@ class ExtractionOrchestrator:
             child_prop = child.get("qProperty", {})
             child_id = child_prop.get("qInfo", {}).get("qId")
             if child_id:
-                child_map[child_id] = child_prop
+                child_map[child_id] = child
 
         sheet_id = qprop.get("qInfo", {}).get("qId", "")
         sheet = {
@@ -476,8 +525,11 @@ class ExtractionOrchestrator:
 
         for idx, cell in enumerate(qprop.get("cells", [])):
             vis_id = cell.get("name", cell.get("id", f"{sheet_id}_vis_{idx}"))
-            child_prop = child_map.get(vis_id, {})
+            child_node = child_map.get(vis_id, {})
+            child_prop = child_node.get("qProperty", {})
             dimensions = self._extract_binary_hypercube_dimensions(child_prop)
+            if not dimensions:
+                dimensions = self._extract_binary_list_dimensions(child_node)
             measures = self._extract_binary_hypercube_measures(child_prop)
             title = (
                 child_prop.get("title")
@@ -526,8 +578,33 @@ class ExtractionOrchestrator:
                 "field": field,
                 "name": field,
                 "label": label,
+                "libraryId": dim.get("qLibraryId", ""),
             })
         return dims
+
+    @staticmethod
+    def _extract_binary_list_dimensions(child_node: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Collect listbox fields nested under a filterpane object."""
+        dimensions = []
+        for nested in child_node.get("qChildren", []):
+            prop = nested.get("qProperty", {})
+            qdef = prop.get("qListObjectDef", {}).get("qDef", {})
+            fields = qdef.get("qFieldDefs", []) or []
+            labels = qdef.get("qFieldLabels", []) or []
+            for index, field in enumerate(fields):
+                if not field:
+                    continue
+                label = labels[index] if index < len(labels) else field
+                dimensions.append({
+                    "field": field,
+                    "name": field,
+                    "label": label,
+                    "libraryId": "",
+                })
+            dimensions.extend(
+                ExtractionOrchestrator._extract_binary_list_dimensions(nested)
+            )
+        return dimensions
 
     @staticmethod
     def _extract_binary_hypercube_measures(child_prop: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -541,6 +618,7 @@ class ExtractionOrchestrator:
                 "name": label,
                 "label": label,
                 "expression": expression,
+                "libraryId": measure.get("qLibraryId", ""),
             })
         return measures
 
@@ -1442,7 +1520,8 @@ class ExtractionOrchestrator:
                 _push(extra_path / Path(target).name)
 
         # Qlik lib:// references cannot be resolved directly without connection
-        # metadata; use basename probing in the same tree as the current app.
+        # metadata. Probe the UUID/name first, then sibling QVF applications so
+        # Binary-backed presentation apps work with a single migration command.
         if target.lower().startswith("lib://"):
             probe_name = Path(target.replace("\\", "/")).name
             if probe_name:
@@ -1454,7 +1533,15 @@ class ExtractionOrchestrator:
                     if extra_path.is_dir():
                         for found in extra_path.rglob(probe_name):
                             _push(found)
+                        for found in extra_path.rglob(f"{probe_name}.qvf"):
+                            _push(found)
+                        for found in sorted(extra_path.glob("*.qvf")):
+                            _push(found)
                 for found in source_dir.rglob(probe_name):
+                    _push(found)
+                for found in source_dir.rglob(f"{probe_name}.qvf"):
+                    _push(found)
+                for found in sorted(source_dir.glob("*.qvf")):
                     _push(found)
             return candidates
 
@@ -1466,6 +1553,60 @@ class ExtractionOrchestrator:
         _push(source_dir / path_target)
         _push(Path.cwd() / path_target)
         return candidates
+
+    @staticmethod
+    def _score_binary_source_data(
+        target_data: Dict[str, Any],
+        source_data: Dict[str, Any],
+    ) -> tuple[int, int]:
+        """Score a Binary source by referenced-field overlap and model size."""
+        import re as _re
+
+        target_payload = {
+            key: target_data.get(key, [])
+            for key in ("dimensions", "measures", "visualizations", "master_items")
+        }
+        target_text = json.dumps(target_payload, ensure_ascii=False, default=str)
+        target_fields = {
+            name.strip().casefold()
+            for name in _re.findall(r"\[([^]]+)\]", target_text)
+            if name.strip()
+        }
+
+        def _collect_explicit_fields(value: Any) -> None:
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    if (
+                        key.casefold() in {"field", "fieldname", "sourcecolumn"}
+                        and isinstance(item, str)
+                        and item.strip()
+                    ):
+                        target_fields.add(item.strip().casefold())
+                    _collect_explicit_fields(item)
+            elif isinstance(value, list):
+                for item in value:
+                    _collect_explicit_fields(item)
+
+        _collect_explicit_fields(target_payload)
+
+        source_fields = set()
+        datasources = source_data.get("datasources", []) or []
+        for datasource in datasources:
+            if not isinstance(datasource, dict):
+                continue
+            for column in datasource.get("columns", []) or []:
+                if isinstance(column, dict):
+                    name = (
+                        column.get("name")
+                        or column.get("field")
+                        or column.get("sourceColumn")
+                    )
+                else:
+                    name = column
+                if name:
+                    source_fields.add(str(name).strip().casefold())
+
+        return len(target_fields & source_fields), len(datasources)
 
     def _hydrate_datasources_from_binary_source(
         self,
@@ -1494,6 +1635,8 @@ class ExtractionOrchestrator:
             return False
 
         source_path = Path(source_file).resolve() if source_file else None
+        preferred_path = Path(binary_source).resolve() if binary_source else None
+        resolved_sources = []
         for candidate in candidates:
             if source_path and candidate == source_path:
                 continue
@@ -1501,9 +1644,10 @@ class ExtractionOrchestrator:
                 continue
 
             try:
-                nested = ExtractionOrchestrator(output_dir=str(self.output_dir))
-                # Avoid infinite loops for cyclic Binary references.
-                nested.extract(str(candidate), resolve_binary=False)
+                with tempfile.TemporaryDirectory(prefix="qlik_binary_") as temp_dir:
+                    nested = ExtractionOrchestrator(output_dir=temp_dir)
+                    # Avoid infinite loops for cyclic Binary references.
+                    nested.extract(str(candidate), resolve_binary=False)
             except Exception as exc:
                 logger.warning("Binary source extraction failed for %s: %s", candidate, exc)
                 continue
@@ -1512,14 +1656,34 @@ class ExtractionOrchestrator:
             if not nested_ds:
                 continue
 
+            overlap, datasource_count = self._score_binary_source_data(
+                self._data,
+                nested._data,
+            )
+            resolved_sources.append((
+                candidate == preferred_path,
+                overlap,
+                datasource_count,
+                candidate,
+                nested_ds,
+                nested._data.get("associations", []),
+            ))
+
+        if resolved_sources:
+            (
+                _, overlap, datasource_count, candidate, nested_ds,
+                nested_associations,
+            ) = max(resolved_sources, key=lambda item: item[:3])
             self._data["datasources"] = nested_ds
-            if not self._data.get("associations") and nested._data.get("associations"):
-                self._data["associations"] = nested._data.get("associations", [])
+            if not self._data.get("associations") and nested_associations:
+                self._data["associations"] = nested_associations
 
             logger.warning(
-                "Binary load source resolved (%s): imported %d datasources",
+                "Binary load source resolved automatically (%s): imported %d "
+                "datasources with %d referenced-field matches",
                 candidate,
-                len(nested_ds),
+                datasource_count,
+                overlap,
             )
             return True
 

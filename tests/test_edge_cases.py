@@ -115,6 +115,20 @@ class TestDAXSetAnalysisEdge:
         result = _convert_set_analysis(expr)
         assert isinstance(result, str)
 
+    def test_field_apostrophe_does_not_add_parenthesis(self):
+        expression = (
+            "Count({<[%Calendar_Prec] = {'non'}, "
+            "[FLAG - Date d'analyse approfondie des causes] = {'1'}>} HFEIF_ID_FEI)"
+        )
+
+        result = convert_qlik_expression_to_dax(expression, "Table36")
+
+        assert result == (
+            "CALCULATE(COUNT('Table36'[HFEIF_ID_FEI]), "
+            "'Table36'[%Calendar_Prec] = \"non\", "
+            "'Table36'[FLAG - Date d'analyse approfondie des causes] = 1)"
+        )
+
 
 class TestDAXAggrEdgeCases:
     def test_aggr_with_multiple_dims(self):

@@ -6,56 +6,25 @@
 
 This page documents the current command-line interface of `migrate.py`.
 
-## Quick Usage
+## Migration Command
 
 ```bash
-python migrate.py <qlik_file> [options]
+python migrate.py <source>
 ```
 
-## Compact Usage (Recommended)
+`<source>` can be a `.qvf`, a Qlik JSON export, a supported `.qvw`, or a
+folder containing applications. A folder automatically starts batch migration.
+
+Use `--out` only to override the generated project location:
 
 ```bash
-# Single-file migration
-python migrate.py --source sales.qvf
-
-# Folder migration
-python migrate.py --source exports/
-
-# Migration + deploy
-python migrate.py --source sales.qvf --workspace <workspace_id>
-
-# Preset aliases
-python migrate.py --source sales.qvf --preset balanced
-python migrate.py --source sales.qvf --preset max
-
+python migrate.py sales.qvf --out artifacts/powerbi_projects
 ```
 
-## Recommended 6 Command Patterns
-
-```bash
-# 1) Single file migration
-python migrate.py --source app.qvf
-
-# 2) Batch migration
-python migrate.py --source ./exports
-
-# 3) Compare report
-python migrate.py --source app.qvf --compare
-
-# 4) QA pipeline
-python migrate.py --source app.qvf --qa
-
-# 5) Migration + deploy
-python migrate.py --source app.qvf --workspace <workspace_id>
-
-# 6) Shared semantic model merge
-python migrate.py --shared-model app1.qvf app2.qvf --model-name SharedModel
-```
-
-`<qlik_file>` can be:
-- `.qvf`
-- `.json` export
-- `.qvw` (with converted sibling `.json`/`.qvf`)
+The standard command automatically enables TMDL/schema validation,
+post-migration checks, Desktop openability verification, Binary model source
+discovery, and native many-to-many relationship generation. No migration mode
+selection is needed.
 
 ## High-Value Command Patterns
 
@@ -63,14 +32,14 @@ python migrate.py --shared-model app1.qvf app2.qvf --model-name SharedModel
 
 ```bash
 python migrate.py sales.qvf
-python migrate.py sales.qvf --output-dir artifacts/powerbi_projects/migrated
+python migrate.py sales.qvf --out artifacts/powerbi_projects/migrated
 python migrate.py sales.qvf --skip-extraction
 ```
 
 ### Batch migration
 
 ```bash
-python migrate.py --batch exports/
+python migrate.py exports/
 python migrate.py --batch exports/ --workers 4 --resume
 python migrate.py --batch exports/ --batch-recursive --workers 4
 ```
@@ -156,9 +125,7 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 - `--source`
 - `--src`
 - `--out`
-- `--preset` (`fast`, `balanced`, `max`)
 - `--workspace`
-- `--help-presets`
 - `--skip-extraction`
 - `--wizard`
 - `--output-dir`
@@ -214,7 +181,7 @@ python migrate.py sales.qvf --full-lineage --pdf-report --pptx-report --package 
 - `--check-drift`
 - `--sla-config`
 - `--validate-data`
-- `--bridge-tables` (`auto`, `none`)
+- `--bridge-tables` (`none` by default, `auto` for explicit junction tables)
 - `--preflight`
 - `--force`
 - `--connection-map`

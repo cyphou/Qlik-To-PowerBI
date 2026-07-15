@@ -11,23 +11,18 @@
 ## In 30 Seconds
 
 ```bash
-# 1. Migrate your QVF or JSON export
+# Migrate one QVF or JSON export
 python migrate.py "YourApp.qvf"
 
-# or use compact argument aliases
-python migrate.py --source "YourApp.qvf" --preset balanced
-
-# 2. Open the generated .pbip project in Power BI Desktop
+# Open the generated .pbip project in Power BI Desktop
 #    File → Open → Browse → select the .pbip file
-
-# ✅ Migration complete!
 ```
 
 **Total time: ~5 minutes**
 
 ---
 
-## Full Command
+## The Command
 
 ### Windows PowerShell
 
@@ -37,22 +32,21 @@ cd "C:\path\to\QlikToPowerBI"
 # From a QVF file
 python migrate.py "C:\Data\Sales.qvf"
 
-# Source alias
-python migrate.py --source "C:\Data\Sales.qvf"
-
 # From a JSON export
 python migrate.py "C:\Data\Sales_export.json"
 
-# Custom output directory
-python migrate.py "C:\Data\Sales.qvf" --output-dir "C:\Output\Sales"
+# Migrate every supported file in a folder
+python migrate.py "C:\Data\QlikApps"
 
-# Alias form for output directory
-python migrate.py --source "C:\Data\Sales.qvf" --out "C:\Output\Sales"
-
-# JSON output for CI/CD pipelines
-python migrate.py "C:\Data\Sales.qvf" --json
+# Optional output directory
+python migrate.py "C:\Data\Sales.qvf" --out "C:\Output\Sales"
 
 ```
+
+The command automatically detects file or batch input, resolves neighboring
+Binary model applications, preserves native many-to-many relationships,
+validates the generated project, and repairs blocking Power BI Desktop syntax
+issues.
 
 ### Output Structure
 

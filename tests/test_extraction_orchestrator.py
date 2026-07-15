@@ -11,6 +11,8 @@ import json
 import os
 import tempfile
 import zlib
+from pathlib import Path
+
 import pytest
 from qlik_export.extraction_orchestrator import ExtractionOrchestrator
 
@@ -334,6 +336,133 @@ class TestBinaryLoadResolutionHelpers:
 
             assert candidates
             assert any(str(c).endswith("source_model.qvf") for c in candidates)
+
+    def test_lib_binary_discovers_sibling_qvf_candidates(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source_file = os.path.join(tmpdir, "presentation.qvf")
+            model_file = os.path.join(tmpdir, "data_model.qvf")
+            for path in (source_file, model_file):
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write("{}")
+
+            candidates = ExtractionOrchestrator._resolve_binary_source_candidates(
+                binary_target="lib://APPS_SENSE/model-uuid",
+                source_file=source_file,
+            )
+
+            assert Path(model_file).resolve() in candidates
+
+    def test_binary_source_score_prefers_referenced_fields(self):
+        target = {
+            "measures": [{"expression": "Sum([Sales])"}],
+            "dimensions": [{"field": "Region"}],
+        }
+        matching = {
+            "datasources": [{
+                "tableName": "Facts",
+                "columns": [{"name": "Sales"}, {"name": "Region"}],
+            }],
+        }
+        unrelated = {
+            "datasources": [{
+                "tableName": "Other",
+                "columns": [{"name": "Unrelated"}],
+            }],
+        }
+
+        matching_score = ExtractionOrchestrator._score_binary_source_data(
+            target,
+            matching,
+        )
+        unrelated_score = ExtractionOrchestrator._score_binary_source_data(
+            target,
+            unrelated,
+        )
+
+        assert matching_score > unrelated_score
+
+
+class TestBinaryVisualBindings:
+    def test_filterpane_uses_nested_listbox_field(self):
+        payload = {
+            "qRoot": {
+                "qProperty": {
+                    "qInfo": {"qId": "sheet-1", "qType": "sheet"},
+                    "qMetaDef": {"title": "Overview"},
+                    "cells": [{"name": "filter-1", "type": "filterpane"}],
+                },
+                "qChildren": [{
+                    "qProperty": {
+                        "qInfo": {"qId": "filter-1", "qType": "filterpane"},
+                    },
+                    "qChildren": [{
+                        "qProperty": {
+                            "qInfo": {"qId": "list-1", "qType": "listbox"},
+                            "qListObjectDef": {
+                                "qDef": {
+                                    "qFieldDefs": ["Month"],
+                                    "qFieldLabels": ["Month"],
+                                },
+                            },
+                        },
+                    }],
+                }],
+            },
+        }
+
+        _, visuals = ExtractionOrchestrator()._normalize_binary_sheet(payload)
+
+        assert visuals[0]["dimensions"] == [{
+            "field": "Month",
+            "name": "Month",
+            "label": "Month",
+            "libraryId": "",
+        }]
+
+    def test_library_ids_hydrate_visual_dimension_and_measure(self):
+        visuals = [{
+            "dimensions": [{
+                "field": "", "name": "", "label": "", "libraryId": "dim-1",
+            }],
+            "measures": [{
+                "name": "Measure 1", "label": "Measure 1",
+                "expression": "", "libraryId": "measure-1",
+            }],
+        }]
+        dimensions = [{
+            "id": "dim-1", "field": "Category", "name": "Category",
+            "label": "Category",
+        }]
+        measures = [{
+            "id": "measure-1", "name": "Total", "label": "Total",
+            "expression": "Sum(Amount)",
+        }]
+
+        ExtractionOrchestrator._resolve_binary_visual_library_items(
+            visuals, dimensions, measures,
+        )
+
+        assert visuals[0]["dimensions"][0]["field"] == "Category"
+        assert visuals[0]["measures"][0]["name"] == "Total"
+        assert visuals[0]["measures"][0]["expression"] == "Sum(Amount)"
+
+    def test_calculated_library_dimension_uses_generated_column_name(self):
+        visuals = [{
+            "dimensions": [{
+                "field": "", "name": "", "label": "", "libraryId": "dim-1",
+            }],
+            "measures": [],
+        }]
+        dimensions = [{
+            "id": "dim-1", "field": "=If([Score] > 0, 'Yes', 'No')",
+            "name": "Score category", "label": "Score category",
+        }]
+
+        ExtractionOrchestrator._resolve_binary_visual_library_items(
+            visuals, dimensions, [],
+        )
+
+        assert visuals[0]["dimensions"][0]["field"] == "Score category"
 
 
 # ═══════════════════════════════════════════════════════════════

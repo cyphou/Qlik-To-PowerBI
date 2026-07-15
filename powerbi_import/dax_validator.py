@@ -24,7 +24,7 @@ _QLIK_FUNC_LEAK = re.compile(
     r'|SUBSTRINGCOUNT|CAPITALIZE|EVALUATE'
     r'|OSUSER|GETREGISTRYSTRING|GETFOLDERNAME'
     r'|DOCUMENTNAME|DOCUMENTPATH|DOCUMENTTITLE'
-    r'|RELOADTIME|GETACTIVESHEET|GETOBJECTFIELD)\b',
+    r'|RELOADTIME|GETACTIVESHEET|GETOBJECTFIELD)\b\s*\(',
     re.IGNORECASE,
 )
 
@@ -56,10 +56,19 @@ def _check_quotes(expr: str) -> List[str]:
     issues = []
     in_double = False
     in_single = False
+    bracket_depth = 0
     i = 0
     n = len(expr)
     while i < n:
         ch = expr[i]
+        if ch == '[' and not in_double and not in_single:
+            bracket_depth += 1
+            i += 1
+            continue
+        if ch == ']' and bracket_depth and not in_double and not in_single:
+            bracket_depth -= 1
+            i += 1
+            continue
         if ch == '"' and not in_single:
             if in_double and i + 1 < n and expr[i + 1] == '"':
                 i += 2
@@ -67,7 +76,7 @@ def _check_quotes(expr: str) -> List[str]:
             in_double = not in_double
             i += 1
             continue
-        if ch == "'" and not in_double:
+        if ch == "'" and not in_double and bracket_depth == 0:
             if in_single and i + 1 < n and expr[i + 1] == "'":
                 i += 2
                 continue

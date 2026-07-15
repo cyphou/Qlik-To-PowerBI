@@ -10,6 +10,7 @@ Checks (blocking = would stop Desktop from opening the report):
     tmdl_present  the semantic model has at least one .tmdl
     power_query   every M partition extracted from TMDL validates (the focus)
     dax           every measure expression validates
+    relationships one-to-one relationships use mandatory bidirectional filtering
     schema        PBIR/visual files carry a $schema (advisory)
 
 Public API:
@@ -207,6 +208,107 @@ def _check_dax(project_dir) -> CheckResult:
     return CheckResult("dax", not issues, "error", issues)
 
 
+def _check_relationships(project_dir) -> CheckResult:
+    """Enforce relationship metadata constraints required by Desktop."""
+    issues = []
+    declared_columns = set()
+    calculated_tables = set()
+    for tmdl in _tmdl_files(project_dir):
+        try:
+            lines = _read(tmdl).splitlines()
+        except OSError:
+            continue
+        table_name = None
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("table "):
+                table_name = _tmdl_declaration_name(stripped, "table")
+            elif table_name and stripped.startswith("column "):
+                column_name = _tmdl_declaration_name(stripped, "column")
+                if column_name:
+                    declared_columns.add((table_name.casefold(), column_name.casefold()))
+            elif table_name and re.match(r"^partition\s+.+\s=\s*calculated$", stripped):
+                calculated_tables.add(table_name.casefold())
+
+    for tmdl in _tmdl_files(project_dir):
+        try:
+            lines = _read(tmdl).splitlines()
+        except OSError:
+            continue
+
+        relationship = None
+        properties = {}
+        for line in lines + ["relationship __end__"]:
+            stripped = line.strip()
+            if stripped.startswith("relationship "):
+                if relationship is not None:
+                    is_one_to_one = (
+                        properties.get("fromCardinality") == "one"
+                        and properties.get("toCardinality") == "one"
+                    )
+                    if is_one_to_one and properties.get("crossFilteringBehavior") != "bothDirections":
+                        issues.append(
+                            f"{os.path.relpath(tmdl, project_dir)} :: relationship "
+                            f"'{relationship}': one-to-one relationships require bothDirections"
+                        )
+                    for endpoint in ("fromColumn", "toColumn"):
+                        reference = _parse_tmdl_column_reference(properties.get(endpoint, ""))
+                        if reference and (
+                            reference[0].casefold(), reference[1].casefold()
+                        ) not in declared_columns:
+                            issues.append(
+                                f"{os.path.relpath(tmdl, project_dir)} :: relationship "
+                                f"'{relationship}': {endpoint} references missing column "
+                                f"'{reference[0]}.{reference[1]}'"
+                            )
+                        elif reference and reference[0].casefold() in calculated_tables:
+                            issues.append(
+                                f"{os.path.relpath(tmdl, project_dir)} :: relationship "
+                                f"'{relationship}': {endpoint} references calculated table "
+                                f"'{reference[0]}'; Desktop requires a stable imported column ID"
+                            )
+                relationship = stripped.removeprefix("relationship ").strip()
+                properties = {}
+                continue
+            if relationship is not None and ":" in stripped:
+                key, value = stripped.split(":", 1)
+                properties[key.strip()] = value.strip()
+
+    return CheckResult("relationships", not issues, "error", issues)
+
+
+def _check_model_names(project_dir) -> CheckResult:
+    """Reject model-wide measure/column identifier collisions."""
+    columns = {}
+    measures = {}
+    for tmdl in _tmdl_files(project_dir):
+        try:
+            lines = _read(tmdl).splitlines()
+        except OSError:
+            continue
+        relpath = os.path.relpath(tmdl, project_dir)
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("column "):
+                name = _tmdl_declaration_name(stripped, "column")
+                if name:
+                    columns.setdefault(name.casefold(), (name, relpath))
+            elif stripped.startswith("measure "):
+                name = _tmdl_declaration_name(stripped, "measure")
+                if name:
+                    measures.setdefault(name.casefold(), (name, relpath))
+
+    issues = []
+    for key in sorted(columns.keys() & measures.keys()):
+        column_name, column_path = columns[key]
+        measure_name, measure_path = measures[key]
+        issues.append(
+            f"measure '{measure_name}' ({measure_path}) conflicts with column "
+            f"'{column_name}' ({column_path})"
+        )
+    return CheckResult("model_names", not issues, "error", issues)
+
+
 def _check_schema(project_dir) -> CheckResult:
     issues = []
     for fp in glob.glob(os.path.join(project_dir, "**", "visual.json"), recursive=True):
@@ -229,6 +331,8 @@ def check_openability(project_dir: str) -> OpenabilityReport:
         _check_tmdl_present(project_dir),
         _check_power_query(project_dir),
         _check_dax(project_dir),
+        _check_relationships(project_dir),
+        _check_model_names(project_dir),
         _check_schema(project_dir),
     ]
     return report
@@ -253,3 +357,24 @@ def _read_json(path):
             return json.load(fh)
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         return None
+
+
+def _tmdl_declaration_name(line: str, kind: str) -> str:
+    rest = line.removeprefix(f"{kind} ").strip()
+    name = rest.split(" = ", 1)[0].strip()
+    if len(name) >= 2 and name.startswith("'") and name.endswith("'"):
+        return name[1:-1].replace("''", "'")
+    return name
+
+
+def _parse_tmdl_column_reference(value: str) -> Tuple[str, str] | None:
+    match = re.match(
+        r"^(?:'((?:[^']|'')+)'|([^.]+))\."
+        r"(?:'((?:[^']|'')+)'|(.+))$",
+        value.strip(),
+    )
+    if not match:
+        return None
+    table_name = (match.group(1) or match.group(2) or "").replace("''", "'")
+    column_name = (match.group(3) or match.group(4) or "").replace("''", "'")
+    return table_name, column_name

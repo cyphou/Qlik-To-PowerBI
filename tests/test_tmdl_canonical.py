@@ -22,6 +22,7 @@ from powerbi_import.tmdl_generator import (
     _validate_bridge_tables,
     _optimize_cross_filter_direction,
     _validate_relationships,
+    _remove_orphan_relationships,
     _resolve_measure_column_collisions,
     _materialize_measure_referenced_columns,
     _downgrade_many_to_many_direction,
@@ -117,6 +118,73 @@ def test_resolve_measure_column_collision_noop_when_no_clash():
     }
     assert _resolve_measure_column_collisions(model) == 0
     assert model["model"]["tables"][0]["measures"][0]["name"] == "Total Sales"
+
+
+def test_materialize_does_not_create_columns_for_measure_references():
+    model = {
+        "model": {
+            "tables": [{
+                "name": "Table36",
+                "columns": [{"name": "HFEIF_ID_FEI"}],
+                "measures": [
+                    {"name": "EIG P", "expression": "COUNT('Table36'[HFEIF_ID_FEI])"},
+                    {"name": "TO P", "expression": "1"},
+                    {"name": "EIG / TO P", "expression": "[EIG P] / [TO P]"},
+                ],
+            }]
+        }
+    }
+
+    assert _materialize_measure_referenced_columns(model) == 0
+    columns = {column["name"] for column in model["model"]["tables"][0]["columns"]}
+    assert "EIG P" not in columns
+    assert "TO P" not in columns
+
+
+def test_collision_resolution_runs_after_qualified_column_materialization():
+    model = {
+        "model": {
+            "tables": [{
+                "name": "Table36",
+                "columns": [],
+                "measures": [
+                    {"name": "Mois", "expression": "1"},
+                    {"name": "Filter", "expression": "MAX('Table36'[Mois])"},
+                ],
+            }]
+        }
+    }
+
+    assert _materialize_measure_referenced_columns(model) == 1
+    assert _resolve_measure_column_collisions(model) == 1
+    table = model["model"]["tables"][0]
+    assert {column["name"] for column in table["columns"]} == {"Mois"}
+    assert {measure["name"] for measure in table["measures"]} == {"Total Mois", "Filter"}
+    assert model["_measure_renames"] == {"Mois": "Total Mois"}
+
+
+def test_remove_orphan_relationship_before_bridge_generation():
+    model = {
+        "model": {
+            "tables": [
+                {"name": "Table24", "columns": []},
+                {"name": "Table36", "columns": [{"name": "Catégorie"}]},
+            ],
+            "relationships": [{
+                "name": "Category",
+                "fromTable": "Table24",
+                "fromColumn": "Catégorie",
+                "toTable": "Table36",
+                "toColumn": "Catégorie",
+                "fromCardinality": "many",
+                "toCardinality": "many",
+            }],
+        }
+    }
+
+    assert _remove_orphan_relationships(model) == 1
+    assert model["model"]["relationships"] == []
+    assert _generate_bridge_tables(model) == 0
 
 
 def _multi_ds():
@@ -1123,8 +1191,9 @@ class TestCrossFilterOptimization:
              'crossFilteringBehavior': 'bothDirections'},
         ])
         changed = _optimize_cross_filter_direction(model)
-        assert changed == 2  # A→B and E→F
+        assert changed == 1  # Only A→B; oneToOne E→F must remain bidirectional
         assert model['model']['relationships'][1]['crossFilteringBehavior'] == 'bothDirections'
+        assert model['model']['relationships'][2]['crossFilteringBehavior'] == 'bothDirections'
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -1294,7 +1363,7 @@ class TestUnifiedEnums:
         rel = {}
         _set_cardinality(rel, 'one', 'one')
         assert rel['_cardinality_enum'] == 'OneToOne'
-        assert rel['crossFilteringBehavior'] == 'oneDirection'
+        assert rel['crossFilteringBehavior'] == 'bothDirections'
 
     def test_set_cardinality_one_to_many(self):
         rel = {}
@@ -1366,6 +1435,17 @@ class TestMaterializeMeasureReferencedColumns:
 # ═══════════════════════════════════════════════════════════════
 
 class TestDowngradeManyToManyDirection:
+    def test_both_directions_one_to_one_stays(self):
+        model = {"model": {"relationships": [{
+            "name": "R0",
+            "crossFilteringBehavior": "bothDirections",
+            "fromCardinality": "one",
+            "toCardinality": "one",
+        }]}}
+        count = _downgrade_many_to_many_direction(model)
+        assert count == 0
+        assert model["model"]["relationships"][0]["crossFilteringBehavior"] == "bothDirections"
+
     def test_both_directions_many_to_many_becomes_one_direction(self):
         """bothDirections + manyToMany → becomes oneDirection."""
         model = {"model": {"relationships": [{

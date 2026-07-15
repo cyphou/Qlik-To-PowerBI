@@ -56,6 +56,7 @@ from qlik_export.m_query_builder import (
     m_transform_filter_nulls,
     m_transform_add_column,
 )
+from powerbi_import.m_validator import validate_m_query
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -90,9 +91,33 @@ _DAX_TO_M_TYPE = {
     'String': 'type text', 'string': 'type text',
     'Double': 'type number', 'double': 'type number',
     'Int64': 'Int64.Type', 'int64': 'Int64.Type',
-    'DateTime': 'type datetime', 'dateTime': 'type datetime',
+    'Date': 'type date', 'date': 'type date',
+    'DateTime': 'type datetime', 'dateTime': 'type datetime', 'datetime': 'type datetime',
     'Decimal': 'type number', 'decimal': 'type number',
 }
+
+
+def _safe_empty_m_query(columns: list) -> str:
+    """Return an empty M table that preserves the model's source schema."""
+    fields = []
+    seen = set()
+    for column in columns:
+        name = str(column.get('name', '') or '')
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        escaped_name = name.replace('"', '""')
+        m_type = _DAX_TO_M_TYPE.get(column.get('datatype', 'string'), 'type text')
+        type_identifier = 'number' if m_type == 'Int64.Type' else m_type.removeprefix('type ')
+        fields.append(f'#"{escaped_name}" = {type_identifier}')
+
+    table_type = f'type table [{", ".join(fields)}]' if fields else 'type table []'
+    return '\n'.join((
+        'let',
+        f'    Source = #table({table_type}, {{}})',
+        'in',
+        '    Source',
+    ))
 
 
 def _inject_date_part_columns(table: dict, columns: list) -> None:
@@ -392,6 +417,13 @@ def _dax_to_m_expression(dax_expr, table_name=''):
         return None
 
     # ── Leaf expression (literals, column refs, operators) ──────────
+    # Guardrail: Qlik-style variable expansions and single-quoted literals
+    # are not valid Power Query M tokens and can make PBIP unloadable.
+    if '$(' in expr:
+        return None
+    if re.search(r"'[^']+'", expr) and not re.search(r"'[^']+'\[", expr):
+        return None
+
     result = expr
     result = result.replace('&&', ' and ').replace('||', ' or ')
     result = re.sub(r'\bTRUE\s*\(\s*\)', 'true', result, flags=re.IGNORECASE)
@@ -888,6 +920,13 @@ def _build_semantic_model(datasources, report_name="Report", extra_objects=None,
     # Phase 10: Infer missing relationships from cross-table DAX references
     _infer_cross_table_relationships(model)
 
+    # Phase 10a: Remove source relationships whose endpoints do not exist in
+    # the final table metadata. Bridge generation must never copy an orphan
+    # endpoint into a calculated bridge table or serialized relationship.
+    n_orphaned = _remove_orphan_relationships(model)
+    if n_orphaned:
+        print(f"  ✓ Removed {n_orphaned} relationship(s) with missing endpoints")
+
     # Phase 10b: Detect cardinality (runs AFTER Phase 10 so inferred rels are included)
     _detect_many_to_many(model, datasources)
 
@@ -932,19 +971,20 @@ def _build_semantic_model(datasources, report_name="Report", extra_objects=None,
                 unique_measures.append(measure)
         table["measures"] = unique_measures
 
-    # Phase 11c: Resolve measure/column name collisions
-    # Power BI forbids a measure and a column sharing a name in the model.
-    n_renamed = _resolve_measure_column_collisions(model)
-    if n_renamed:
-        print(f"  ✓ Renamed {n_renamed} measure(s) to avoid column-name collisions")
-
-    # Phase 11d: Materialize columns referenced by measures but missing from tables.
+    # Phase 11c: Materialize columns referenced by measures but missing from tables.
     # Some Qlik variables reference fields that only exist at reload time (from
     # external QVD files or inline transformations not embedded in the export).
     # Without stub columns the measure shows Missing_References in PBI.
     n_materialized = _materialize_measure_referenced_columns(model)
     if n_materialized:
         print(f"  ✓ Materialized {n_materialized} stub column(s) for measure references")
+
+    # Phase 11d: Resolve measure/column name collisions after materialization.
+    # Power BI forbids a measure and a column sharing a name anywhere in the
+    # final model, including hidden stub columns created by Phase 11c.
+    n_renamed = _resolve_measure_column_collisions(model)
+    if n_renamed:
+        print(f"  ✓ Renamed {n_renamed} measure(s) to avoid column-name collisions")
 
     # Phase 11e: Downgrade manyToMany relationships to oneDirection.
     # bothDirections + manyToMany causes ambiguous filter propagation warnings
@@ -1058,6 +1098,12 @@ def _materialize_measure_referenced_columns(model):
         int: number of columns materialized.
     """
     tables = model.get("model", {}).get("tables", [])
+    measure_names_ci = {
+        measure.get("name", "").casefold()
+        for table in tables
+        for measure in table.get("measures", [])
+        if measure.get("name")
+    }
     total = 0
 
     for table in tables:
@@ -1087,8 +1133,11 @@ def _materialize_measure_referenced_columns(model):
             # Pass 2: Unqualified [Column] refs within the owning table
             for match in unqualified_pattern.finditer(expr):
                 col_ref = match.group(1)
-                # Skip known DAX keywords and existing columns
+                # Unqualified DAX references can target measures anywhere in
+                # the model. Never materialize those as physical columns.
                 if col_ref in col_names:
+                    continue
+                if col_ref.casefold() in measure_names_ci:
                     continue
                 if col_ref.upper() in _DAX_KEYWORDS:
                     continue
@@ -1149,6 +1198,12 @@ def _downgrade_many_to_many_direction(model):
     count = 0
     for rel in relationships:
         if rel.get("crossFilteringBehavior") == "bothDirections":
+            is_one_to_one = (
+                rel.get("fromCardinality") == "one"
+                and rel.get("toCardinality") == "one"
+            ) or rel.get("cardinality") == "oneToOne"
+            if is_one_to_one:
+                continue
             if rel.get("cardinality") is None:
                 logger.debug("Relationship %s has no cardinality at Phase 11e", rel.get("name", "?"))
             if rel.get("cardinality") in ("manyToMany", None):
@@ -1222,7 +1277,16 @@ def _build_table(table, connection, calculations, columns_metadata, dax_context=
 
     # Generate M query: use Prep flow override if available, else generate from connection
     if m_query_override:
-        m_query = m_query_override
+        m_issues = validate_m_query(m_query_override)
+        if m_issues:
+            logger.warning(
+                "Replacing invalid M override for table %s with a schema-preserving empty table: %s",
+                table_name,
+                '; '.join(m_issues),
+            )
+            m_query = _safe_empty_m_query(columns)
+        else:
+            m_query = m_query_override
     else:
         m_query = generate_power_query_m(connection, table)
 
@@ -1850,6 +1914,41 @@ def _detect_many_to_many(model, datasources):
                   f"manyToMany (no unique key detected)")
 
 
+def _remove_orphan_relationships(model):
+    """Remove relationships that reference missing tables or columns."""
+    tables = model.get("model", {}).get("tables", [])
+    columns_by_table = {
+        table.get("name", ""): {
+            column.get("name", "") for column in table.get("columns", [])
+        }
+        for table in tables
+        if table.get("name")
+    }
+    relationships = model.get("model", {}).get("relationships", [])
+    valid = []
+    for relationship in relationships:
+        from_table = relationship.get("fromTable", "")
+        from_column = relationship.get("fromColumn", "")
+        to_table = relationship.get("toTable", "")
+        to_column = relationship.get("toColumn", "")
+        if (
+            from_column in columns_by_table.get(from_table, set())
+            and to_column in columns_by_table.get(to_table, set())
+        ):
+            valid.append(relationship)
+            continue
+        logger.warning(
+            "Dropping relationship %s: missing endpoint %s.%s or %s.%s",
+            relationship.get("name", "?"),
+            from_table,
+            from_column,
+            to_table,
+            to_column,
+        )
+    model["model"]["relationships"] = valid
+    return len(relationships) - len(valid)
+
+
 def _set_cardinality(rel, from_card, to_card):
     """Set cardinality and crossFilteringBehavior on a relationship.
 
@@ -1875,8 +1974,11 @@ def _set_cardinality(rel, from_card, to_card):
     rel['toCardinality'] = to_card
     rel['_cardinality_enum'] = cardinality.value
 
-    # manyToMany requires bothDirections; everything else uses oneDirection
-    if cardinality == RelationshipCardinality.MANY_TO_MANY:
+    # Power BI requires oneToOne relationships to use bothDirections.
+    if cardinality in (
+        RelationshipCardinality.ONE_TO_ONE,
+        RelationshipCardinality.MANY_TO_MANY,
+    ):
         rel['crossFilteringBehavior'] = CrossFilterDirection.BOTH.value.lower() + 'Directions'
     else:
         rel['crossFilteringBehavior'] = CrossFilterDirection.SINGLE.value.lower() + 'Direction'
@@ -2168,12 +2270,12 @@ def _optimize_cross_filter_direction(model):
     """Minimize use of bothDirections cross-filtering.
 
     Power BI best practice: use ``oneDirection`` (single) whenever possible.
-    ``bothDirections`` should only be used for manyToMany relationships or
-    when visual bindings explicitly require reverse filtering.
+    ``bothDirections`` should only be used for oneToOne, manyToMany, or when
+    visual bindings explicitly require reverse filtering.
 
     This function scans all active relationships and downgrades
-    ``bothDirections`` to ``oneDirection`` except for manyToMany
-    relationships, which require bidirectional filtering to work.
+    ``bothDirections`` to ``oneDirection`` except for oneToOne and manyToMany
+    relationships. Power BI requires oneToOne to remain bidirectional.
 
     Returns:
         int: Number of relationships changed from bothDirections to oneDirection.
@@ -2187,8 +2289,9 @@ def _optimize_cross_filter_direction(model):
         to_card = rel.get('toCardinality', 'one')
 
         is_m2m = from_card == 'many' and to_card == 'many'
+        is_one_to_one = from_card == 'one' and to_card == 'one'
 
-        if cfb == 'bothDirections' and not is_m2m:
+        if cfb == 'bothDirections' and not (is_m2m or is_one_to_one):
             rel['crossFilteringBehavior'] = 'oneDirection'
             changed += 1
 
@@ -4467,7 +4570,8 @@ def _write_measure(lines, measure):
 
     desc = measure.get('description', '')
     if desc:
-        lines.append(f"\t\tdescription: {desc}")
+        desc_escaped = str(desc).replace('"', '\\"')
+        lines.append(f'\t\tannotation Description = "{desc_escaped}"')
 
     if measure.get('isHidden', False):
         lines.append("\t\tisHidden")
@@ -4499,7 +4603,8 @@ def _write_column_flags(lines, column):
         lines.append(f"\t\tdataCategory: {data_category}")
     description = column.get('description', '')
     if description:
-        lines.append(f"\t\tdescription: {description}")
+        desc_escaped = str(description).replace('"', '\\"')
+        lines.append(f'\t\tannotation Description = "{desc_escaped}"')
     display_folder = column.get('displayFolder', '')
     if display_folder:
         lines.append(f"\t\tdisplayFolder: {display_folder}")

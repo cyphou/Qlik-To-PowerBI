@@ -610,6 +610,52 @@ class TestDashboardAdaptation:
         result = adapt_qlik_for_generation(empty_qlik_data)
         assert result['dashboards'] == []
 
+    def test_dynamic_title_uses_same_stable_visual_reference(self):
+        dynamic_title = {
+            'qStringExpression': {'qExpr': "='Sales ('&Year&')'"},
+        }
+        data = {
+            'datasources': [], 'dimensions': [], 'measures': [],
+            'visualizations': [{
+                'id': 'chart-1', 'sheetId': 'sheet-1', 'type': 'barchart',
+                'title': dynamic_title,
+                'dimensions': [{'field': 'Region'}],
+                'measures': [{'name': 'Sales'}],
+            }],
+            'sheets': [{'id': 'sheet-1', 'title': 'Overview'}],
+            'variables': [], 'loadscript': {}, 'associations': [],
+            'bookmarks': [], 'master_items': [], 'app_metadata': {},
+        }
+
+        result = adapt_qlik_for_generation(data)
+
+        assert result['worksheets'][0]['name'] == 'chart-1'
+        assert result['dashboards'][0]['objects'][0]['worksheetName'] == 'chart-1'
+
+    def test_malformed_calculated_dimension_gets_shared_stable_name(self):
+        expression = "=if([%Calendar_Prec]='non', date([%Month_Id], 'YYYYMM'))"
+        data = {
+            'dimensions': [{
+                'name': "'",
+                'label': "'",
+                'field': expression,
+                'is_calculated': True,
+            }],
+            'visualizations': [{
+                'id': 'calculated-dimension-chart',
+                'type': 'barchart',
+                'dimensions': [{'field': expression, 'label': "'"}],
+                'measures': [],
+            }],
+        }
+
+        result = adapt_qlik_for_generation(data)
+
+        calculation = result['calculations'][0]
+        dimension = result['worksheets'][0]['dimensions'][0]
+        assert calculation['name'].startswith('Calculated Dimension ')
+        assert dimension['field'] == calculation['caption']
+
 
 # ── Synthetic Key Detection ─────────────────────────────────────────
 
@@ -960,6 +1006,9 @@ class TestIsValidColumnName:
 
     def test_rejects_unbalanced_bracket(self):
         assert not _is_valid_column_name("Cost]")
+
+    def test_rejects_formula_like_label(self):
+        assert not _is_valid_column_name("=if([%Calendar_Prec]='non',date([%Month_Id],'YYYYMM'))")
 
     def test_accepts_normal(self):
         assert _is_valid_column_name("Customer Number")

@@ -1596,96 +1596,21 @@ def _run_migration_manifest(args):
 
 # ── Main entry point ────────────────────────────────────────────────
 
-_PRESET_PROFILES = {
-    'fast': {
-        'ensure_open': True,
-        'ensure_open_strict': False,
-        'rewrite_policy': 'conservative',
-        'autoheal_iterations': 1,
-        'verify_open': False,
-        'autoheal': False,
-        'validate': False,
-        'post_check': False,
-        'qa': False,
-        'compare': False,
-        'gate': None,
-        'output_format': 'pbip',
-    },
-    'balanced': {
-        'ensure_open': True,
-        'ensure_open_strict': False,
-        'rewrite_policy': 'balanced',
-        'autoheal_iterations': 3,
-        'verify_open': True,
-        'autoheal': False,
-        'validate': True,
-        'post_check': True,
-        'qa': False,
-        'compare': False,
-        'gate': None,
-        'output_format': 'pbip',
-    },
-    'max': {
-        'ensure_open': True,
-        'ensure_open_strict': True,
-        'rewrite_policy': 'aggressive',
-        'autoheal_iterations': 5,
-        'verify_open': True,
-        'autoheal': True,
-        'validate': True,
-        'post_check': True,
-        'qa': True,
-        'compare': True,
-        'gate': 'prod',
-        'output_format': 'pbip',
-    },
-}
-
-
-def _print_preset_help() -> None:
-    print("Compact arguments (single migrate.py entrypoint):")
-    print("  --source PATH           -> auto route (file=single migration, folder=batch)")
-    print("  --src FILE              -> alias for positional qlik_file")
-    print("  --out DIR               -> alias for --output-dir")
-    print("  --preset MODE           -> apply profile (fast|balanced|max)")
-    print("  --workspace ID          -> alias for --deploy WORKSPACE_ID")
-    print("")
-    print("Preset behavior:")
-    print("  --preset fast           -> fastest, conservative rewrites, minimal checks")
-    print("  --preset balanced       -> recommended default, safe checks enabled")
-    print("  --preset max            -> strict + aggressive rewrites + full checks")
-    print("")
-    print("Typical usage:")
-    print("  python migrate.py --source app.qvf --preset balanced")
-    print("  python migrate.py --source ./exports --preset max")
-    print("  python migrate.py --source app.qvf --workspace <WORKSPACE_ID>")
-
-
-def _apply_preset_profile(args):
-    mode = str(getattr(args, 'preset', '') or '').strip().lower()
-    if not mode:
-        return args
-    preset = _PRESET_PROFILES.get(mode)
-    if not preset:
-        return args
-    for key, value in preset.items():
-        if hasattr(args, key):
-            setattr(args, key, value)
-    return args
-
 
 def _apply_argument_simplification(args):
-    """Apply simplified argument aliases without changing command model.
-
-    This keeps a single `migrate.py` entrypoint while allowing shorter,
-    more intuitive flags.
-    """
+    """Route the single migration input to file or batch execution."""
     source = getattr(args, 'source', None)
     if source and not getattr(args, 'qlik_file', None) and not getattr(args, 'batch', None):
         if os.path.isdir(source) or str(source).endswith(('/', '\\')):
             args.batch = source
         else:
             args.qlik_file = source
+
+    qlik_file = getattr(args, 'qlik_file', None)
+    if qlik_file and not getattr(args, 'batch', None):
+        if os.path.isdir(qlik_file) or str(qlik_file).endswith(('/', '\\')):
+            args.batch = qlik_file
+            args.qlik_file = None
 
     if getattr(args, 'src', None) and not getattr(args, 'qlik_file', None):
         args.qlik_file = args.src
@@ -1763,24 +1688,10 @@ def main():
     )
 
     parser.add_argument(
-        '--preset',
-        choices=['fast', 'balanced', 'max'],
-        default=None,
-        help='Apply a compact migration profile (fast, balanced, max)'
-    )
-
-    parser.add_argument(
         '--workspace',
         metavar='ID',
         default=None,
         help='Alias for deployment workspace ID (maps to --deploy)'
-    )
-
-    parser.add_argument(
-        '--help-presets',
-        action='store_true',
-        default=False,
-        help='Show compact profile guidance and usage examples'
     )
 
     parser.add_argument(
@@ -1935,15 +1846,15 @@ def main():
     parser.add_argument(
         '--validate',
         action='store_true',
-        default=False,
-        help='Run post-generation TMDL/schema validation on the output .pbip project'
+        default=True,
+        help='Run post-generation TMDL/schema validation (enabled automatically)'
     )
 
     parser.add_argument(
         '--post-check',
         action='store_true',
-        default=False,
-        help='Run comprehensive post-migration checks (file structure, visual completeness, model refs, TMDL integrity)'
+        default=True,
+        help='Run comprehensive post-migration checks (enabled automatically)'
     )
 
     parser.add_argument(
@@ -2093,8 +2004,8 @@ def main():
     parser.add_argument(
         '--verify-open',
         action='store_true',
-        default=False,
-        help='Run Desktop openability preflight (structure, JSON, TMDL, Power Query M, DAX)'
+        default=True,
+        help='Run Desktop openability preflight (enabled automatically)'
     )
 
     parser.add_argument(
@@ -2411,9 +2322,9 @@ def main():
         '--bridge-tables',
         metavar='MODE',
         choices=['auto', 'none'],
-        default='none',
+          default='none',
         help='Bridge table strategy for many-to-many relationships: '
-             'auto (generate junction tables), none (keep native M2M). Default: none'
+                 'none (default, keep native M2M), auto (generate junction tables)'
     )
 
     parser.add_argument(
@@ -2647,10 +2558,6 @@ def main():
 
     args = parser.parse_args()
 
-    if getattr(args, 'help_presets', False):
-        _print_preset_help()
-        return ExitCode.SUCCESS
-
     # Load configuration file if specified (CLI args take precedence)
     if args.config:
         try:
@@ -2688,11 +2595,8 @@ def main():
             return ExitCode.SUCCESS
         args = wizard_to_args(config)
 
-    # Keep a single migrate.py entrypoint with simplified argument aliases.
+    # Route the single migrate.py input to file or folder execution.
     args = _apply_argument_simplification(args)
-
-    # Apply compact preset profile if requested.
-    args = _apply_preset_profile(args)
 
     # Setup structured logging
     json_mode = getattr(args, 'json', False)

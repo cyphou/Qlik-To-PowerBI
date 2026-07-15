@@ -272,6 +272,71 @@ class ArtifactValidator:
         (r'\bSCRIPT_(?:BOOL|INT|REAL|STR)\s*\(', 'SCRIPT_* analytics extension'),
     ]
 
+    @staticmethod
+    def _strip_dax_comments_and_strings(formula):
+        """Return a DAX string with comments and quoted strings removed.
+
+        This prevents validator false positives when legacy/commented snippets
+        include unmatched parentheses or source-language function names.
+        """
+        if not formula:
+            return formula
+
+        out = []
+        i = 0
+        n = len(formula)
+        in_string = False
+        in_line_comment = False
+        in_block_comment = False
+
+        while i < n:
+            ch = formula[i]
+            nxt = formula[i + 1] if i + 1 < n else ''
+
+            if in_line_comment:
+                if ch == '\n':
+                    in_line_comment = False
+                    out.append('\n')
+                i += 1
+                continue
+
+            if in_block_comment:
+                if ch == '*' and nxt == '/':
+                    in_block_comment = False
+                    i += 2
+                else:
+                    i += 1
+                continue
+
+            if in_string:
+                if ch == '"':
+                    if nxt == '"':
+                        i += 2
+                        continue
+                    in_string = False
+                i += 1
+                continue
+
+            if ch == '/' and nxt == '/':
+                in_line_comment = True
+                i += 2
+                continue
+
+            if ch == '/' and nxt == '*':
+                in_block_comment = True
+                i += 2
+                continue
+
+            if ch == '"':
+                in_string = True
+                i += 1
+                continue
+
+            out.append(ch)
+            i += 1
+
+        return ''.join(out)
+
     @classmethod
     def validate_dax_formula(cls, formula, context=''):
         """
@@ -294,10 +359,11 @@ class ArtifactValidator:
             return issues
 
         ctx = f' in {context}' if context else ''
+        formula_clean = cls._strip_dax_comments_and_strings(formula)
 
         # 1. Balanced parentheses
         depth = 0
-        for ch in formula:
+        for ch in formula_clean:
             if ch == '(':
                 depth += 1
             elif ch == ')':
@@ -310,11 +376,11 @@ class ArtifactValidator:
 
         # 2. Source function leakage
         for pattern, description in cls._SOURCE_FUNCTION_LEAK_PATTERNS:
-            if re.search(pattern, formula):
+            if re.search(pattern, formula_clean):
                 issues.append(f'Source function leak: {description}{ctx}')
 
         # 3. Unresolved parameter references [Parameters].[X]
-        if re.search(r'\[Parameters\]\s*\.\s*\[', formula):
+        if re.search(r'\[Parameters\]\s*\.\s*\[', formula_clean):
             issues.append(f'Unresolved parameter reference [Parameters].[...]{ctx}')
 
         return issues
@@ -444,14 +510,28 @@ class ArtifactValidator:
 
     # ── Semantic model validation ──────────────────────────────────
 
-    # Regex to match TMDL table definition:  ``table 'Name'`` or ``table Name``
-    _RE_TABLE_DEF = re.compile(r"^table\s+'?([^']+?)'?\s*$")
-    # Regex to match TMDL column definition:  ``column Name`` or ``column 'Name'``
-    _RE_COL_DEF = re.compile(r"^column\s+'?([^']+?)'?\s*$")
-    # Regex to match TMDL measure definition:  ``measure Name`` or ``measure 'Name'``
-    _RE_MEASURE_DEF = re.compile(r"^measure\s+'?([^']+?)'?\s*$")
+    _TMDL_OBJECT_NAME = r"(?:'(?:''|[^'])*'|[^=]+?)"
+    # Object definitions support quoted names with escaped apostrophes and an
+    # optional inline expression for calculated columns/measures.
+    _RE_TABLE_DEF = re.compile(
+        rf"^table\s+(?P<name>{_TMDL_OBJECT_NAME})\s*$"
+    )
+    _RE_COL_DEF = re.compile(
+        rf"^column\s+(?P<name>{_TMDL_OBJECT_NAME})(?:\s*=\s*.*)?$"
+    )
+    _RE_MEASURE_DEF = re.compile(
+        rf"^measure\s+(?P<name>{_TMDL_OBJECT_NAME})(?:\s*=\s*.*)?$"
+    )
     # Regex to extract DAX column/measure references: 'Table'[Column]
     _RE_DAX_REF = re.compile(r"'([^']+?)'\[([^\]]+)\]")
+
+    @staticmethod
+    def _tmdl_object_name(match):
+        """Return an unescaped object name from a TMDL definition match."""
+        name = match.group('name').strip()
+        if len(name) >= 2 and name.startswith("'") and name.endswith("'"):
+            return name[1:-1].replace("''", "'")
+        return name
 
     @classmethod
     def _collect_model_symbols(cls, sm_dir):
@@ -482,7 +562,7 @@ class ArtifactValidator:
                 stripped = line.strip()
                 tm = cls._RE_TABLE_DEF.match(stripped)
                 if tm:
-                    current_table = tm.group(1)
+                    current_table = cls._tmdl_object_name(tm)
                     tables.add(current_table)
                     columns.setdefault(current_table, set())
                     measures.setdefault(current_table, set())
@@ -490,11 +570,11 @@ class ArtifactValidator:
                 if current_table:
                     cm = cls._RE_COL_DEF.match(stripped)
                     if cm:
-                        columns[current_table].add(cm.group(1))
+                        columns[current_table].add(cls._tmdl_object_name(cm))
                         continue
                     mm = cls._RE_MEASURE_DEF.match(stripped)
                     if mm:
-                        measures[current_table].add(mm.group(1))
+                        measures[current_table].add(cls._tmdl_object_name(mm))
                         continue
 
         sm_path = Path(sm_dir)
@@ -1188,21 +1268,20 @@ class ArtifactValidator:
                 except Exception:
                     continue
 
-                # Balanced single quotes (used in table/column references)
-                in_expr = False
+                # Validate declaration quoting only. Expression bodies may
+                # legitimately contain apostrophes in DAX or Power Query text.
                 for line in content.splitlines():
                     stripped = line.strip()
-                    if stripped.startswith('expression') or stripped.startswith('='):
-                        in_expr = True
-                        continue
-                    if in_expr and stripped and not stripped.startswith('\t'):
-                        in_expr = False
-                    if not in_expr:
-                        single_quotes = stripped.count("'")
-                        if single_quotes % 2 != 0:
+                    declaration_checks = (
+                        ('table ', cls._RE_TABLE_DEF),
+                        ('column ', cls._RE_COL_DEF),
+                        ('measure ', cls._RE_MEASURE_DEF),
+                    )
+                    for prefix, pattern in declaration_checks:
+                        if stripped.startswith(prefix) and not pattern.match(stripped):
                             warnings.append(
-                                f'Unbalanced single quotes in {tmdl_file.name}: '
-                                f'"{stripped[:60]}"'
+                                f'Malformed {prefix.strip()} declaration in '
+                                f'{tmdl_file.name}: "{stripped[:60]}"'
                             )
                             break
 
@@ -1219,10 +1298,10 @@ class ArtifactValidator:
                     stripped = line.strip()
                     cm = cls._RE_COL_DEF.match(stripped)
                     if cm:
-                        col_names.append(cm.group(1))
+                        col_names.append(cls._tmdl_object_name(cm))
                     mm = cls._RE_MEASURE_DEF.match(stripped)
                     if mm:
-                        measure_names.append(mm.group(1))
+                        measure_names.append(cls._tmdl_object_name(mm))
                     elif stripped.startswith('measure '):
                         # Handle inline measures: measure 'Name' = expr
                         m = re.match(r"^measure\s+'([^']+)'", stripped)

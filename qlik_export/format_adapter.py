@@ -23,6 +23,7 @@ app_metadata.json            →  (metadata only)
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from typing import Any, Dict, List, Optional
@@ -156,12 +157,24 @@ def _is_valid_column_name(name: str) -> bool:
     """Reject malformed column names (statement leaks, newlines, empties)."""
     if not name or '\n' in name or '\r' in name:
         return False
+    # Formula-like labels leaked from sparse metadata are not physical columns.
+    if name.lstrip().startswith('='):
+        return False
     if _STATEMENT_TOKENS.match(name):
         return False
     # A name that still contains an unbalanced bracket or ';' is a leak
     if ';' in name or name.count('[') != name.count(']'):
         return False
     return True
+
+
+def _calculated_dimension_name(candidate: Any, formula: str) -> str:
+    """Return a stable semantic name for a calculated Qlik dimension."""
+    name = _normalize_column_name(candidate)
+    if _is_valid_column_name(name) and re.search(r'\w', name):
+        return name
+    digest = hashlib.sha256(formula.encode('utf-8')).hexdigest()[:8]
+    return f'Calculated Dimension {digest}'
 
 
 def adapt_qlik_for_generation(qlik_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -202,7 +215,12 @@ def adapt_qlik_for_generation(qlik_data: Dict[str, Any]) -> Dict[str, Any]:
     # ── Build adapted structures ────────────────────────────
     datasources   = _adapt_datasources(qlik_datasources, qlik_associations, qlik_loadscript)
     calculations  = _adapt_calculations(qlik_measures, qlik_dimensions, qlik_master_items)
-    worksheets    = _adapt_worksheets(qlik_visuals)
+    calculated_dimension_names = {
+        str(calc.get('formula', '')).strip(): calc.get('caption', calc.get('name', ''))
+        for calc in calculations
+        if calc.get('role') == 'dimension' and calc.get('formula')
+    }
+    worksheets    = _adapt_worksheets(qlik_visuals, calculated_dimension_names)
     dashboards    = _adapt_dashboards(qlik_sheets, qlik_visuals)
     parameters    = _adapt_parameters(qlik_variables)
     stories       = _adapt_stories(qlik_bookmarks)
@@ -601,8 +619,12 @@ def _adapt_calculations(
 
     # Dimensions → calculations (only calculated ones with expressions)
     for d in qlik_dimensions:
-        name = d.get('name', d.get('label', ''))
         field = _strip_leading_eq(d.get('field', d.get('definition', '')))
+        name = _calculated_dimension_name(
+            d.get('name') or d.get('label', ''),
+            field,
+        )
+        caption = _calculated_dimension_name(d.get('label') or name, field)
 
         # Only include as a calculation if it has an expression
         # (not just a plain field reference)
@@ -618,7 +640,7 @@ def _adapt_calculations(
             seen_names.add(name)
             calculations.append({
                 'name': name,
-                'caption': d.get('label', name),
+                'caption': caption,
                 'formula': field,
                 'role': 'dimension',
                 'datatype': d.get('dataType', 'string'),
@@ -628,11 +650,21 @@ def _adapt_calculations(
     # Master items (any that weren't already captured)
     for mi in qlik_master_items:
         mi_type = mi.get('type', 'measure')
-        name = mi.get('name', mi.get('label', ''))
-        if not name or name in seen_names:
-            continue
         expr = _strip_leading_eq(mi.get('expression', mi.get('definition', mi.get('field', ''))))
         if not expr:
+            continue
+        raw_name = mi.get('name') or mi.get('label', '')
+        name = (
+            _calculated_dimension_name(raw_name, expr)
+            if mi_type == 'dimension'
+            else raw_name
+        )
+        caption = (
+            _calculated_dimension_name(mi.get('label') or name, expr)
+            if mi_type == 'dimension'
+            else mi.get('label', name)
+        )
+        if not name or name in seen_names:
             continue
         # Skip plain field references (they map to existing physical columns;
         # turning them into measures yields invalid ``measure X = X`` DAX).
@@ -641,7 +673,7 @@ def _adapt_calculations(
         seen_names.add(name)
         calculations.append({
             'name': name,
-            'caption': mi.get('label', name),
+            'caption': caption,
             'formula': expr,
             'role': 'measure' if mi_type == 'measure' else 'dimension',
             'datatype': mi.get('dataType', 'string'),
@@ -735,6 +767,7 @@ def _build_fallback_datasource_from_semantic_hints(
     return [{
         'name': table_name,
         'connection': {'type': 'recovered'},
+        'isRecoveredFallback': True,
         'tables': [{'name': table_name, 'columns': list(columns)}],
         'columns': list(columns),
         'calculations': [],
@@ -800,9 +833,22 @@ def _infer_visual_type_from_shape(dimensions: List[Dict], measures: List[Dict],
     return 'tableEx'
 
 
-def _adapt_worksheets(qlik_visuals: List[Dict]) -> List[Dict]:
+def _visual_reference_name(viz: Dict, index: int) -> str:
+    """Return the stable name shared by worksheet and dashboard records."""
+    for key in ('title', 'name', 'id'):
+        value = viz.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return f'Visual_{index}'
+
+
+def _adapt_worksheets(
+    qlik_visuals: List[Dict],
+    calculated_dimension_names: Optional[Dict[str, str]] = None,
+) -> List[Dict]:
     """Convert Qlik visualizations → Tableau worksheet format."""
     worksheets = []
+    calculated_dimension_names = calculated_dimension_names or {}
 
     def _as_field_str(value) -> str:
         """Coerce a dim/measure field value to a plain string.
@@ -834,9 +880,7 @@ def _adapt_worksheets(qlik_visuals: List[Dict]) -> List[Dict]:
         # can infer a sensible visual for 'auto-chart' and unmapped types.
         _needs_inference = pbi_type is None
 
-        name = viz.get('title', viz.get('name', viz.get('id', f'Visual_{len(worksheets)}')))
-        if not isinstance(name, str):
-            name = _as_field_str(name) or f'Visual_{len(worksheets)}'
+        name = _visual_reference_name(viz, len(worksheets))
 
         # Build dimensions list
         dimensions = []
@@ -847,6 +891,11 @@ def _adapt_worksheets(qlik_visuals: List[Dict]) -> List[Dict]:
             else:
                 dim_field = _as_field_str(dim.get('field', dim.get('name', dim.get('label', ''))))
                 dim_label = _as_field_str(dim.get('label', dim.get('name', dim_field))) or dim_field
+            expression_key = _strip_leading_eq(dim_field).strip()
+            if expression_key in calculated_dimension_names:
+                dim_field = calculated_dimension_names[expression_key]
+                if not _is_valid_column_name(dim_label) or not re.search(r'\w', dim_label):
+                    dim_label = dim_field
             if dim_field:
                 dimensions.append({
                     'field': dim_field,
@@ -1091,7 +1140,7 @@ def _adapt_dashboards(
         if qlik_visuals:
             objects = []
             for i, viz in enumerate(qlik_visuals):
-                name = viz.get('title', viz.get('name', viz.get('id', f'Visual_{i}')))
+                name = _visual_reference_name(viz, i)
                 bounds = viz.get('bounds', {})
                 objects.append({
                     'type': 'worksheetReference',
@@ -1137,7 +1186,7 @@ def _adapt_dashboards(
         # Build dashboard objects (worksheet references)
         objects = []
         for i, viz in enumerate(sheet_visuals):
-            viz_name = viz.get('title', viz.get('name', viz.get('id', f'Visual_{i}')))
+            viz_name = _visual_reference_name(viz, i)
             bounds = viz.get('bounds', {})
 
             # Compute position from bounds or grid

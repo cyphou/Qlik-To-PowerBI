@@ -244,8 +244,20 @@ class TestMainWithMocks:
         """--quiet should not crash."""
         with patch('migrate.run_extraction', return_value=True), \
              patch('migrate.run_generation', return_value=True), \
-             patch('migrate.run_migration_report', return_value=None):
-            test_args = ['migrate.py', fake_qvf, '--quiet']
+             patch('migrate.run_migration_report', return_value={'fidelity_score': 100}), \
+             patch(
+                 'powerbi_import.validator.ArtifactValidator.validate_project',
+                 return_value={
+                     'valid': True, 'errors': [], 'warnings': [], 'files_checked': 0,
+                 },
+             ), \
+             patch(
+                 'powerbi_import.validator.ArtifactValidator.post_check',
+                 return_value={
+                     'valid': True, 'errors': [], 'warnings': [], 'checks': {},
+                 },
+             ):
+            test_args = ['migrate.py', fake_qvf, '--quiet', '--no-ensure-open']
             with patch('sys.argv', test_args):
                 result = main()
             assert result == ExitCode.SUCCESS
@@ -274,7 +286,9 @@ class TestMainWithMocks:
                  'warnings': [],
                  'report_json': None,
              }):
-            test_args = ['migrate.py', fake_qvf, '--gate', 'prod']
+            test_args = [
+                'migrate.py', fake_qvf, '--gate', 'prod', '--no-ensure-open',
+            ]
             with patch('sys.argv', test_args):
                 result = main()
             assert result == ExitCode.GENERAL_ERROR
@@ -284,13 +298,28 @@ class TestMainWithMocks:
         with patch('migrate.run_extraction', return_value=True), \
              patch('migrate.run_generation', return_value=True), \
              patch('migrate.run_migration_report', return_value={'fidelity_score': 70}), \
+             patch(
+                 'powerbi_import.validator.ArtifactValidator.validate_project',
+                 return_value={
+                     'valid': True, 'errors': [], 'warnings': [], 'files_checked': 0,
+                 },
+             ), \
+             patch(
+                 'powerbi_import.validator.ArtifactValidator.post_check',
+                 return_value={
+                     'valid': True, 'errors': [], 'warnings': [], 'checks': {},
+                 },
+             ), \
              patch('migrate._evaluate_quality_gate', return_value={
                  'passed': False,
                  'blocked_reasons': ['Fidelity too low'],
                  'warnings': [],
                  'report_json': None,
              }):
-            test_args = ['migrate.py', fake_qvf, '--gate', 'prod', '--force-deployment']
+            test_args = [
+                'migrate.py', fake_qvf, '--gate', 'prod', '--force-deployment',
+                '--no-ensure-open',
+            ]
             with patch('sys.argv', test_args):
                 result = main()
             assert result == ExitCode.SUCCESS
@@ -306,7 +335,9 @@ class TestMainWithMocks:
                  'warnings': [],
                  'report_json': None,
              }):
-            test_args = ['migrate.py', fake_qvf, '--gate', 'test']
+            test_args = [
+                'migrate.py', fake_qvf, '--gate', 'test', '--no-ensure-open',
+            ]
             with patch('sys.argv', test_args):
                 result = main()
             assert result == ExitCode.GENERAL_ERROR

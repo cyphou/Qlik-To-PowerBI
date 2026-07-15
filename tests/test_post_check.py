@@ -359,6 +359,67 @@ class TestValidateTmdlIntegrity(unittest.TestCase):
             errors, warnings = ArtifactValidator.validate_tmdl_integrity(proj)
             self.assertEqual(errors, [])
 
+    def test_calculated_column_is_collected_as_model_symbol(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = _make_project(
+                tmp, "App",
+                tables=[
+                    ("Sales", [], []),
+                    ("Lookup", ["Category"], []),
+                    ("Bridge", [], []),
+                ],
+                model_refs=["Sales", "Lookup", "Bridge"],
+            )
+            sales = (
+                proj / "App.SemanticModel" / "definition" / "tables" /
+                "Sales.tmdl"
+            )
+            sales.write_text(
+                "table Sales\n"
+                "\tcolumn 'Category' = RELATED('Lookup'[Category])\n"
+                "\t\tdataType: string\n",
+                encoding="utf-8",
+            )
+            bridge = (
+                proj / "App.SemanticModel" / "definition" / "tables" /
+                "Bridge.tmdl"
+            )
+            bridge.write_text(
+                "table Bridge\n"
+                "\tpartition Bridge = calculated\n"
+                "\t\tsource = VALUES('Sales'[Category])\n",
+                encoding="utf-8",
+            )
+
+            warnings = ArtifactValidator.validate_semantic_references(
+                proj / "App.SemanticModel"
+            )
+
+            self.assertFalse(any("Sales" in warning for warning in warnings))
+
+    def test_power_query_apostrophe_is_not_tmdl_quote_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = _make_project(
+                tmp, "App",
+                tables=[("Events", ["Flag"], [])],
+                model_refs=["Events"],
+            )
+            table_file = (
+                proj / "App.SemanticModel" / "definition" / "tables" /
+                "Events.tmdl"
+            )
+            with table_file.open("a", encoding="utf-8") as stream:
+                stream.write(
+                    "\n\tpartition Events = m\n"
+                    "\t\tsource =\n"
+                    "\t\t\tTable.AddColumn(Source, \"\"\"Intervention de "
+                    "l'ARS\"\"\", each 1)\n"
+                )
+
+            _, warnings = ArtifactValidator.validate_tmdl_integrity(proj)
+
+            self.assertFalse(any("single quotes" in warning for warning in warnings))
+
     def test_duplicate_column_detected(self):
         with tempfile.TemporaryDirectory() as tmp:
             proj = _make_project(

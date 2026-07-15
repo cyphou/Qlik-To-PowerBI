@@ -339,26 +339,52 @@ def convert_qlik_expression_to_dax(
 
 
 def _balance_parentheses(expr: str) -> str:
-    """Append missing closing parentheses for mildly malformed source expressions."""
+    """Normalize parenthesis balance in mildly malformed source expressions.
+
+    - Drops unmatched closing ``)`` tokens.
+    - Appends missing closing ``)`` tokens for remaining opens.
+    """
     depth = 0
+    bracket_depth = 0
     in_str = False
     str_char = ''
-    for ch in expr:
+    out = []
+    index = 0
+    while index < len(expr):
+        ch = expr[index]
         if in_str:
+            out.append(ch)
             if ch == str_char:
+                if index + 1 < len(expr) and expr[index + 1] == str_char:
+                    out.append(expr[index + 1])
+                    index += 2
+                    continue
                 in_str = False
-            continue
-        if ch in ('"', "'"):
+        elif ch == '[':
+            bracket_depth += 1
+            out.append(ch)
+        elif ch == ']' and bracket_depth:
+            bracket_depth -= 1
+            out.append(ch)
+        elif ch in ('"', "'") and bracket_depth == 0:
             in_str = True
             str_char = ch
+            out.append(ch)
         elif ch == '(':
             depth += 1
-        elif ch == ')' and depth > 0:
-            depth -= 1
+            out.append(ch)
+        elif ch == ')':
+            if depth > 0:
+                depth -= 1
+                out.append(ch)
+            # Ignore unmatched closing parenthesis
+        else:
+            out.append(ch)
+        index += 1
 
     if depth > 0:
-        return expr + (')' * depth)
-    return expr
+        out.extend(')' * depth)
+    return ''.join(out)
 
 
 def _resolve_evaluate_policy(policy: Optional[str]) -> str:

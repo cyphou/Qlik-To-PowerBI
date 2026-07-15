@@ -186,6 +186,18 @@ class TestConvertLoadToPowerQuery:
         pq = Conv.convert_load_to_powerquery(stmt)
         assert "Excel.Workbook" in pq
 
+    def test_tab_aligned_quoted_field_alias_is_valid_m(self):
+        stmt = Conv.parse_qlik_load(
+            'LOAD "ID Utilisé Pour Lien (Dim Gravité)"\t\t'
+            'as HFEIF_ID_GRAVITE FROM [PQUAL_DIM_GRAVITE.qvd];'
+        )
+
+        pq = Conv.convert_load_to_powerquery(stmt)
+
+        assert 'Table.AddColumn(Source, "HFEIF_ID_GRAVITE", ' in pq
+        assert 'each [#"ID Utilisé Pour Lien (Dim Gravité)"]' in pq
+        assert 'as HFEIF_ID_GRAVITE' not in pq
+
     def test_resident_source(self):
         stmt = QlikLoadStatement(
             fields=["*"],
@@ -286,7 +298,60 @@ class TestConvertFullScript:
         LOAD OrderID, Customer FROM [details.csv];
         """
         pq = Conv.convert_qlik_script_to_powerquery(script)
-        assert "Join" in pq or "NestedJoin" in pq or "let" in pq.lower()
+        assert "Table.NestedJoin" in pq
+        assert pq.count("// Query:") == 1
+        assert "// Query: Orders" in pq
+
+    def test_concatenate_is_folded_into_target_query(self):
+        script = """
+        Sales:
+        LOAD ID, Amount FROM [sales_2025.csv];
+
+        CONCATENATE(Sales)
+        LOAD ID, Amount FROM [sales_2026.csv];
+        """
+        pq = Conv.convert_qlik_script_to_powerquery(script)
+        assert "Table.Combine({ExistingRows, AppendedRows})" in pq
+        assert pq.count("// Query:") == 1
+        assert "// Query: Sales" in pq
+
+    def test_bracketed_table_label_with_spaces(self):
+        script = """
+        [Sales Details]:
+        LOAD ID, Amount FROM [sales.csv];
+        """
+        pq = Conv.convert_qlik_script_to_powerquery(script)
+        assert "// Query: Sales Details" in pq
+        assert "// Query: Table" not in pq
+
+    def test_unlabeled_file_load_uses_source_name(self):
+        pq = Conv.convert_qlik_script_to_powerquery(
+            "LOAD ID, Amount FROM [C:\\Data\\sales_orders.qvd];"
+        )
+        assert "// Query: sales_orders" in pq
+        assert "// Query: Table" not in pq
+
+    def test_unlabeled_resident_load_uses_source_name(self):
+        pq = Conv.convert_qlik_script_to_powerquery(
+            "LOAD ID, Amount RESIDENT Sales;"
+        )
+        assert "// Query: Sales_Projection" in pq
+
+    def test_unlabeled_variable_source_uses_first_field_name(self):
+        pq = Conv.convert_qlik_script_to_powerquery(
+            "LOAD HFEIF_ID_FEI, Amount FROM [$(vSource)];"
+        )
+        assert "// Query: HFEIF_ID_FEI_Projection" in pq
+        assert "// Query: LoadedData" not in pq
+
+    def test_duplicate_derived_names_are_stable(self):
+        script = """
+        LOAD ID FROM [sales.qvd];
+        LOAD ID, Amount FROM [sales.qvd];
+        """
+        pq = Conv.convert_qlik_script_to_powerquery(script)
+        assert "// Query: sales" in pq
+        assert "// Query: sales_2" in pq
 
     def test_qualify(self):
         """QUALIFY is parsed but not applied — should not crash."""

@@ -753,6 +753,19 @@ def _gen_m_sample(ds: Dict) -> str:
     table = ds.get("tableName", ds.get("table", "SampleData"))
     columns = ds.get("columns", [])
 
+    # For synthesized recovery datasources, keep M as minimal and ASCII-safe
+    # as possible to avoid tokenization issues in Desktop parser paths.
+    conn_type = str(ds.get("connection", {}).get("type", "")).lower()
+    if ds.get("isRecoveredFallback") or conn_type == "recovered":
+        return "\n".join([
+            "let",
+            f'    // TODO: Configure data source for table "{table}"',
+            '    Source = #table(type table [__SyntheticKey = Int64.Type], {}),',
+            '    #"Base Type" = Table.TransformColumnTypes(Source, {{"__SyntheticKey", Int64.Type}})',
+            "in",
+            '    #"Base Type"',
+        ])
+
     if columns:
         col_defs = ", ".join([f'{_m_escape(c.get("name", f"Col{i}"))}'
                               for i, c in enumerate(columns)])

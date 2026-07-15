@@ -12,6 +12,8 @@ Checks performed:
   * Quoted-identifier syntax: every ``#"..."`` is properly closed
   * String literal closure: every ``"`` has a matching ``"``
   * No trailing comma directly before ``in`` keyword
+    * No residual Qlik function-call syntax or single-quoted literals
+    * No function-style ``if(...)`` or malformed row-field references
   * No empty M expression
 
 The validator is *string-aware* — bracket/brace counts ignore characters
@@ -219,6 +221,76 @@ def _check_trailing_comma(stripped: str) -> List[str]:
     return []
 
 
+_QLIK_FUNCTION_CALL = re.compile(
+    r'\b(?:AutoNumberHash256|concat|exists|inmonth|inmonthtodate|inyeartodate|match|num|text|week|weekstart|weekyear)\s*\(',
+    re.IGNORECASE,
+)
+
+_M_PRIMITIVE_TYPE_IDENTIFIERS = {
+    'any', 'anynonnull', 'binary', 'date', 'datetime', 'datetimezone',
+    'duration', 'function', 'list', 'logical', 'none', 'null', 'number',
+    'record', 'table', 'text', 'time', 'type',
+}
+
+
+def _check_generated_expression_grammar(m_text: str, stripped: str) -> List[str]:
+    """Reject Qlik constructs that are balanced text but invalid M grammar."""
+    checks = (
+        (re.compile(r"(?:^|[,(=<>+\-*/&])\s*'[^'\r\n]*'", re.MULTILINE),
+         'single-quoted literal; Power Query M strings require double quotes'),
+        (re.compile(r'\bif\s*\(', re.IGNORECASE),
+         'function-style if(...); Power Query M requires if ... then ... else'),
+        (re.compile(r'\beach\s*=\s*null\s*\(', re.IGNORECASE),
+         'invalid IsNull conversion (= null(...))'),
+        (_QLIK_FUNCTION_CALL,
+         'residual Qlik function call'),
+        (re.compile(r'\b(?:AND|OR|NOT)\b'),
+         'uppercase Qlik boolean operator; Power Query M requires lowercase keywords'),
+        (re.compile(r'\beach\s*\*\s*(?:[,\r\n)]|$)', re.IGNORECASE),
+         'bare wildcard expression after each'),
+        (re.compile(r'\[\s*\['),
+         'nested row-field brackets'),
+        (re.compile(r'\[\s*"(?:[^"]|"")*"\s*\]'),
+         'string literal used as a row-field identifier'),
+        (re.compile(r'\bDate\.From\s*\([^()\r\n]*,', re.IGNORECASE),
+         'Date.From called with a Qlik format argument'),
+    )
+
+    issues = []
+    for pattern, message in checks:
+        haystack = m_text if 'single-quoted' in message or 'row-field identifier' in message else stripped
+        match = pattern.search(haystack)
+        if match:
+            line_no = haystack[:match.start()].count('\n') + 1
+            issues.append(f'{message} at line {line_no}')
+
+    for match in re.finditer(
+        r'\bas\s+(?:nullable\s+)?([A-Za-z_][\w.]*)',
+        stripped,
+        re.IGNORECASE,
+    ):
+        type_identifier = match.group(1)
+        if type_identifier.casefold() not in _M_PRIMITIVE_TYPE_IDENTIFIERS:
+            line_no = stripped[:match.start()].count('\n') + 1
+            issues.append(
+                f'invalid M type identifier after "as": {type_identifier} '
+                f'at line {line_no}'
+            )
+
+    structured_type = re.search(
+        r'\btype\s+table\s*\[[^]]*\b(?:Byte|Int8|Int16|Int32|Int64|Single|Double|Decimal|Currency)\.Type',
+        stripped,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if structured_type:
+        line_no = stripped[:structured_type.start()].count('\n') + 1
+        issues.append(
+            'non-primitive type expression inside type table declaration '
+            f'at line {line_no}'
+        )
+    return issues
+
+
 def validate_m_query(m_text: str) -> List[str]:
     """Run all M validation checks.
 
@@ -235,6 +307,7 @@ def validate_m_query(m_text: str) -> List[str]:
     issues.extend(_check_brackets(stripped))
     issues.extend(_check_let_in(stripped))
     issues.extend(_check_trailing_comma(stripped))
+    issues.extend(_check_generated_expression_grammar(m_text, stripped))
     return issues
 
 
