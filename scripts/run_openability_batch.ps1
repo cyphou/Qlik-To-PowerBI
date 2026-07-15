@@ -3,6 +3,7 @@ param(
     [string]$OutputRoot = "c:\QlikToPowerBI\migrated_output_batch_openability",
     [switch]$Recursive,
     [switch]$SkipExtraction,
+    [switch]$StrictMode,
     [switch]$FailOnNonOpenable
 )
 
@@ -61,6 +62,10 @@ foreach ($app in $apps) {
         $args += "--skip-extraction"
     }
 
+    if ($StrictMode) {
+        $args += "--ensure-open-strict"
+    }
+
     $rawLines = python @args
     $raw = [string]::Join("`n", $rawLines)
     $obj = Get-JsonFromRawOutput -Raw $raw
@@ -86,6 +91,7 @@ foreach ($app in $apps) {
     $taxonomyInitial = $ensure.root_cause_taxonomy.initial
     $taxonomyFinal = $ensure.root_cause_taxonomy.final
     $autohealMetrics = $ensure.autoheal_metrics
+    $strictViolation = $ensure.strict_violation
 
     $initialChecksSummary = ""
     if ($taxonomyInitial -and $taxonomyInitial.by_check) {
@@ -124,6 +130,8 @@ foreach ($app in $apps) {
         final_blocking_by_check = $finalChecksSummary
         autoheal_action_count = [int]$autohealMetrics.action_count
         autoheal_by_artifact = $autohealArtifactSummary
+        strict_violation = [bool]($null -ne $strictViolation)
+        strict_reason = if ($strictViolation) { [string]$strictViolation.reason } else { "" }
         error_message = ""
     }
 }

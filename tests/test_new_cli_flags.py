@@ -258,6 +258,12 @@ class TestNewCLIFlags(unittest.TestCase):
     def test_no_ensure_open_flag(self):
         self._assert_flag("--no-ensure-open")
 
+    def test_ensure_open_strict_flag(self):
+        self._assert_flag("--ensure-open-strict")
+
+    def test_no_ensure_open_strict_flag(self):
+        self._assert_flag("--no-ensure-open-strict")
+
 
 if __name__ == "__main__":
     unittest.main()

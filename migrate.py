@@ -1930,6 +1930,22 @@ def main():
     parser.set_defaults(ensure_open=True)
 
     parser.add_argument(
+        '--ensure-open-strict',
+        dest='ensure_open_strict',
+        action='store_true',
+        help='Strict regulated mode: fail if safety fallback modifies critical objects'
+    )
+
+    parser.add_argument(
+        '--no-ensure-open-strict',
+        dest='ensure_open_strict',
+        action='store_false',
+        help='Disable strict regulated mode for ensure-open behavior'
+    )
+
+    parser.set_defaults(ensure_open_strict=False)
+
+    parser.add_argument(
         '--verify-open',
         action='store_true',
         default=False,
@@ -3514,6 +3530,7 @@ def main():
             guard_result = ensure_openable(
                 project_dir,
                 max_autoheal_iterations=max(1, int(getattr(args, 'autoheal_iterations', 3) or 3)),
+                strict_mode=bool(getattr(args, 'ensure_open_strict', False)),
             )
             results['ensure_open_result'] = guard_result
             results['ensure_open'] = bool(guard_result.get('openable'))
@@ -3526,16 +3543,22 @@ def main():
                     f"  ✓ Openability guard: {state} "
                     f"(stage={stage}, blocking={final.get('blocking_count', 0)}, warnings={final.get('warning_count', 0)})"
                 )
+                if guard_result.get('strict_violation'):
+                    reason = (guard_result.get('strict_violation') or {}).get('reason', 'strict_policy')
+                    print(f"    ✗ Strict mode blocked promotion: {reason}")
                 for issue in (final.get('blocking_issues') or [])[:3]:
                     print(f"    ✗ {issue}")
 
             if not guard_result.get('openable'):
                 logger.error("Openability guard failed: project still not openable in Desktop")
                 if json_mode:
+                    message = 'Openability guard failed: Desktop openability not guaranteed.'
+                    if guard_result.get('strict_violation'):
+                        message = 'Openability guard failed in strict mode: safety fallback touched critical objects.'
                     print(json.dumps({
                         'status': 'error',
                         'input': args.qlik_file,
-                        'message': 'Openability guard failed: Desktop openability not guaranteed.',
+                        'message': message,
                         'ensure_open': guard_result,
                     }, indent=2, ensure_ascii=False))
                 return ExitCode.GENERATION_FAILED

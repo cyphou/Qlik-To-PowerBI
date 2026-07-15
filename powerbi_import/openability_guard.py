@@ -44,12 +44,14 @@ _SAFE_M_QUERY = [
 ]
 
 
-def ensure_openable(project_dir: str, max_autoheal_iterations: int = 3) -> Dict:
+def ensure_openable(project_dir: str, max_autoheal_iterations: int = 3, strict_mode: bool = False) -> Dict:
     """Try hard to produce an openable project and return diagnostics."""
     initial = check_openability(project_dir)
     initial_dict = initial.to_dict()
     result: Dict = {
         "project_dir": project_dir,
+        "strict_mode": bool(strict_mode),
+        "strict_violation": None,
         "stage": "initial",
         "openable": initial.openable,
         "initial": initial_dict,
@@ -97,6 +99,13 @@ def ensure_openable(project_dir: str, max_autoheal_iterations: int = 3) -> Dict:
     result["openable"] = after_fallback.openable
     result["stage_trace"].append(_stage_entry("safety_fallback", after_fallback_dict))
     result["root_cause_taxonomy"]["final"] = _build_root_cause_taxonomy(after_fallback_dict)
+
+    strict_violation = _evaluate_strict_violation(result)
+    if strict_violation is not None:
+        result["strict_violation"] = strict_violation
+        result["openable"] = False
+        result["stage"] = "strict_block"
+        result["stage_trace"].append(_strict_stage_entry(after_fallback_dict, strict_violation))
     return result
 
 
@@ -107,6 +116,13 @@ def _stage_entry(stage_name: str, openability: Dict) -> Dict:
         "blocking_count": int(openability.get("blocking_count", 0) or 0),
         "warning_count": int(openability.get("warning_count", 0) or 0),
     }
+
+
+def _strict_stage_entry(openability: Dict, violation: Dict) -> Dict:
+    entry = _stage_entry("strict_block", openability)
+    entry["openable"] = False
+    entry["policy_violation"] = str(violation.get("reason", "strict_policy"))
+    return entry
 
 
 def _build_root_cause_taxonomy(openability: Dict) -> Dict:
@@ -181,6 +197,28 @@ def _build_autoheal_metrics(autoheal_report: Dict) -> Dict:
         "by_artifact": by_artifact,
         "by_confidence": by_confidence,
         "by_source": by_source,
+    }
+
+
+def _evaluate_strict_violation(result: Dict) -> Dict | None:
+    if not bool(result.get("strict_mode")):
+        return None
+
+    if result.get("stage") != "safety_fallback":
+        return None
+
+    safety = result.get("safety_fallback") or {}
+    measure_fixes = int(safety.get("measure_fixes", 0) or 0)
+    partition_fixes = int(safety.get("partition_fixes", 0) or 0)
+    if measure_fixes <= 0 and partition_fixes <= 0:
+        return None
+
+    return {
+        "reason": "safety_fallback_modified_critical_objects",
+        "details": {
+            "measure_fixes": measure_fixes,
+            "partition_fixes": partition_fixes,
+        },
     }
 
 
