@@ -33,6 +33,41 @@ jobs:
             -Recursive `
             -FailOnNonOpenable
 
+      - name: Run Desktop runtime openability gate
+        shell: pwsh
+        run: |
+          $runtimeDir = "./artifacts/ci_openability/runtime"
+          $fixtureDir = "./artifacts/ci_openability/runtime_fixture"
+
+          New-Item -ItemType Directory -Path $runtimeDir -Force | Out-Null
+          New-Item -ItemType Directory -Path $fixtureDir -Force | Out-Null
+
+          $desktop = Get-AppxPackage -Name Microsoft.MicrosoftPowerBIDesktop -ErrorAction SilentlyContinue |
+            Sort-Object Version -Descending |
+            Select-Object -First 1
+          if (-not $desktop) {
+            throw "Power BI Desktop Store App is not available on this runner. Runtime openability gate requires a Windows runner with Power BI Desktop installed."
+          }
+
+          $fixturePbip = python tools/testing/generate_runtime_openability_fixture.py `
+            --output-dir "$fixtureDir" `
+            --report-name "runtime_fixture"
+
+          if (-not $fixturePbip) {
+            throw "Runtime fixture generator did not return a PBIP path."
+          }
+
+          $fixturePbip = $fixturePbip.Trim()
+          if (-not (Test-Path $fixturePbip -PathType Leaf)) {
+            throw "Runtime fixture PBIP not found: $fixturePbip"
+          }
+
+          $runtimeReport = Join-Path $runtimeDir "desktop_openability_runtime_fixture.json"
+          python tools/testing/desktop_openability.py `
+            "$fixturePbip" `
+            --timeout 90 `
+            --report "$runtimeReport"
+
       - name: Upload openability reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -41,3 +76,4 @@ jobs:
           path: |
             artifacts/ci_openability/openability_batch_report.json
             artifacts/ci_openability/openability_batch_report.csv
+            artifacts/ci_openability/runtime/*.json
