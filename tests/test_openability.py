@@ -144,6 +144,36 @@ class TestCheckOpenability(unittest.TestCase):
                 for issue in report.blocking_issues
             ))
 
+    def test_relationship_invalid_column_reference_blocks_openability(self):
+        with tempfile.TemporaryDirectory() as td:
+            proj = _write_min_project(td, "let\n    Source = #table({}, {})\nin\n    Source")
+            app = os.path.basename(proj)
+            definition = os.path.join(proj, f"{app}.SemanticModel", "definition")
+
+            with open(os.path.join(definition, "relationships.tmdl"), "w", encoding="utf-8") as f:
+                f.write(
+                    "relationship R1\n"
+                    "\tfromColumn: InvalidReference\n"
+                    "\ttoColumn: B.ID\n"
+                    "\tfromCardinality: one\n"
+                    "\ttoCardinality: one\n"
+                    "\tcrossFilteringBehavior: bothDirections\n"
+                )
+            with open(os.path.join(definition, "endpoints.tmdl"), "w", encoding="utf-8") as f:
+                f.write(
+                    "table A\n"
+                    "\tcolumn ID\n"
+                    "table B\n"
+                    "\tcolumn ID\n"
+                )
+
+            report = check_openability(proj)
+            self.assertFalse(report.openable)
+            self.assertTrue(any(
+                "relationships" in issue and "invalid column reference" in issue
+                for issue in report.blocking_issues
+            ))
+
     def test_measure_column_name_collision_blocks_openability(self):
         with tempfile.TemporaryDirectory() as td:
             proj = _write_min_project(td, "let\n    Source = #table({}, {})\nin\n    Source")
@@ -159,6 +189,28 @@ class TestCheckOpenability(unittest.TestCase):
             report = check_openability(proj)
             self.assertFalse(report.openable)
             self.assertTrue(any("model_names" in issue for issue in report.blocking_issues))
+
+    def test_fenced_shared_expression_blocks_openability(self):
+        with tempfile.TemporaryDirectory() as td:
+            proj = _write_min_project(td, "let\n    Source = #table({}, {})\nin\n    Source")
+            app = os.path.basename(proj)
+            path = os.path.join(proj, f"{app}.SemanticModel", "definition", "expressions.tmdl")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(
+                    "expression Sales =\n"
+                    "\t\t```\n"
+                    "\t\tlet\n"
+                    "\t\t    Source = Csv.Document(File.Contents(\"C:\\\\Data\\\\sales.csv\"))\n"
+                    "\t\tin\n"
+                    "\t\t    Source\n"
+                    "\t\t```\n"
+                )
+            report = check_openability(proj)
+            self.assertFalse(report.openable)
+            self.assertTrue(any(
+                "shared_expressions" in issue and "fenced code block markers" in issue
+                for issue in report.blocking_issues
+            ))
 
 
 if __name__ == "__main__":

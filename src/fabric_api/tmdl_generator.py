@@ -1154,15 +1154,17 @@ class TMDLGenerator:
         lines: List[str] = []
         for expr_def in expressions:
             expr_name = expr_def.get("name", "Expression")
-            expr_text = expr_def.get("expression", "")
+            expr_text = str(expr_def.get("expression", "") or "")
             tag = expr_def.get("lineageTag", _new_guid())
             query_group = expr_def.get("queryGroup", "")
 
-            lines.append(f"expression {_quote_tmdl(expr_name)} =")
-            lines.append("\t\t```")
-            for expr_line in expr_text.split("\n"):
-                lines.append(f"\t\t{expr_line}")
-            lines.append("\t\t```")
+            expr_lines = expr_text.splitlines() or [""]
+            if len(expr_lines) == 1 and "\n" not in expr_text and expr_lines[0].strip():
+                lines.append(f"expression {_quote_tmdl(expr_name)} = {expr_lines[0]}")
+            else:
+                lines.append(f"expression {_quote_tmdl(expr_name)} =")
+                for expr_line in expr_lines:
+                    lines.append(f"\t\t{expr_line}")
             lines.append(f"\tlineageTag: {tag}")
             if query_group:
                 lines.append(f"\tqueryGroup: {_quote_tmdl(query_group)}")

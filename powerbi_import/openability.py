@@ -193,6 +193,48 @@ def _check_power_query(project_dir) -> CheckResult:
     return CheckResult("power_query", not issues, "error", issues)
 
 
+def _check_shared_expressions(project_dir) -> CheckResult:
+    """Validate expressions.tmdl blocks used as shared M expressions."""
+    issues = []
+    expression_files = glob.glob(
+        os.path.join(project_dir, "**", "expressions.tmdl"), recursive=True
+    )
+    for expr_file in expression_files:
+        try:
+            lines = _read(expr_file).splitlines()
+        except OSError:
+            continue
+
+        current_expression = ""
+        flagged_expressions = set()
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("expression "):
+                current_expression = _tmdl_declaration_name(stripped, "expression")
+                if "```" in stripped:
+                    key = current_expression or "unknown"
+                    if key in flagged_expressions:
+                        continue
+                    flagged_expressions.add(key)
+                    issues.append(
+                        f"{os.path.relpath(expr_file, project_dir)} :: expression "
+                        f"'{current_expression}' uses fenced code block markers (```), "
+                        "which are invalid in TMDL expression bodies"
+                    )
+            elif stripped == "```":
+                key = current_expression or "unknown"
+                if key in flagged_expressions:
+                    continue
+                flagged_expressions.add(key)
+                issues.append(
+                    f"{os.path.relpath(expr_file, project_dir)} :: expression "
+                    f"'{current_expression or 'unknown'}' uses fenced code block markers "
+                    "(```), which are invalid in TMDL expression bodies"
+                )
+
+    return CheckResult("shared_expressions", not issues, "error", issues)
+
+
 def _check_dax(project_dir) -> CheckResult:
     issues = []
     for tmdl in _tmdl_files(project_dir):
@@ -252,8 +294,15 @@ def _check_relationships(project_dir) -> CheckResult:
                             f"'{relationship}': one-to-one relationships require bothDirections"
                         )
                     for endpoint in ("fromColumn", "toColumn"):
-                        reference = _parse_tmdl_column_reference(properties.get(endpoint, ""))
-                        if reference and (
+                        raw_reference = properties.get(endpoint, "")
+                        reference = _parse_tmdl_column_reference(raw_reference)
+                        if raw_reference and not reference:
+                            issues.append(
+                                f"{os.path.relpath(tmdl, project_dir)} :: relationship "
+                                f"'{relationship}': {endpoint} has invalid column reference "
+                                f"'{raw_reference}'"
+                            )
+                        elif reference and (
                             reference[0].casefold(), reference[1].casefold()
                         ) not in declared_columns:
                             issues.append(
@@ -330,6 +379,7 @@ def check_openability(project_dir: str) -> OpenabilityReport:
         _check_json_parse(project_dir),
         _check_tmdl_present(project_dir),
         _check_power_query(project_dir),
+        _check_shared_expressions(project_dir),
         _check_dax(project_dir),
         _check_relationships(project_dir),
         _check_model_names(project_dir),

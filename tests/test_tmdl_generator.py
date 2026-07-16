@@ -347,6 +347,7 @@ def test_expressions():
         content = expr_file.read_text("utf-8")
         assert "ServerParam" in content
         assert "abc-123" in content
+        assert "```" not in content
 
 
 
