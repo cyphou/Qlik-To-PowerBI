@@ -308,7 +308,7 @@ def generate_comparison_report(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Migration Comparison Report</title>
+<title>Migration Comparison and Lineage Report</title>
 <style>{_CSS}</style>
 """]
 
@@ -326,7 +326,7 @@ def generate_comparison_report(
     parts.append("""
 <body>
 <header>
-<h1>Qlik → Power BI — Side-by-Side Comparison</h1>
+<h1>Qlik → Power BI — Comparison and Lineage</h1>
 <p>Extract: """ + _esc(extract_dir) + """ | Project: """ + _esc(pbip_dir) + """</p>
 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
     <span class="theme-icon">&#9790;</span>
@@ -437,7 +437,7 @@ def generate_comparison_report(
                 
                 # Generate and add lineage section
                 if lineage.node_count > 0:
-                    lineage_html = generate_lineage_embed_html(lineage, "End-to-End Data Lineage")
+                    lineage_html = generate_lineage_embed_html(lineage, "End-to-End Lineage")
                     parts.append(lineage_html)
         except Exception as e:
             # Silently skip lineage on error
@@ -493,7 +493,7 @@ def generate_comparison_report(
             if data_prep_lineage and data_prep_lineage.node_count > 0:
                 data_prep_html = generate_data_prep_lineage_html(
                     data_prep_lineage,
-                    title='Data Preparation Lineage'
+                    title='Power Query Data Preparation Lineage'
                 )
                 parts.append(data_prep_html)
         except Exception as e:
