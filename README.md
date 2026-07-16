@@ -22,6 +22,33 @@ flowchart LR
   E --> F[Comparison & Lineage\nHTML reports]
 ```
 
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph Qlik
+    A[Qlik App\n.qvf / .json / .qvw]
+    B[Extraction Layer\nqlik_export/]
+  end
+
+  subgraph PowerBI
+    C[Conversion Layer\nDAX + M + TMDL]
+    D[Validation Layer\nDesktop openability + QA]
+    E[Generated Project\n.pbip + Report + SemanticModel]
+  end
+
+  subgraph Review
+    F[Comparison Report]
+    G[Data Prep Lineage]
+    H[End-to-End Lineage]
+  end
+
+  A --> B --> C --> D --> E
+  E --> F
+  E --> G
+  E --> H
+```
+
 ## At A Glance
 
 - 🧭 Input: `.qvf`, `.json`, or `.qvw` with converted siblings
@@ -29,6 +56,24 @@ flowchart LR
 - 🔁 Workflow: extraction → conversion → validation → Desktop openability checks
 - 🧪 Quality gates: schema validation, DAX checks, M checks, relationship checks, and post-generation validation
 - 📚 Parity-friendly docs: clear CLI entry points, report artifacts, and lineage sections
+
+## Who It's For
+
+- 🧪 Migration engineers who need reproducible conversion and validation runs
+- 📊 BI developers who want the generated project to stay readable in Power BI Desktop
+- 🧭 Reviewers who need comparison, lineage, and openability evidence in one place
+- ⚙️ Automation users who want a CLI-first workflow for batch runs and CI
+
+## Input / Output
+
+| Stage | What It Means | Artifact |
+|---|---|---|
+| Input | Qlik source app or export | `.qvf`, `.json`, `.qvw` |
+| Extraction | Parse Qlik objects and script | `qlik_export/` JSON files |
+| Conversion | Build model and report layers | DAX, Power Query M, TMDL |
+| Validation | Check structure and openability | QA and Desktop gate results |
+| Output | Power BI project package | `.pbip`, `.SemanticModel`, `.Report` |
+| Review | Inspect what changed and why | Comparison and lineage HTML reports |
 
 ## Why This Project
 
